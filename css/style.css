@@ -1204,6 +1204,11 @@ footer {
     padding: 20px;
   }
 
+  .layer-desc {
+    font-size: 10px;
+    line-height: 1.65;
+  }
+
   .agent-cta-row {
     flex-direction: column;
     align-items: center;
