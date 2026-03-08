@@ -1217,7 +1217,8 @@ footer {
 
   .edu-start-desc {
     font-size: 10px;
-    line-height: 1.5;
+    line-height: 1.65;
+    max-width: 100%;
   }
 
   .footer-top {
