@@ -1140,6 +1140,11 @@ footer {
     padding: 48px var(--gutter);
   }
 
+  .hero {
+    padding-top: calc(var(--nav-h) + 32px);
+    padding-bottom: 32px;
+  }
+
   .hero-inner {
     grid-template-columns: 1fr;
     gap: 32px;
@@ -1148,6 +1153,11 @@ footer {
   .hero-ascii-wrap {
     min-height: auto;
     justify-content: center;
+  }
+
+  .hero-logo-container {
+    width: clamp(240px, 60vw, 320px);
+    height: clamp(240px, 60vw, 320px);
   }
 
   .hero-content {
