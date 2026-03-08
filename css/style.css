@@ -1156,16 +1156,16 @@ footer {
 
   .hero-trust {
     flex-wrap: wrap;
-    gap: 8px;
-    font-size: 10px;
-    letter-spacing: 0.04em;
+    gap: 6px;
+    font-size: 9px;
+    letter-spacing: 0;
     justify-content: center;
   }
 
   .agent-trust {
-    gap: 8px;
-    font-size: 10px;
-    letter-spacing: 0.04em;
+    gap: 6px;
+    font-size: 9px;
+    letter-spacing: 0;
   }
 
   .agent-title {
