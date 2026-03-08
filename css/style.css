@@ -1218,10 +1218,10 @@ footer {
     align-items: center;
     justify-content: center;
     gap: 32px;
-    z-index: 999;
+    z-index: 1002;
     font-size: 16px;
   }
-  .nav-toggle { display: block; z-index: 1001; }
+  .nav-toggle { display: block; z-index: 1003; }
 
   .platform-sub {
     margin-bottom: 32px;
