@@ -1125,8 +1125,9 @@ footer {
   }
 
   .hero {
+    min-height: auto;
     padding: 48px var(--gutter);
-    padding-top: calc(var(--nav-h) + 8px);
+    padding-top: calc(var(--nav-h) + 16px);
   }
 
   .hero-inner {
