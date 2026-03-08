@@ -212,16 +212,12 @@ function closeNav() {
   navLinks.classList.remove('open');
   navToggleBtn.textContent = '≡';
   navToggleBtn.setAttribute('aria-expanded', 'false');
-  navToggleBtn.setAttribute('aria-label', 'Open menu');
-  document.body.style.overflow = '';
 }
 
 function openNav() {
   navLinks.classList.add('open');
   navToggleBtn.textContent = '✕';
   navToggleBtn.setAttribute('aria-expanded', 'true');
-  navToggleBtn.setAttribute('aria-label', 'Close menu');
-  document.body.style.overflow = 'hidden';
 }
 
 if (navToggleBtn && navLinks) {
