@@ -1213,7 +1213,10 @@ footer {
     display: flex;
     flex-direction: column;
     position: fixed;
-    inset: 0;
+    top: var(--nav-h);
+    left: 0;
+    right: 0;
+    bottom: 0;
     background: var(--bg);
     align-items: center;
     justify-content: center;
