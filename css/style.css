@@ -881,10 +881,6 @@ section {
 
 /* ─── SUBSCRIBE ───────────────────────────────────── */
 
-.subscribe {
-  padding: 80px var(--gutter);
-}
-
 .subscribe-box {
   max-width: var(--max-w);
   margin: 0 auto;
@@ -930,18 +926,6 @@ section {
   font-size: 13px;
   margin-bottom: 48px;
   line-height: 1.7;
-}
-
-.substack-embed {
-  display: block;
-  margin: 0 auto;
-  max-width: 480px;
-  width: 100%;
-  height: 320px;
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  background: transparent;
-  overflow: hidden;
 }
 
 .subscribe-form {
@@ -1332,11 +1316,6 @@ footer {
 
   .subscribe-note {
     margin-top: 12px;
-  }
-
-  .substack-embed {
-    max-width: 100%;
-    height: 280px;
   }
 
 }
