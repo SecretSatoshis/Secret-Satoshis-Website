@@ -207,12 +207,19 @@ function addTyping(chatBody) {
 /* ═══ NAV TOGGLE ═══ */
 const navToggleBtn = document.getElementById('navToggle');
 const navLinks = document.getElementById('navLinks');
+let scrollPosition = 0;
 
 function closeNav() {
   navLinks.classList.remove('open');
   navToggleBtn.textContent = '≡';
   navToggleBtn.setAttribute('aria-expanded', 'false');
   navToggleBtn.setAttribute('aria-label', 'Open menu');
+
+  // Re-enable body scroll
+  document.body.style.position = '';
+  document.body.style.top = '';
+  document.body.style.width = '';
+  window.scrollTo(0, scrollPosition);
 }
 
 function openNav() {
@@ -220,6 +227,12 @@ function openNav() {
   navToggleBtn.textContent = '✕';
   navToggleBtn.setAttribute('aria-expanded', 'true');
   navToggleBtn.setAttribute('aria-label', 'Close menu');
+
+  // Lock body scroll at current position
+  scrollPosition = window.pageYOffset;
+  document.body.style.position = 'fixed';
+  document.body.style.top = `-${scrollPosition}px`;
+  document.body.style.width = '100%';
 }
 
 if (navToggleBtn && navLinks) {
