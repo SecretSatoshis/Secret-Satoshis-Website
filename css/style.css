@@ -185,8 +185,8 @@ section {
   min-height: 100vh;
   display: flex;
   align-items: center;
-  padding-top: calc(var(--nav-h) + 60px);
-  padding-bottom: 60px;
+  padding: 80px var(--gutter);
+  padding-top: calc(var(--nav-h) + 16px);
   position: relative;
 }
 
@@ -1125,8 +1125,8 @@ footer {
   }
 
   .hero {
-    padding-top: calc(var(--nav-h) + 32px);
-    padding-bottom: 32px;
+    padding: 48px var(--gutter);
+    padding-top: calc(var(--nav-h) + 8px);
   }
 
   .hero-inner {
