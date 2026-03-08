@@ -1204,6 +1204,10 @@ footer {
     padding: 20px;
   }
 
+  .layer-title {
+    font-size: 15px;
+  }
+
   .layer-desc {
     font-size: 10px;
     line-height: 1.65;
