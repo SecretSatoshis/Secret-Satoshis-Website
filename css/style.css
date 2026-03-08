@@ -30,6 +30,8 @@ html {
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 body {
@@ -1154,7 +1156,30 @@ footer {
 
   .hero-trust {
     flex-wrap: wrap;
-    gap: 16px;
+    gap: 8px;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    justify-content: center;
+  }
+
+  .agent-trust {
+    gap: 8px;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+  }
+
+  .agent-title {
+    font-size: clamp(18px, 5vw, 24px);
+    line-height: 1.3;
+  }
+
+  /* Prevent horizontal overflow */
+  .container,
+  .chat-window,
+  .subscribe-box,
+  .genesis-border {
+    max-width: 100%;
+    overflow-x: hidden;
   }
 
   .nav-links { display: none; }
