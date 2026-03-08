@@ -1163,9 +1163,12 @@ footer {
   }
 
   .agent-trust {
-    gap: 6px;
+    gap: 12px 8px;
     font-size: 9px;
     letter-spacing: 0;
+    max-width: 280px;
+    margin-left: auto;
+    margin-right: auto;
   }
 
   .agent-title {
