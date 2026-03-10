@@ -1027,33 +1027,6 @@ footer {
 }
 .footer-links a:hover { color: var(--white); }
 
-.footer-genesis {
-  padding: 24px 0;
-  margin-bottom: 32px;
-}
-
-.genesis-border {
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--border);
-  letter-spacing: 2px;
-  overflow: hidden;
-  white-space: nowrap;
-  margin: 0;
-}
-
-.genesis-text {
-  padding: 20px 0;
-  font-family: var(--mono);
-  font-size: 12px;
-  line-height: 1.8;
-  color: var(--text-mute);
-}
-
-.genesis-text span {
-  color: var(--text-dim);
-}
-
 .footer-bottom {
   display: flex;
   justify-content: space-between;
@@ -1191,8 +1164,7 @@ footer {
   /* Prevent horizontal overflow */
   .container,
   .chat-window,
-  .subscribe-box,
-  .genesis-border {
+  .subscribe-box {
     max-width: 100%;
     overflow-x: hidden;
   }
