@@ -1005,6 +1005,13 @@ footer {
 }
 .footer-brand .accent { color: var(--accent); }
 
+.footer-tagline {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 8px;
+  font-style: italic;
+}
+
 .footer-col-title {
   font-size: 10px;
   font-weight: 700;
@@ -1036,12 +1043,6 @@ footer {
   font-size: 11px;
   color: var(--text-mute);
 }
-
-.footer-source {
-  color: var(--text-dim);
-}
-.footer-source a { color: var(--text-dim); border-bottom: 1px solid var(--border); }
-.footer-source a:hover { color: var(--accent); border-color: var(--accent); }
 
 /* ─── SCROLL ANIMATIONS ──────────────────────────── */
 
