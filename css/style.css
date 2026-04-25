@@ -164,16 +164,6 @@ section {
 
 .section-label .accent { color: var(--accent); }
 
-.section-typewriter::after {
-  content: '█';
-  color: var(--accent);
-  animation: blink 0.8s step-end infinite;
-}
-
-.section-typewriter.done::after {
-  display: none;
-}
-
 .container {
   max-width: var(--max-w);
   margin: 0 auto;
@@ -260,21 +250,6 @@ section {
 }
 
 .hero-title-label .accent { color: var(--accent); }
-
-.hero-typewriter::after {
-  content: '█';
-  color: var(--accent);
-  animation: blink 0.8s step-end infinite;
-}
-
-.hero-typewriter.done::after {
-  display: none;
-}
-
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
-}
 
 .hero-headline {
   font-family: var(--display);

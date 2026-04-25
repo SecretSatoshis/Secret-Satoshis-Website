@@ -1,8 +1,7 @@
 /* ═══ TYPEWRITER ═══ */
 document.addEventListener('DOMContentLoaded', () => {
-  // Start nav and hero typewriters
+  // Start nav typewriter
   setTimeout(typeNavLabel, 100);
-  setTimeout(typeHeroLabel, 300);
 
   /* ═══ CHAT ANIMATION ═══ */
   initChat();
@@ -84,29 +83,6 @@ function typeNavLabel() {
       el.textContent += text[i];
       i++;
       setTimeout(type, 80);
-    }
-  };
-  type();
-}
-
-function typeHeroLabel() {
-  const el = document.getElementById('heroTypewriter');
-  if (!el) return;
-  const text = 'Secret Satoshis';
-  if (prefersReducedMotion.matches) {
-    el.textContent = text;
-    el.classList.add('done');
-    return;
-  }
-  let i = 0;
-  const type = () => {
-    if (i < text.length) {
-      el.textContent += text[i];
-      i++;
-      setTimeout(type, 80); // Slower: 80ms per character
-    } else {
-      // Stop cursor after 21 blinks (21 × 800ms = 16,800ms)
-      setTimeout(() => el.classList.add('done'), 16800);
     }
   };
   type();
@@ -250,49 +226,6 @@ const dividerObs = new IntersectionObserver((entries) => {
 }, { threshold: 0, rootMargin: '0px 0px -80px 0px' });
 
 dividers.forEach(el => dividerObs.observe(el));
-
-/* ═══ SECTION TYPEWRITER ═══ */
-const sectionTypewriters = document.querySelectorAll('.section-typewriter');
-const typewriterObs = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      typewriterObs.unobserve(entry.target);
-      const el = entry.target;
-      const text = el.dataset.text;
-
-      // Check if element is inside a section with divider
-      const section = el.closest('.section-divider');
-      const hasDivider = section !== null;
-
-      // Divider animation takes 1000ms + 300ms buffer = 1300ms
-      const delay = hasDivider ? 1300 : 0;
-
-      if (prefersReducedMotion.matches) {
-        setTimeout(() => {
-          el.textContent = text;
-          el.classList.add('done');
-        }, delay);
-        return;
-      }
-
-      setTimeout(() => {
-        let i = 0;
-        const type = () => {
-          if (i < text.length) {
-            el.textContent += text[i];
-            i++;
-            setTimeout(type, 80); // Slower: 80ms per character
-          } else {
-            setTimeout(() => el.classList.add('done'), 1500);
-          }
-        };
-        type();
-      }, delay);
-    }
-  });
-}, { threshold: 0.3 });
-
-sectionTypewriters.forEach(el => typewriterObs.observe(el));
 
 /* ═══ PLATFORM SCROLL ACTIVATION ═══ */
 function initPlatformScroll() {
