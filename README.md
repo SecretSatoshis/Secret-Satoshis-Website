@@ -159,7 +159,7 @@ Smooth fade-in animations triggered by scroll position using IntersectionObserve
 ## External Integrations
 
 ### Links & Resources
-- **Newsletter:** [newsletter.secretsatoshis.com](https://www.newsletter.secretsatoshis.com/)
+- **Newsletter:** [newsletter.secretsatoshis.com](https://newsletter.secretsatoshis.com/)
 - **Agent 21 (ChatGPT):** [ChatGPT Agent 21](https://chatgpt.com/g/g-BZXtVdU6M-agent-21)
 - **GitHub:** [github.com/SecretSatoshis](https://github.com/SecretSatoshis)
 - **Twitter/X:** [@SecretSatoshis](https://x.com/SecretSatoshis)
@@ -168,7 +168,7 @@ Smooth fade-in animations triggered by scroll position using IntersectionObserve
 ### Newsletter Integration
 Email subscription form submits to Substack:
 ```html
-<form action="https://www.newsletter.secretsatoshis.com/subscribe" method="get">
+<form action="https://newsletter.secretsatoshis.com/subscribe" method="get">
 ```
 
 ---
@@ -183,7 +183,7 @@ See [LICENSE](LICENSE) file for details.
 
 ## Contact & Community
 
-- **Newsletter:** [Subscribe for updates](https://www.newsletter.secretsatoshis.com/subscribe)
+- **Newsletter:** [Subscribe for updates](https://newsletter.secretsatoshis.com/subscribe)
 - **Twitter/X:** [@SecretSatoshis](https://x.com/SecretSatoshis)
 - **GitHub:** [SecretSatoshis](https://github.com/SecretSatoshis)
 - **Agent 21:** [Chat on ChatGPT](https://chatgpt.com/g/g-BZXtVdU6M-agent-21)
