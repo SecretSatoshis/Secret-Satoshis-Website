@@ -30,34 +30,34 @@ function initChat() {
       chatBarStatus.classList.add('is-live');
     }
 
-    await pacedDelay(900);
+    await pacedDelay(250);
     await addParticipantReply(
       chatBody,
       'agent',
       'Hey—Agent 21 here. Online and ready to go.',
       true
     );
-    await pacedDelay(900);
+    await pacedDelay(200);
     await addParticipantReply(chatBody, 'trey', 'Hey, Agent 21.', false);
-    await pacedDelay(850);
+    await pacedDelay(200);
     await addParticipantReply(
       chatBody,
       'agent',
       'Hey, Trey. What are we discussing today?',
       true
     );
-    await pacedDelay(900);
+    await pacedDelay(200);
     await addParticipantReply(
       chatBody,
       'trey',
-      'Bitcoin’s latest move. I have a few thoughts on what happened.',
+      'Let’s talk through what happened last week in Bitcoin markets so I get back up to speed.',
       false
     );
-    await pacedDelay(850);
+    await pacedDelay(200);
     await addParticipantReply(
       chatBody,
       'agent',
-      'Sounds good. I’ve got the latest market data, news flow, and on-chain data ready. Wherever you want to take it.',
+      'Starting my review now.',
       true
     );
 
@@ -115,17 +115,13 @@ async function addStartupLine(container, text, tone = '') {
   line.textContent = text;
   container.appendChild(line);
   requestAnimationFrame(() => line.classList.add('show'));
-  await pacedDelay(750);
+  await pacedDelay(200);
 }
 
 async function addParticipantReply(chatBody, from, text, typewrite) {
   if (!prefersReducedMotion.matches) {
     const typingEl = addTyping(chatBody, from);
-    const millisecondsPerCharacter = from === 'trey' ? 34 : 24;
-    const typingDuration = Math.min(
-      3200,
-      Math.max(850, 500 + (text.length * millisecondsPerCharacter))
-    );
+    const typingDuration = 350;
     await delay(typingDuration);
     typingEl.remove();
   }
@@ -174,7 +170,7 @@ function addMessage(chatBody, from, text, typewrite) {
           i++;
           // Follow the text as it grows past the transcript's max-height.
           chatBody.scrollTop = chatBody.scrollHeight;
-          setTimeout(type, 24);
+          setTimeout(type, 10);
         } else {
           const announcement = document.createElement('span');
           announcement.className = 'visually-hidden';
