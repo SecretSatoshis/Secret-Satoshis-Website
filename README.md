@@ -49,10 +49,6 @@ Bitcoin-Secret-Satoshis/
 - Bitcoin orange (`#F7931A`) as the primary accent
 - GitHub Pages hosting through the custom domain in `CNAME`
 
-## Website Content and Links
-
-The website connects visitors to Secret Satoshis content and products. Secret Satoshis website destinations remain in the same browser tab, while external platforms open in a new tab.
-
 ## Local Development
 
 Serve the folder over HTTP so root-relative links and browser security behavior match production more closely:
@@ -68,5 +64,3 @@ The site uses matching cache-version query strings for `css/style.css` and `js/m
 ## License
 
 Licensed under the [GNU General Public License v3.0](LICENSE).
-
-Built by [Trey Brunson](https://treybrunson.com/).
