@@ -932,7 +932,7 @@ section {
   background: #060610;
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: clamp(40px, 6vw, 80px);
+  padding: clamp(30px, 4vw, 52px);
   text-align: center;
   position: relative;
   overflow: hidden;
@@ -950,8 +950,17 @@ section {
   white-space: nowrap;
 }
 
-.subscribe-box::before { margin-bottom: 40px; }
-.subscribe-box::after { margin-top: 40px; }
+.subscribe-box::before { margin-bottom: 26px; }
+.subscribe-box::after { margin-top: 26px; }
+
+.subscribe-title {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 17px;
+  line-height: 1.2;
+  color: var(--white);
+  margin: 0 0 18px;
+}
 
 .subscribe-form {
   display: flex;
@@ -1479,22 +1488,6 @@ footer {
   font-size: 17px;
   color: var(--white);
   margin: 0;
-}
-
-.rung-access {
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--text-mute);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 3px 10px;
-  white-space: nowrap;
-}
-.rung-access.is-open {
-  color: var(--accent);
-  border-color: rgba(247, 147, 26, 0.45);
 }
 
 .rung-desc {
