@@ -1462,7 +1462,6 @@ footer {
   border-radius: 50%;
   background: var(--bg-alt);
   border: 1px solid var(--border-ctl);
-  transform: translateX(-3px);
 }
 
 .rung-top {
@@ -1514,7 +1513,10 @@ footer {
 /* Nodes sit above the rail so the fill reads as passing behind them, and each
    lights as it is reached. The rail stops at the foot of the ladder — it never
    runs into the subscribe box; the box lights instead. */
-.ladder .platform-track { z-index: 0; }
+/* The 9px node is flush with the ladder's left edge, so the 3px rail is
+   inset by 3px to run through its centre. Keeps both inside .container,
+   which clips overflow-x on mobile and would shave the node's left side. */
+.ladder .platform-track { z-index: 0; left: 3px; }
 .ladder .rung { z-index: 1; }
 
 .rung::before {
