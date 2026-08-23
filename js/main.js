@@ -57,7 +57,7 @@ function initChat() {
     await addParticipantReply(
       chatBody,
       'agent',
-      'Starting my review now.',
+      'Sounds good. I’ve got the latest market data, news flow, and on-chain data ready. Starting my review now.',
       true
     );
 
