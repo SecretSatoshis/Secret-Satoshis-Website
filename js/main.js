@@ -275,20 +275,22 @@ const dividerObs = new IntersectionObserver((entries) => {
 
 dividers.forEach(el => dividerObs.observe(el));
 
-/* ═══ PLATFORM SCROLL ACTIVATION ═══ */
-function initPlatformScroll() {
-  const container = document.getElementById('platformLayers');
-  const trackFill = document.getElementById('trackFill');
+/* ═══ SCROLL-FILLED RAILS ═══ */
+/* Shared by the platform layers and the newsletter ladder. */
+function initScrollRail(containerId, fillId, onProgress) {
+  const container = document.getElementById(containerId);
+  const trackFill = document.getElementById(fillId);
   if (!container || !trackFill) return;
 
-  // Track fill follows scroll progress
   function updateTrack() {
     const rect = container.getBoundingClientRect();
     const viewH = window.innerHeight;
     const scrollStart = viewH * 0.6;
     const progress = Math.min(1, Math.max(0, (scrollStart - rect.top) / (rect.height)));
     trackFill.style.height = (progress * 100) + '%';
+    if (onProgress) onProgress(progress, rect.height * progress);
   }
+
   let ticking = false;
   function requestTrackUpdate() {
     if (ticking) return;
@@ -304,4 +306,164 @@ function initPlatformScroll() {
   updateTrack();
 }
 
-initPlatformScroll();
+initScrollRail('platformLayers', 'trackFill');
+
+/* The ladder lights each node as the fill passes it, then the subscribe box
+   once the rail is spent — so the rhythm resolves into the call to action. */
+initScrollRail('newsletterLadder', 'ladderFill', (progress, filledPx) => {
+  const ladder = document.getElementById('newsletterLadder');
+  if (!ladder) return;
+
+  ladder.querySelectorAll('.rung').forEach((rung) => {
+    rung.classList.toggle('is-lit', filledPx > 4 && rung.offsetTop <= filledPx + 8);
+  });
+
+  const box = document.querySelector('#newsletter .subscribe-box');
+  if (box) box.classList.toggle('is-lit', progress >= 0.995);
+});
+
+/* ═══ OUTLOOK TRACKER ═══ */
+/*
+ * The three case levels are published once a year in the Year Ahead Outlook and
+ * do not move until the next one, so they live here rather than being fetched.
+ * Update OUTLOOK when the January outlook is published — everything else in the
+ * tracker derives from these numbers.
+ *
+ * Only the daily close is fetched, from the Report Library's published CSV.
+ * If that request fails the tracker is never revealed and the section degrades
+ * to the ladder alone — a stale number is worse than no number on a page whose
+ * claim is that the data can be checked.
+ */
+const OUTLOOK = {
+  year: 2026,
+  bear: 70000,
+  base: 120000,
+  bull: 160000
+};
+
+const OHLC_URL =
+  'https://secretsatoshis.github.io/Bitcoin-Report-Library/csv/report_ohlc_summary.csv';
+
+document.addEventListener('DOMContentLoaded', initOutlookTracker);
+
+async function initOutlookTracker() {
+  const root = document.getElementById('outlookTracker');
+  if (!root) return;
+
+  let snapshot;
+  try {
+    snapshot = await fetchLatestClose();
+  } catch (err) {
+    return; // leave the tracker hidden
+  }
+  if (!snapshot) return;
+
+  const { close, date } = snapshot;
+  const { bear, base, bull } = OUTLOOK;
+
+  document.getElementById('outlookYear').textContent = String(OUTLOOK.year);
+  document.getElementById('outlookAsOf').textContent = 'as of ' + formatAsOf(date);
+
+  // Case ticks: bear anchors 0%, bull anchors 100%, base falls where it falls.
+  root.querySelectorAll('.outlook-tick').forEach((tick) => {
+    const value = OUTLOOK[tick.dataset.case];
+    tick.style.left = pctOfRange(value) + '%';
+    tick.querySelector('i span').textContent = formatUsd(value);
+  });
+
+  // Marker. Clamped into the dashed overflow zone rather than pinned at a level
+  // it has not reached.
+  const rawPct = pctOfRange(close);
+  const pct = Math.min(108.7, Math.max(-8.7, rawPct));
+  const marker = document.getElementById('outlookNow');
+  marker.style.left = pct + '%';
+  marker.classList.toggle('is-outside', close < bear || close > bull);
+  marker.classList.toggle('align-start', pct < 6);
+  marker.classList.toggle('align-end', pct > 94);
+
+  document.getElementById('outlookPrice').textContent =
+    close < bear ? '\u25C2 ' + formatUsd(close)
+    : close > bull ? formatUsd(close) + ' \u25B8'
+    : formatUsd(close);
+
+  document.getElementById('outlookRead').innerHTML = readingLine(close);
+  root.hidden = false;
+}
+
+async function fetchLatestClose() {
+  const res = await fetch(OHLC_URL, { cache: 'default' });
+  if (!res.ok) return null;
+  const text = await res.text();
+  const rows = text.trim().split('\n');
+  if (rows.length < 2) return null;
+
+  const header = rows[0].split(',');
+  const cells = rows[1].split(',');
+  const closeIdx = header.indexOf('Daily Close');
+  const dateIdx = header.indexOf('Report Date');
+  if (closeIdx === -1 || dateIdx === -1) return null;
+
+  const close = Number(cells[closeIdx]);
+  if (!Number.isFinite(close) || close <= 0) return null;
+  return { close, date: cells[dateIdx] };
+}
+
+/* Position on the bear→bull track, as a percentage. Uncapped; the caller clamps. */
+function pctOfRange(value) {
+  const { bear, bull } = OUTLOOK;
+  return ((value - bear) / (bull - bear)) * 100;
+}
+
+/*
+ * Always anchors on the base case first — that is the forecast — then the
+ * nearest other case. Outside the range the sentence says so plainly rather
+ * than reframing the target.
+ */
+function readingLine(close) {
+  const { bear, base, bull } = OUTLOOK;
+  const weeks = weeksLeftInYear();
+  const tail = ', with ' + weeks + ' week' + (weeks === 1 ? '' : 's') + ' left in the year.';
+  const lead = (text) => '<strong>' + text + '</strong>';
+
+  if (close < bear) {
+    return lead(relativeTo(close, bear, 'bear')) + ' — outside the published range' + tail;
+  }
+  if (close > bull) {
+    return lead(relativeTo(close, bull, 'bull')) + ' — outside the published range' + tail;
+  }
+  if (close < base) {
+    return lead(relativeTo(close, base, 'base')) + ', ' + relativeTo(close, bear, 'bear') + tail;
+  }
+  return lead(relativeTo(close, base, 'base')) + ', ' + relativeTo(close, bull, 'bull') + tail;
+}
+
+/*
+ * Reads "12% above the bear case", or "at the base case" when the gap rounds to
+ * nothing — which is precisely when a level is being tested, and when
+ * "0% above the base case" would read as a mistake.
+ */
+function relativeTo(close, level, name) {
+  const pct = Math.round(Math.abs(close - level) / level * 100);
+  if (pct === 0) return 'at the ' + name + ' case';
+  return pct + '% ' + (close < level ? 'below' : 'above') + ' the ' + name + ' case';
+}
+
+function weeksLeftInYear() {
+  const now = new Date();
+  const yearEnd = new Date(now.getFullYear(), 11, 31);
+  const days = Math.max(0, Math.ceil((yearEnd - now) / 86400000));
+  return Math.max(1, Math.round(days / 7));
+}
+
+function formatUsd(value) {
+  return '$' + Math.round(value).toLocaleString('en-US');
+}
+
+function formatAsOf(isoDate) {
+  const parts = String(isoDate).split('-');
+  if (parts.length !== 3) return isoDate;
+  const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  return new Intl.DateTimeFormat('en-US', {
+    day: 'numeric', month: 'short', year: 'numeric'
+  }).format(d);
+}

@@ -1312,3 +1312,235 @@ footer {
   }
 
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   NEWSLETTER — outlook tracker + cadence ladder
+   The rail reuses .platform-track / .platform-track-fill from the
+   platform section so both sections share one device.
+   ═══════════════════════════════════════════════════════════════ */
+
+.newsletter-inner .outlook,
+.newsletter-inner .ladder {
+  text-align: left;
+}
+
+/* ── outlook tracker ── */
+
+.outlook {
+  max-width: 820px;
+  margin: 0 auto 44px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 28px 30px 24px;
+}
+
+.outlook[hidden] { display: none; }
+
+.outlook-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-mute);
+  margin: 0 0 20px;
+}
+
+.outlook-asof::before {
+  content: '·';
+  color: var(--border-hi);
+  margin: 0 8px;
+}
+
+.outlook-track {
+  position: relative;
+  height: 2px;
+  background: var(--border-hi);
+  margin: 52px 9% 8px;
+}
+
+.outlook-pad {
+  position: absolute;
+  top: -1px;
+  height: 4px;
+  background: repeating-linear-gradient(90deg, var(--border) 0 3px, transparent 3px 6px);
+}
+.outlook-pad-l { left: -8.7%; width: 8.7%; }
+.outlook-pad-r { right: -8.7%; width: 8.7%; }
+
+.outlook-tick {
+  position: absolute;
+  top: -5px;
+  width: 1px;
+  height: 12px;
+  background: var(--border-ctl);
+}
+.outlook-tick i {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: -32px;
+  font-style: normal;
+  font-size: 10px;
+  color: var(--text-mute);
+  white-space: nowrap;
+  text-align: center;
+  line-height: 1.4;
+}
+.outlook-tick i b {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.outlook-now {
+  position: absolute;
+  top: -9px;
+  width: 2px;
+  height: 20px;
+  background: var(--accent);
+  transition: left 0.4s ease;
+}
+.outlook-now i {
+  position: absolute;
+  top: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
+}
+/* Out of the published range: muted, and the label hugs the container edge. */
+.outlook-now.is-outside { background: var(--text-mute); }
+.outlook-now.is-outside i { color: var(--text-mute); }
+.outlook-now.align-start i { left: 0; transform: none; }
+.outlook-now.align-end i { left: auto; right: 0; transform: none; }
+
+.outlook-read {
+  margin: 30px auto 0;
+  max-width: 70ch;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text-dim);
+  text-align: center;
+}
+.outlook-read strong { color: var(--text); font-weight: 500; }
+
+/* ── cadence ladder ── */
+
+.ladder {
+  position: relative;
+  max-width: 820px;
+  margin: 0 auto 34px;
+  padding-left: 24px;
+}
+
+.rung { position: relative; padding: 0 0 26px; }
+.rung:last-child { padding-bottom: 0; }
+
+.rung::before {
+  content: '';
+  position: absolute;
+  left: -24px;
+  top: 6px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--bg-alt);
+  border: 1px solid var(--border-ctl);
+  transform: translateX(-3px);
+}
+
+.rung-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 5px;
+}
+
+.rung-cad {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.rung-name {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--white);
+  margin: 0;
+}
+
+.rung-access {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-mute);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+.rung-access.is-open {
+  color: var(--accent);
+  border-color: rgba(247, 147, 26, 0.45);
+}
+
+.rung-desc {
+  margin: 0;
+  max-width: 64ch;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text-dim);
+}
+
+@media (max-width: 700px) {
+  .outlook { padding: 22px 18px 20px; }
+  .outlook-track { margin: 56px 14% 8px; }
+  .outlook-tick i { font-size: 9px; }
+  .outlook-read { font-size: 12px; margin-top: 26px; }
+  .rung-name { font-size: 15px; }
+  .rung-desc { font-size: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .outlook-now { transition: none; }
+}
+
+/* Nodes sit above the rail so the fill reads as passing behind them, and each
+   lights as it is reached. The rail stops at the foot of the ladder — it never
+   runs into the subscribe box; the box lights instead. */
+.ladder .platform-track { z-index: 0; }
+.ladder .rung { z-index: 1; }
+
+.rung::before {
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+.rung.is-lit::before {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+#newsletter .subscribe-box {
+  transition: border-color 0.45s ease, box-shadow 0.45s ease;
+}
+#newsletter .subscribe-box.is-lit {
+  border-color: var(--accent);
+  box-shadow: 0 0 24px rgba(247, 147, 26, 0.07), inset 0 0 40px rgba(247, 147, 26, 0.02);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rung::before,
+  #newsletter .subscribe-box { transition: none; }
+}

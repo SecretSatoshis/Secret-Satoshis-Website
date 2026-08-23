@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; form-action https://newsletter.secretsatoshis.com; base-uri 'self'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://secretsatoshis.github.io; form-action https://newsletter.secretsatoshis.com; base-uri 'self'; object-src 'none'">
 <title>Secret Satoshis — Bitcoin Intelligence You Can Verify</title>
 <meta name="description" content="AI-native Bitcoin market intelligence built on a decade inside Bitcoin markets, with original analysis, open data, interactive models, and Agent 21.">
 <meta name="author" content="Trey Brunson">
@@ -33,7 +33,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&amp;family=Syne:wght@400;600;700;800&amp;display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=9">
+<link rel="stylesheet" href="css/style.css?v=10">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -261,10 +261,68 @@
 <section class="newsletter section-divider" id="newsletter">
   <div class="container newsletter-inner">
     <p class="section-label"><span class="accent">//</span> Secret Satoshis Newsletter</p>
-    <h2 class="newsletter-title">Follow our Bitcoin thesis as the evidence changes.</h2>
+    <h2 class="newsletter-title">One price forecast a year, tracked in public.</h2>
     <p class="newsletter-sub">
-      Recurring Bitcoin market intelligence connecting current conditions, original analysis, open data, and the long-term investment case.
+      Every piece answers the same question at a different zoom: where does this leave the outlook?
     </p>
+
+    <!-- Outlook tracker. Case levels and marker are written by initOutlookTracker();
+         the block stays hidden if the close cannot be fetched. -->
+    <div class="outlook" id="outlookTracker" hidden>
+      <p class="outlook-label">
+        <span class="accent">//</span> <span id="outlookYear"></span> Price Outlook
+        <span class="outlook-asof" id="outlookAsOf"></span>
+      </p>
+      <div class="outlook-track" aria-hidden="true">
+        <span class="outlook-pad outlook-pad-l"></span>
+        <span class="outlook-pad outlook-pad-r"></span>
+        <span class="outlook-tick" data-case="bear"><i><b>Bear</b><span></span></i></span>
+        <span class="outlook-tick" data-case="base"><i><b>Base</b><span></span></i></span>
+        <span class="outlook-tick" data-case="bull"><i><b>Bull</b><span></span></i></span>
+        <span class="outlook-now" id="outlookNow"><i id="outlookPrice"></i></span>
+      </div>
+      <p class="outlook-read" id="outlookRead"></p>
+    </div>
+
+    <div class="ladder" id="newsletterLadder">
+      <div class="platform-track" aria-hidden="true"><div class="platform-track-fill" id="ladderFill"></div></div>
+
+      <div class="rung">
+        <div class="rung-top">
+          <span class="rung-cad">Daily</span>
+          <h3 class="rung-name">Dashboard &amp; X</h3>
+          <span class="rung-access is-open">Open</span>
+        </div>
+        <p class="rung-desc">The outlook chart above and every metric behind it, refreshed daily. Plus a curated feed of the news that matters. Self-serve — you come to it.</p>
+      </div>
+
+      <div class="rung">
+        <div class="rung-top">
+          <span class="rung-cad">Weekly</span>
+          <h3 class="rung-name">Weekly Bitcoin Recap</h3>
+          <span class="rung-access is-open">Open</span>
+        </div>
+        <p class="rung-desc">Where the week moved us against the bull, base and bear cases. The news that mattered, and whether it changes anything. Two or three minutes.</p>
+      </div>
+
+      <div class="rung">
+        <div class="rung-top">
+          <span class="rung-cad">Quarterly</span>
+          <h3 class="rung-name">Bitcoin Strategy Report</h3>
+          <span class="rung-access">Subscribers</span>
+        </div>
+        <p class="rung-desc">The scorecard against the published outlook, and how the reference strategy performed against cash and the broader market.</p>
+      </div>
+
+      <div class="rung">
+        <div class="rung-top">
+          <span class="rung-cad">Yearly</span>
+          <h3 class="rung-name">Review &amp; Outlook</h3>
+          <span class="rung-access">Subscribers</span>
+        </div>
+        <p class="rung-desc">December scores the forecast. January sets the next one, with the levels every other piece will track against for the following year.</p>
+      </div>
+    </div>
 
     <div class="subscribe-box">
       <form class="subscribe-form" action="https://newsletter.secretsatoshis.com/subscribe" method="get" target="_blank" rel="noopener noreferrer">
@@ -273,7 +331,7 @@
                autocomplete="email" placeholder="satoshi@email.com" required>
         <button type="submit" class="subscribe-btn">Subscribe to Secret Satoshis</button>
       </form>
-      <p class="subscribe-note">Free. Unsubscribe anytime.</p>
+      <p class="subscribe-note">Free. The weekly is open to anyone; the reports need an email.</p>
     </div>
   </div>
 </section>
@@ -321,7 +379,7 @@
   </div>
 </footer>
 
-<script src="js/main.js?v=9"></script>
+<script src="js/main.js?v=10"></script>
 
 </body>
 </html>
