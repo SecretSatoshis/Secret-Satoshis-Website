@@ -151,6 +151,81 @@
   </div>
 </section>
 
+<!-- ═══ NEWSLETTER ═══ -->
+<section class="newsletter section-divider" id="newsletter">
+  <div class="container newsletter-inner">
+    <p class="section-label"><span class="accent">//</span> Secret Satoshis Newsletter</p>
+    <h2 class="newsletter-title">One price forecast a year, tracked in public.</h2>
+    <p class="newsletter-sub">
+      Every piece answers the same question at a different zoom: where does this leave the outlook?
+    </p>
+
+    <!-- Outlook tracker. Case levels and marker are written by initOutlookTracker();
+         the block stays hidden if the close cannot be fetched. -->
+    <div class="outlook" id="outlookTracker" hidden>
+      <p class="outlook-label">
+        <span class="accent">//</span> <span id="outlookYear"></span> Price Outlook
+        <span class="outlook-asof" id="outlookAsOf"></span>
+      </p>
+      <div class="outlook-track" aria-hidden="true">
+        <span class="outlook-pad outlook-pad-l"></span>
+        <span class="outlook-pad outlook-pad-r"></span>
+        <span class="outlook-tick" data-case="bear"><i><b>Bear</b><span></span></i></span>
+        <span class="outlook-tick" data-case="base"><i><b>Base</b><span></span></i></span>
+        <span class="outlook-tick" data-case="bull"><i><b>Bull</b><span></span></i></span>
+        <span class="outlook-now" id="outlookNow"><i id="outlookPrice"></i></span>
+      </div>
+      <p class="outlook-read" id="outlookRead"></p>
+    </div>
+
+    <div class="ladder" id="newsletterLadder">
+      <div class="platform-track" aria-hidden="true"><div class="platform-track-fill" id="ladderFill"></div></div>
+
+      <div class="rung">
+        <div class="rung-top">
+          <span class="rung-cad">Daily</span>
+          <h3 class="rung-name">Market Dashboard and X Feed</h3>
+        </div>
+        <p class="rung-desc">The core market data you need to stay current with the Bitcoin market, plus a curated feed of the daily news events that move it.</p>
+      </div>
+
+      <div class="rung">
+        <div class="rung-top">
+          <span class="rung-cad">Weekly</span>
+          <h3 class="rung-name">Weekly Bitcoin Recap</h3>
+        </div>
+        <p class="rung-desc">The week&#39;s Bitcoin news and market data, highlighting what actually mattered and what it means for our price outlook.</p>
+      </div>
+
+      <div class="rung">
+        <div class="rung-top">
+          <span class="rung-cad">Quarterly</span>
+          <h3 class="rung-name">Bitcoin Strategy Report</h3>
+        </div>
+        <p class="rung-desc">Where price stands against our bear, base and bull cases, and whether our Bitcoin investment strategy beat or lagged the broader market.</p>
+      </div>
+
+      <div class="rung">
+        <div class="rung-top">
+          <span class="rung-cad">Yearly</span>
+          <h3 class="rung-name">Review &amp; Outlook</h3>
+        </div>
+        <p class="rung-desc">The year reviewed against the cases we published: what held, what did not, and which assumptions need resetting. Then next year&#39;s forecast, adjusted for what the market actually did.</p>
+      </div>
+    </div>
+
+    <div class="subscribe-box">
+      <p class="subscribe-title">Secret Satoshis Newsletter</p>
+      <form class="subscribe-form" action="https://newsletter.secretsatoshis.com/subscribe" method="get" target="_blank" rel="noopener noreferrer">
+        <label for="subscribeEmail" class="visually-hidden">Email address</label>
+        <input type="email" id="subscribeEmail" name="email" class="subscribe-input"
+               autocomplete="email" placeholder="satoshi@email.com" required>
+        <button type="submit" class="subscribe-btn">Subscribe now</button>
+      </form>
+    </div>
+  </div>
+</section>
+
 <!-- ═══ PLATFORM ═══ -->
 <section class="platform section-divider" id="platform">
   <div class="container">
@@ -253,81 +328,6 @@
         </div>
         <span class="resource-link">Read the framework</span>
       </a>
-    </div>
-  </div>
-</section>
-
-<!-- ═══ NEWSLETTER ═══ -->
-<section class="newsletter section-divider" id="newsletter">
-  <div class="container newsletter-inner">
-    <p class="section-label"><span class="accent">//</span> Secret Satoshis Newsletter</p>
-    <h2 class="newsletter-title">One price forecast a year, tracked in public.</h2>
-    <p class="newsletter-sub">
-      Every piece answers the same question at a different zoom: where does this leave the outlook?
-    </p>
-
-    <!-- Outlook tracker. Case levels and marker are written by initOutlookTracker();
-         the block stays hidden if the close cannot be fetched. -->
-    <div class="outlook" id="outlookTracker" hidden>
-      <p class="outlook-label">
-        <span class="accent">//</span> <span id="outlookYear"></span> Price Outlook
-        <span class="outlook-asof" id="outlookAsOf"></span>
-      </p>
-      <div class="outlook-track" aria-hidden="true">
-        <span class="outlook-pad outlook-pad-l"></span>
-        <span class="outlook-pad outlook-pad-r"></span>
-        <span class="outlook-tick" data-case="bear"><i><b>Bear</b><span></span></i></span>
-        <span class="outlook-tick" data-case="base"><i><b>Base</b><span></span></i></span>
-        <span class="outlook-tick" data-case="bull"><i><b>Bull</b><span></span></i></span>
-        <span class="outlook-now" id="outlookNow"><i id="outlookPrice"></i></span>
-      </div>
-      <p class="outlook-read" id="outlookRead"></p>
-    </div>
-
-    <div class="ladder" id="newsletterLadder">
-      <div class="platform-track" aria-hidden="true"><div class="platform-track-fill" id="ladderFill"></div></div>
-
-      <div class="rung">
-        <div class="rung-top">
-          <span class="rung-cad">Daily</span>
-          <h3 class="rung-name">Market Dashboard and X Feed</h3>
-        </div>
-        <p class="rung-desc">The core market data you need to stay current with the Bitcoin market, plus a curated feed of the daily news events that move it.</p>
-      </div>
-
-      <div class="rung">
-        <div class="rung-top">
-          <span class="rung-cad">Weekly</span>
-          <h3 class="rung-name">Weekly Bitcoin Recap</h3>
-        </div>
-        <p class="rung-desc">The week&#39;s Bitcoin news and market data, highlighting what actually mattered and what it means for our price outlook.</p>
-      </div>
-
-      <div class="rung">
-        <div class="rung-top">
-          <span class="rung-cad">Quarterly</span>
-          <h3 class="rung-name">Bitcoin Strategy Report</h3>
-        </div>
-        <p class="rung-desc">Where price stands against our bear, base and bull cases, and whether our Bitcoin investment strategy beat or lagged the broader market.</p>
-      </div>
-
-      <div class="rung">
-        <div class="rung-top">
-          <span class="rung-cad">Yearly</span>
-          <h3 class="rung-name">Review &amp; Outlook</h3>
-        </div>
-        <p class="rung-desc">The year reviewed against the cases we published: what held, what did not, and which assumptions need resetting. Then next year&#39;s forecast, adjusted for what the market actually did.</p>
-      </div>
-    </div>
-
-    <div class="subscribe-box">
-      <p class="subscribe-title">Secret Satoshis Newsletter</p>
-      <form class="subscribe-form" action="https://newsletter.secretsatoshis.com/subscribe" method="get" target="_blank" rel="noopener noreferrer">
-        <label for="subscribeEmail" class="visually-hidden">Email address</label>
-        <input type="email" id="subscribeEmail" name="email" class="subscribe-input"
-               autocomplete="email" placeholder="satoshi@email.com" required>
-        <button type="submit" class="subscribe-btn">Subscribe now</button>
-      </form>
     </div>
   </div>
 </section>
