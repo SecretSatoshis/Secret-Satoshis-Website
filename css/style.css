@@ -792,6 +792,15 @@ section {
   text-align: center;
 }
 
+.resources-sub {
+  max-width: 640px;
+  margin: 0 auto;
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1.75;
+  text-align: center;
+}
+
 
 /* Resource grid */
 .resource-grid {
@@ -1257,7 +1266,12 @@ footer {
   }
 
   .resources-title {
-    margin-bottom: 24px;
+    margin-bottom: 8px;
+  }
+
+  .resources-sub {
+    font-size: 12px;
+    line-height: 1.65;
   }
 
   footer {

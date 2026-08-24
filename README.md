@@ -59,7 +59,9 @@ python3 -m http.server 8000
 
 Then open [http://localhost:8000](http://localhost:8000).
 
-The site uses matching cache-version query strings for `css/style.css` and `js/main.js`. Increment both values together whenever production assets change.
+The site uses cache-version query strings for `css/style.css` and `js/main.js`.
+Increment the version for the asset that changed and update that asset's reference on
+both `index.html` and `404.html` so every page receives the same production file.
 
 ## License
 
