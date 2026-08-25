@@ -21,6 +21,7 @@ The website introduces that system and directs visitors to its live products, re
 Bitcoin-Secret-Satoshis/
 ├── index.html
 ├── 404.html
+├── privacy.html
 ├── css/
 │   └── style.css
 ├── js/
@@ -61,7 +62,15 @@ Then open [http://localhost:8000](http://localhost:8000).
 
 The site uses cache-version query strings for `css/style.css` and `js/main.js`.
 Increment the version for the asset that changed and update that asset's reference on
-both `index.html` and `404.html` so every page receives the same production file.
+`index.html`, `404.html`, and `privacy.html` so every page receives the same production
+file.
+
+## Privacy
+
+The public privacy notice is served at
+[`https://secretsatoshis.com/privacy.html`](https://secretsatoshis.com/privacy.html).
+The static site does not operate accounts, analytics, advertising trackers, or its own
+email database. Newsletter subscriptions are submitted directly to Substack.
 
 ## License
 
