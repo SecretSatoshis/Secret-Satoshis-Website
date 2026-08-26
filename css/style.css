@@ -314,6 +314,15 @@ section {
   max-width: 420px;
 }
 
+.hero-actions {
+  display: flex;
+  margin-top: 24px;
+}
+
+.hero-cta {
+  padding-inline: 24px;
+}
+
 .hero-trust {
   margin-top: 24px;
   padding-top: 24px;
@@ -954,7 +963,14 @@ section {
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--text-mute);
-  margin: 0 0 20px;
+  margin: 0 0 10px;
+}
+
+.subscribe-support {
+  margin: 0 auto 20px;
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.65;
 }
 
 .subscribe-form {
@@ -1109,6 +1125,12 @@ footer {
 
 .footer-bottom a:hover { color: var(--white); }
 
+.footer-credit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+
 /* ─── PRIVACY ────────────────────────────────────── */
 
 .privacy-page {
@@ -1231,6 +1253,10 @@ footer {
     flex-direction: column;
   }
 
+  .hero-actions {
+    justify-content: center;
+  }
+
   .hero-trust {
     flex-wrap: wrap;
     gap: 6px;
@@ -1343,6 +1369,10 @@ footer {
     flex-direction: column;
     gap: 12px;
     text-align: center;
+  }
+
+  .footer-credit {
+    justify-content: center;
   }
 
   .subscribe-box {
