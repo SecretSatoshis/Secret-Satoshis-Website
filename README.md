@@ -22,6 +22,8 @@ Bitcoin-Secret-Satoshis/
 ├── index.html
 ├── 404.html
 ├── privacy.html
+├── favicon.ico
+├── llms.txt
 ├── css/
 │   └── style.css
 ├── js/
@@ -64,13 +66,6 @@ The site uses cache-version query strings for `css/style.css` and `js/main.js`.
 Increment the version for the asset that changed and update that asset's reference on
 `index.html`, `404.html`, and `privacy.html` so every page receives the same production
 file.
-
-## Privacy
-
-The public privacy notice is served at
-[`https://secretsatoshis.com/privacy.html`](https://secretsatoshis.com/privacy.html).
-The static site does not operate accounts, analytics, advertising trackers, or its own
-email database. Newsletter subscriptions are submitted directly to Substack.
 
 ## License
 

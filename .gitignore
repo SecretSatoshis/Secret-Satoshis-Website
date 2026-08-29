@@ -30,6 +30,9 @@ CLAUDE.md
 .codex/
 .local/
 
+# Private brand and channel source documents
+/brand/
+
 # Private/generated local artifacts
 artifacts/
 outputs/

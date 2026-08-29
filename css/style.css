@@ -1131,6 +1131,12 @@ footer {
   gap: 6px 16px;
 }
 
+.footer-legal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+
 /* ─── PRIVACY ────────────────────────────────────── */
 
 .privacy-page {
@@ -1371,7 +1377,8 @@ footer {
     text-align: center;
   }
 
-  .footer-credit {
+  .footer-credit,
+  .footer-legal {
     justify-content: center;
   }
 

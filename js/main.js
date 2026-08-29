@@ -324,25 +324,26 @@ initScrollRail('newsletterLadder', 'ladderFill', (progress, filledPx) => {
 
 /* ═══ OUTLOOK TRACKER ═══ */
 /*
- * The three case levels are published once a year in the Year Ahead Outlook and
- * do not move until the next one, so they live here rather than being fetched.
- * Update OUTLOOK when the January outlook is published — everything else in the
- * tracker derives from these numbers.
+ * Everything the tracker renders is fetched from the Report Library's published CSVs —
+ * the three case levels, the year they forecast, and the daily close. Nothing is
+ * hardcoded here. A local copy of the levels would be a second hand-maintained place
+ * for the same published number, and the two would eventually disagree: the dashboard
+ * and this page would then show different bull/base/bear levels for one forecast.
  *
- * Only the daily close is fetched, from the Report Library's published CSV.
- * If that request fails the tracker is never revealed and the section degrades
- * to the ladder alone — a stale number is worse than no number on a page whose
+ * The tracker fails closed. If either request fails, the levels are malformed, or the
+ * outlook year does not match the report date's year, the section is never revealed and
+ * degrades to the ladder alone — a stale number is worse than no number on a page whose
  * claim is that the data can be checked.
  */
-const OUTLOOK = {
-  year: 2026,
-  bear: 70000,
-  base: 120000,
-  bull: 160000
-};
+const CSV_BASE = 'https://secretsatoshis.github.io/Bitcoin-Report-Library/csv';
+const OHLC_URL = CSV_BASE + '/report_ohlc_summary.csv';
+const OUTLOOK_URL = CSV_BASE + '/price_outlook.csv';
 
-const OHLC_URL =
-  'https://secretsatoshis.github.io/Bitcoin-Report-Library/csv/report_ohlc_summary.csv';
+/* A hung connection would otherwise leave the promise pending forever, with the tracker
+ * hidden and no diagnostic. */
+const FETCH_TIMEOUT_MS = 8000;
+
+let OUTLOOK = null;
 
 document.addEventListener('DOMContentLoaded', initOutlookTracker);
 
@@ -351,14 +352,29 @@ async function initOutlookTracker() {
   if (!root) return;
 
   let snapshot;
+  let outlook;
   try {
-    snapshot = await fetchLatestClose();
+    [snapshot, outlook] = await Promise.all([fetchLatestClose(), fetchOutlook()]);
   } catch (err) {
     return; // leave the tracker hidden
   }
-  if (!snapshot) return;
+  if (!snapshot || !outlook) return;
 
   const { close, date } = snapshot;
+
+  // The outlook is published once a year. If it has not been refreshed for the year the
+  // report belongs to, the levels are last year's — say nothing rather than label a
+  // stale forecast with the current year.
+  const reportYear = Number(String(date).slice(0, 4));
+  if (!Number.isFinite(reportYear) || outlook.year !== reportYear) {
+    console.warn(
+      'Outlook tracker hidden: published outlook is for ' + outlook.year +
+      ' but the report date is ' + date + '.'
+    );
+    return;
+  }
+
+  OUTLOOK = outlook;
   const { bear, base, bull } = OUTLOOK;
 
   document.getElementById('outlookYear').textContent = String(OUTLOOK.year);
@@ -386,26 +402,115 @@ async function initOutlookTracker() {
     : close > bull ? formatUsd(close) + ' \u25B8'
     : formatUsd(close);
 
-  document.getElementById('outlookRead').innerHTML = readingLine(close);
+  document.getElementById('outlookRead').innerHTML = readingLine(close, date);
   root.hidden = false;
 }
 
-async function fetchLatestClose() {
-  const res = await fetch(OHLC_URL, { cache: 'default' });
-  if (!res.ok) return null;
-  const text = await res.text();
-  const rows = text.trim().split('\n');
+/* Fetch with an explicit deadline; a pending promise would hide the tracker silently. */
+async function fetchCsv(url) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { cache: 'default', signal: controller.signal });
+    if (!res.ok) return null;
+    return await res.text();
+  } catch (err) {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/*
+ * Quote-aware split. The published CSVs are written by pandas, which quotes any field
+ * containing a comma — `report_tables._format_fundamental_value` already produces
+ * "1,611,544,931,672.75" elsewhere in csv/. A naive split(',') on such a row shifts
+ * every column index, so a header lookup would silently address the wrong cell and the
+ * homepage would publish a wrong price.
+ */
+function splitCsvRow(row) {
+  const cells = [];
+  let cell = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < row.length; i += 1) {
+    const ch = row[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (row[i + 1] === '"') { cell += '"'; i += 1; }  // escaped quote
+        else inQuotes = false;
+      } else {
+        cell += ch;
+      }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ',') {
+      cells.push(cell);
+      cell = '';
+    } else {
+      cell += ch;
+    }
+  }
+  cells.push(cell);
+  return cells.map((value) => value.trim());
+}
+
+/* Parse into objects keyed by header, refusing any row whose width disagrees with the
+ * header — a mismatch means the row was misread, not that a field is missing. */
+function parseCsv(text) {
+  const rows = String(text).trim().split(/\r?\n/);
   if (rows.length < 2) return null;
 
-  const header = rows[0].split(',');
-  const cells = rows[1].split(',');
-  const closeIdx = header.indexOf('Daily Close');
-  const dateIdx = header.indexOf('Report Date');
-  if (closeIdx === -1 || dateIdx === -1) return null;
+  const header = splitCsvRow(rows[0]);
+  const records = [];
+  for (let i = 1; i < rows.length; i += 1) {
+    if (!rows[i]) continue;
+    const cells = splitCsvRow(rows[i]);
+    if (cells.length !== header.length) return null;
+    const record = {};
+    header.forEach((name, idx) => { record[name] = cells[idx]; });
+    records.push(record);
+  }
+  return records.length ? records : null;
+}
 
-  const close = Number(cells[closeIdx]);
-  if (!Number.isFinite(close) || close <= 0) return null;
-  return { close, date: cells[dateIdx] };
+async function fetchLatestClose() {
+  const text = await fetchCsv(OHLC_URL);
+  if (!text) return null;
+  const records = parseCsv(text);
+  if (!records) return null;
+
+  const row = records[0];
+  const close = Number(row['Daily Close']);
+  const date = row['Report Date'];
+  if (!Number.isFinite(close) || close <= 0 || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  return { close, date };
+}
+
+/* The three case levels and the year they forecast, straight from the published CSV. */
+async function fetchOutlook() {
+  const text = await fetchCsv(OUTLOOK_URL);
+  if (!text) return null;
+  const records = parseCsv(text);
+  if (!records) return null;
+
+  const levels = { bear: 'Bear Case', base: 'Base Case', bull: 'Bull Case' };
+  const outlook = {};
+  for (const [key, label] of Object.entries(levels)) {
+    const match = records.find((row) => row.label === label);
+    if (!match) return null;
+    const price = Number(match.price);
+    if (!Number.isFinite(price) || price <= 0) return null;
+    outlook[key] = price;
+  }
+
+  const year = Number(records[0].outlook_year);
+  if (!Number.isInteger(year)) return null;
+  outlook.year = year;
+
+  // The track maps bear→0% and bull→100%; a non-ascending set would invert it.
+  if (!(outlook.bear < outlook.base && outlook.base < outlook.bull)) return null;
+  return outlook;
 }
 
 /* Position on the bear→bull track, as a percentage. Uncapped; the caller clamps. */
@@ -419,9 +524,9 @@ function pctOfRange(value) {
  * nearest other case. Outside the range the sentence says so plainly rather
  * than reframing the target.
  */
-function readingLine(close) {
+function readingLine(close, reportDate) {
   const { bear, base, bull } = OUTLOOK;
-  const weeks = weeksLeftInYear();
+  const weeks = weeksLeftInYear(reportDate);
   const tail = ', with ' + weeks + ' week' + (weeks === 1 ? '' : 's') + ' left in the year.';
   const lead = (text) => '<strong>' + text + '</strong>';
 
@@ -448,11 +553,16 @@ function relativeTo(close, level, name) {
   return pct + '% ' + (close < level ? 'below' : 'above') + ' the ' + name + ' case';
 }
 
-function weeksLeftInYear() {
-  const now = new Date();
-  const yearEnd = new Date(now.getFullYear(), 11, 31);
-  const days = Math.max(0, Math.ceil((yearEnd - now) / 86400000));
-  return Math.max(1, Math.round(days / 7));
+/* Whole weeks remaining as of the same close shown by the tracker. Deriving this from
+ * the browser clock creates a year-boundary contradiction when the latest completed
+ * report still belongs to 31 December. */
+function weeksLeftInYear(reportDate) {
+  const [year, month, day] = String(reportDate).split('-').map(Number);
+  if (![year, month, day].every(Number.isInteger)) return 0;
+  const asOf = Date.UTC(year, month - 1, day);
+  const yearEnd = Date.UTC(year, 11, 31);
+  const days = Math.max(0, Math.ceil((yearEnd - asOf) / 86400000));
+  return Math.max(0, Math.round(days / 7));
 }
 
 function formatUsd(value) {

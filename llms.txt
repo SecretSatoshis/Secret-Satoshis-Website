@@ -1,0 +1,40 @@
+# Secret Satoshis
+
+> AI-native Bitcoin market intelligence. Original analysis and open data, built
+> on more than a decade inside Bitcoin markets. Every published figure traces to
+> a dated, checksummed input, and the pipelines that produce them are public.
+
+Secret Satoshis publishes Bitcoin market analysis alongside the data and code
+behind it. One price forecast is published each year with bear, base and bull
+cases, then tracked in public against what actually happens.
+
+## Where the work is published
+
+- [Secret Satoshis](https://secretsatoshis.com/): the platform and the starting point.
+- [Market Dashboard](https://dashboard.secretsatoshis.com/): current Bitcoin market data, valuation models, on-chain conditions and cycle context, updated daily.
+- [Chart Library](https://charts.secretsatoshis.com/): 59 interactive charts covering price, on-chain activity, supply, mining and valuation. Each chart is a standalone page with its own definition.
+- [Newsletter](https://newsletter.secretsatoshis.com/): written analysis, the annual outlook and the reports that score it.
+- [Agent 21](https://chatgpt.com/g/g-BZXtVdU6M-agent-21): a custom GPT interface to the published research and live Bitcoin network data.
+
+## Data and code
+
+- [Chart catalog](https://charts.secretsatoshis.com/catalog.json): machine-readable index of every chart, with title, description, category and tags.
+- [Chart sitemap](https://charts.secretsatoshis.com/sitemap.xml): every chart URL.
+- [Report Library](https://github.com/SecretSatoshis/Bitcoin-Report-Library): the daily pipeline. Publishes the CSV release every other surface reads.
+- [Published CSV release](https://secretsatoshis.github.io/Bitcoin-Report-Library/csv/report_ohlc_summary.csv): daily Bitcoin OHLC and week-to-date summary. Other series are published alongside it in the same directory.
+- [Chart Library source](https://github.com/SecretSatoshis/Bitcoin-Chart-Library): chart definitions and the catalog generator.
+- [Bitcoin Investment Strategy](https://github.com/SecretSatoshis/Bitcoin-Investment-Strategy): a savings-plan notebook, companion to the *Should I buy bitcoin?* framework.
+- [GitHub organisation](https://github.com/SecretSatoshis): all public repositories.
+
+## Reference
+
+- [Start Here](https://newsletter.secretsatoshis.com/p/start-here): what the platform is and where to begin.
+- [Disclaimer and licensing](https://newsletter.secretsatoshis.com/p/secret-satoshis-newsletter-disclaimer): how the content is produced, the AI disclosure, and the GPL-3.0 terms.
+- [Privacy](https://secretsatoshis.com/privacy.html)
+
+## Notes for agents
+
+- Content and code are licensed GPL-3.0. Third-party datasets keep the terms of their upstream publishers.
+- Data releases carry a manifest with retrieval time, coverage and a SHA-256 checksum per input.
+- Nothing published here is investment advice.
+- Created by Trey Brunson (https://treybrunson.com/).

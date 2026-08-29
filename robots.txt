@@ -1,4 +1,11 @@
+# All crawlers welcome, including AI retrieval, user-initiated fetch and
+# training agents. Deliberate: the platform is GPL-3.0 and its promise is that
+# the work can be inspected and reused.
 User-agent: *
 Allow: /
 
 Sitemap: https://secretsatoshis.com/sitemap.xml
+
+# A curated map of the platform for language models and agents.
+# Proposed convention, not a standard — cheap insurance, not a ranking lever.
+# https://secretsatoshis.com/llms.txt
