@@ -402,6 +402,10 @@ async function initOutlookTracker() {
     : close > bull ? formatUsd(close) + ' \u25B8'
     : formatUsd(close);
 
+  document.getElementById('outlookSummary').textContent =
+    'Bitcoin daily close: ' + formatUsd(close) + '. Bear case: ' + formatUsd(bear) +
+    '. Base case: ' + formatUsd(base) + '. Bull case: ' + formatUsd(bull) + '.';
+
   document.getElementById('outlookRead').innerHTML = readingLine(close, date);
   root.hidden = false;
 }
@@ -451,6 +455,7 @@ function splitCsvRow(row) {
       cell += ch;
     }
   }
+  if (inQuotes) return null;
   cells.push(cell);
   return cells.map((value) => value.trim());
 }
@@ -462,16 +467,23 @@ function parseCsv(text) {
   if (rows.length < 2) return null;
 
   const header = splitCsvRow(rows[0]);
+  if (!header || header.some((name) => !name) || new Set(header).size !== header.length) return null;
   const records = [];
   for (let i = 1; i < rows.length; i += 1) {
     if (!rows[i]) continue;
     const cells = splitCsvRow(rows[i]);
-    if (cells.length !== header.length) return null;
-    const record = {};
+    if (!cells || cells.length !== header.length) return null;
+    const record = Object.create(null);
     header.forEach((name, idx) => { record[name] = cells[idx]; });
     records.push(record);
   }
   return records.length ? records : null;
+}
+
+function isValidReportDate(date) {
+  if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+  const parsed = new Date(date + 'T00:00:00Z');
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === date;
 }
 
 async function fetchLatestClose() {
@@ -483,7 +495,7 @@ async function fetchLatestClose() {
   const row = records[0];
   const close = Number(row['Daily Close']);
   const date = row['Report Date'];
-  if (!Number.isFinite(close) || close <= 0 || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  if (!Number.isFinite(close) || close <= 0 || !isValidReportDate(date)) return null;
   return { close, date };
 }
 
@@ -496,16 +508,19 @@ async function fetchOutlook() {
 
   const levels = { bear: 'Bear Case', base: 'Base Case', bull: 'Bull Case' };
   const outlook = {};
+  if (records.length !== 3) return null;
+  const year = Number(records[0].outlook_year);
+  if (!Number.isInteger(year) || year < 2009 || year > 9999
+      || records.some((row) => Number(row.outlook_year) !== year)) return null;
   for (const [key, label] of Object.entries(levels)) {
-    const match = records.find((row) => row.label === label);
-    if (!match) return null;
+    const matches = records.filter((row) => row.label === label);
+    if (matches.length !== 1) return null;
+    const match = matches[0];
     const price = Number(match.price);
     if (!Number.isFinite(price) || price <= 0) return null;
     outlook[key] = price;
   }
 
-  const year = Number(records[0].outlook_year);
-  if (!Number.isInteger(year)) return null;
   outlook.year = year;
 
   // The track maps bear→0% and bull→100%; a non-ascending set would invert it.
