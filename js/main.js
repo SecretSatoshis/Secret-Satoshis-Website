@@ -338,6 +338,7 @@ initScrollRail('newsletterLadder', 'ladderFill', (progress, filledPx) => {
 const CSV_BASE = 'https://secretsatoshis.github.io/Bitcoin-Report-Library/csv';
 const OHLC_URL = CSV_BASE + '/report_ohlc_summary.csv';
 const OUTLOOK_URL = CSV_BASE + '/price_outlook.csv';
+const RELEASE_MANIFEST_URL = CSV_BASE + '/release_manifest.json';
 
 /* A hung connection would otherwise leave the promise pending forever, with the tracker
  * hidden and no diagnostic. */
@@ -353,14 +354,25 @@ async function initOutlookTracker() {
 
   let snapshot;
   let outlook;
+  let release;
   try {
-    [snapshot, outlook] = await Promise.all([fetchLatestClose(), fetchOutlook()]);
+    [snapshot, outlook, release] = await Promise.all([
+      fetchLatestClose(), fetchOutlook(), fetchReleaseManifest(),
+    ]);
   } catch (err) {
     return; // leave the tracker hidden
   }
   if (!snapshot || !outlook) return;
 
   const { close, date } = snapshot;
+
+  // The manifest is optional during the rollout so an older published release
+  // remains readable. Once the producer has published it, mismatched releases
+  // fail closed instead of presenting a mixed snapshot.
+  if (release?.__invalid || (release && (release.schema_version !== 1 || release.report_date !== date))) {
+    console.warn('Outlook tracker hidden: release manifest does not match the report date.');
+    return;
+  }
 
   // The outlook is published once a year. If it has not been refreshed for the year the
   // report belongs to, the levels are last year's — say nothing rather than label a
@@ -419,6 +431,31 @@ async function fetchCsv(url) {
     if (!res.ok) return null;
     return await res.text();
   } catch (err) {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function fetchReleaseManifest() {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const response = await fetch(RELEASE_MANIFEST_URL, {
+      cache: 'default',
+      signal: controller.signal,
+    });
+    if (!response.ok) return null;
+    const manifest = await response.json();
+    if (!manifest || typeof manifest !== 'object'
+        || manifest.schema_version !== 1
+        || manifest.release_id !== manifest.report_date
+        || !manifest.files
+        || !manifest.files['report_ohlc_summary.csv']
+        || !manifest.files['price_outlook.csv']) return { __invalid: true };
+    return manifest;
+  } catch (err) {
+    // Older releases do not have the platform manifest yet.
     return null;
   } finally {
     clearTimeout(timer);
