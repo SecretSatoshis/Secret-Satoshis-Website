@@ -32,7 +32,6 @@ Bitcoin-Secret-Satoshis/
 ├── assets/
 │   ├── fonts/                 # Syne and JetBrains Mono (WOFF2) with their OFL licenses
 │   └── images/
-│       ├── hero-logo.jpg      # legacy full-size mark; no page references it
 │       ├── hero-logo-840.jpg
 │       ├── hero-logo-420.jpg
 │       ├── social-card.jpg
