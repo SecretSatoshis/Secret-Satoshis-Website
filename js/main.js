@@ -368,11 +368,19 @@ async function initOutlookTracker() {
     fetchBytes(CSV_BASE + '/' + OUTLOOK_FILE),
     fetchBytes(RELEASE_MANIFEST_URL),
   ]);
-  if (!ohlcBytes || !outlookBytes) return; // leave the tracker hidden
+  if (!ohlcBytes || !outlookBytes) {
+    console.warn('Outlook tracker hidden: the published close or outlook file could not be fetched.');
+    return;
+  }
 
   const snapshot = parseLatestClose(decodeText(ohlcBytes));
   const outlook = parseOutlook(decodeText(outlookBytes));
-  if (!snapshot || !outlook) return;
+  if (!snapshot || !outlook) {
+    console.warn(
+      'Outlook tracker hidden: ' + (snapshot ? OUTLOOK_FILE : OHLC_FILE) + ' is malformed.'
+    );
+    return;
+  }
 
   const { close, date } = snapshot;
 
@@ -383,7 +391,9 @@ async function initOutlookTracker() {
     [OUTLOOK_FILE]: outlookBytes,
   });
   if (!consistent) {
-    console.warn('Outlook tracker hidden: published files do not match the release manifest.');
+    console.warn(
+      'Outlook tracker hidden: the release manifest is missing or does not match the published files.'
+    );
     return;
   }
 

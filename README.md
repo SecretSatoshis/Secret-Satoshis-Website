@@ -25,10 +25,12 @@ Bitcoin-Secret-Satoshis/
 ├── favicon.ico
 ├── llms.txt
 ├── css/
+│   ├── fonts.css              # self-hosted @font-face rules
 │   └── style.css
 ├── js/
 │   └── main.js
 ├── assets/
+│   ├── fonts/                 # Syne and JetBrains Mono (WOFF2) with their OFL licenses
 │   └── images/
 │       ├── hero-logo.jpg      # legacy full-size mark; no page references it
 │       ├── hero-logo-840.jpg
@@ -36,7 +38,11 @@ Bitcoin-Secret-Satoshis/
 │       ├── social-card.jpg
 │       └── favicon.png
 ├── tests/
-│   └── outlook.test.cjs
+│   ├── outlook.test.cjs
+│   └── site.test.cjs
+├── .github/
+│   ├── workflows/test.yml
+│   └── dependabot.yml
 ├── CNAME
 ├── robots.txt
 ├── sitemap.xml
@@ -52,6 +58,9 @@ Bitcoin-Secret-Satoshis/
 - Vanilla JavaScript using modern browser APIs
 - Syne for display typography
 - JetBrains Mono for body copy and interface details
+- Both fonts self-hosted in `assets/fonts/` under the SIL Open Font License, so no page
+  load reaches a third-party font service and the Content-Security-Policy allows
+  styles and fonts from this site only
 - Bitcoin orange (`#F7931A`) as the primary accent
 - GitHub Pages hosting through the custom domain in `CNAME`
 
@@ -85,19 +94,22 @@ python3 -m http.server 8000
 Then open [http://localhost:8000](http://localhost:8000). The outlook tracker fetches
 the live published release, so it works locally with a network connection.
 
-The site uses cache-version query strings for `css/style.css` and `js/main.js`.
+The site uses cache-version query strings for `css/fonts.css`, `css/style.css` and `js/main.js`.
 Increment the version for the asset that changed and update that asset's reference on
 `index.html`, `404.html`, and `privacy.html` so every page receives the same production
 file.
 
 ## Tests
 
-The outlook tracker's parsing and release checks are covered by Node's built-in test
-runner, with no dependencies to install:
+Node's built-in test runner covers the outlook tracker's parsing and release checks,
+and checks that every page's local files exist, share one cache version per asset, and
+load nothing from a third-party font service. There are no dependencies to install:
 
 ```bash
-node --test tests/
+node --test tests/*.test.cjs
 ```
+
+GitHub Actions runs the same command on every pull request and every push to `main`.
 
 ## License
 
