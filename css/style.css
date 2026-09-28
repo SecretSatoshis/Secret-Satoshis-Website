@@ -266,7 +266,6 @@ section {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  opacity: 1;
   border-radius: 8px;
   animation: logoPulse 4s ease-in-out infinite;
 }
@@ -278,8 +277,6 @@ section {
 
 .hero-content {
   position: relative;
-  opacity: 1;
-  transform: translateY(0);
 }
 
 .hero-title-label {
@@ -725,7 +722,6 @@ section {
   padding: 28px 32px;
   position: relative;
   overflow: hidden;
-  opacity: 1;
   transition: border-color 0.5s ease, box-shadow 0.5s ease;
   cursor: pointer;
   color: inherit;
@@ -1015,12 +1011,6 @@ section {
   border-color: var(--white);
 }
 
-.subscribe-note {
-  margin-top: 16px;
-  font-size: 11px;
-  color: var(--text-mute);
-}
-
 /* ─── 404 ─────────────────────────────────────────── */
 
 .notfound {
@@ -1198,22 +1188,9 @@ footer {
     transition-duration: 0.01ms !important;
   }
 
-  .hero-logo-img {
-    opacity: 1;
-  }
-
-  .hero-content {
-    opacity: 1;
-    transform: none;
-  }
-
   .chat-msg {
     opacity: 1;
     transform: none;
-  }
-
-  .platform-layer {
-    opacity: 1;
   }
 
   .section-divider::before {
@@ -1251,8 +1228,6 @@ footer {
   }
 
   .hero-content {
-    opacity: 1 !important;
-    transform: none !important;
     text-align: center;
     align-items: center;
     display: flex;
@@ -1278,10 +1253,6 @@ footer {
   .agent-sub {
     font-size: 12px;
     line-height: 1.65;
-  }
-
-  .desktop-break {
-    display: none;
   }
 
   .agent-title {
@@ -1410,10 +1381,6 @@ footer {
     padding: 12px 20px;
   }
 
-  .subscribe-note {
-    margin-top: 12px;
-  }
-
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1491,6 +1458,8 @@ footer {
   text-align: center;
   line-height: 1.4;
 }
+.outlook-tick.label-start i { left: 0; transform: none; text-align: left; }
+.outlook-tick.label-end i { left: auto; right: 0; transform: none; text-align: right; }
 .outlook-tick i b {
   display: block;
   font-size: 9px;

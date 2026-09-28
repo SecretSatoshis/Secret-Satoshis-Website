@@ -66,35 +66,45 @@ function initChat() {
   }
 
   let chatIsVisible = false;
-  let hasUserScrolled = false;
+  let userHasEngaged = false;
+  let dwellTimer = null;
 
   function maybeStartConversation() {
-    if (!chatIsVisible || !hasUserScrolled || conversationStarted) return;
+    if (!chatIsVisible || !userHasEngaged || conversationStarted) return;
     chatObs.disconnect();
-    window.removeEventListener('scroll', registerUserScroll);
+    clearTimeout(dwellTimer);
+    CHAT_ENGAGEMENT_EVENTS.forEach(type => window.removeEventListener(type, registerEngagement));
     runConversation();
   }
 
-  function registerUserScroll() {
-    hasUserScrolled = true;
+  function registerEngagement() {
+    userHasEngaged = true;
     maybeStartConversation();
   }
 
   const chatObs = new IntersectionObserver((entries) => {
     chatIsVisible = entries[0].isIntersecting;
+    // A reader who lands on the chat (a #agent link, a tall screen) never scrolls
+    // to it. Staying on it for a moment counts as engagement.
+    clearTimeout(dwellTimer);
+    if (chatIsVisible) dwellTimer = setTimeout(registerEngagement, CHAT_DWELL_MS);
     maybeStartConversation();
   }, { threshold: 0.3 });
 
   chatObs.observe(chatWindow);
 
-  // Wait until initial browser scroll restoration has settled, then require a
-  // new scroll before starting the sequence.
+  // Wait until initial browser scroll restoration has settled, so a restored
+  // position does not count as the reader scrolling to the chat.
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      window.addEventListener('scroll', registerUserScroll, { passive: true });
+      CHAT_ENGAGEMENT_EVENTS.forEach(type =>
+        window.addEventListener(type, registerEngagement, { passive: true }));
     });
   });
 }
+
+const CHAT_ENGAGEMENT_EVENTS = ['scroll', 'pointerdown', 'keydown'];
+const CHAT_DWELL_MS = 1200;
 
 const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -330,14 +340,15 @@ initScrollRail('newsletterLadder', 'ladderFill', (progress, filledPx) => {
  * for the same published number, and the two would eventually disagree: the dashboard
  * and this page would then show different bull/base/bear levels for one forecast.
  *
- * The tracker fails closed. If either request fails, the levels are malformed, or the
- * outlook year does not match the report date's year, the section is never revealed and
+ * The tracker fails closed. If any request fails, the levels are malformed, the files
+ * do not match the release manifest's report date and SHA-256 hashes, or the outlook
+ * year does not match the report date's year, the section is never revealed and
  * degrades to the ladder alone — a stale number is worse than no number on a page whose
  * claim is that the data can be checked.
  */
 const CSV_BASE = 'https://secretsatoshis.github.io/Bitcoin-Report-Library/csv';
-const OHLC_URL = CSV_BASE + '/report_ohlc_summary.csv';
-const OUTLOOK_URL = CSV_BASE + '/price_outlook.csv';
+const OHLC_FILE = 'report_ohlc_summary.csv';
+const OUTLOOK_FILE = 'price_outlook.csv';
 const RELEASE_MANIFEST_URL = CSV_BASE + '/release_manifest.json';
 
 /* A hung connection would otherwise leave the promise pending forever, with the tracker
@@ -352,33 +363,35 @@ async function initOutlookTracker() {
   const root = document.getElementById('outlookTracker');
   if (!root) return;
 
-  let snapshot;
-  let outlook;
-  let release;
-  try {
-    [snapshot, outlook, release] = await Promise.all([
-      fetchLatestClose(), fetchOutlook(), fetchReleaseManifest(),
-    ]);
-  } catch (err) {
-    return; // leave the tracker hidden
-  }
+  const [ohlcBytes, outlookBytes, manifestBytes] = await Promise.all([
+    fetchBytes(CSV_BASE + '/' + OHLC_FILE),
+    fetchBytes(CSV_BASE + '/' + OUTLOOK_FILE),
+    fetchBytes(RELEASE_MANIFEST_URL),
+  ]);
+  if (!ohlcBytes || !outlookBytes) return; // leave the tracker hidden
+
+  const snapshot = parseLatestClose(decodeText(ohlcBytes));
+  const outlook = parseOutlook(decodeText(outlookBytes));
   if (!snapshot || !outlook) return;
 
   const { close, date } = snapshot;
 
-  // The manifest is optional during the rollout so an older published release
-  // remains readable. Once the producer has published it, mismatched releases
-  // fail closed instead of presenting a mixed snapshot.
-  if (release?.__invalid || (release && (release.schema_version !== 1 || release.report_date !== date))) {
-    console.warn('Outlook tracker hidden: release manifest does not match the report date.');
+  // Every file must belong to the release the manifest describes; otherwise the page
+  // could pair one day's close with another release's levels.
+  const consistent = await matchesReleaseManifest(manifestBytes, date, {
+    [OHLC_FILE]: ohlcBytes,
+    [OUTLOOK_FILE]: outlookBytes,
+  });
+  if (!consistent) {
+    console.warn('Outlook tracker hidden: published files do not match the release manifest.');
     return;
   }
 
   // The outlook is published once a year. If it has not been refreshed for the year the
   // report belongs to, the levels are last year's — say nothing rather than label a
   // stale forecast with the current year.
-  const reportYear = Number(String(date).slice(0, 4));
-  if (!Number.isFinite(reportYear) || outlook.year !== reportYear) {
+  const reportYear = Number(date.slice(0, 4));
+  if (outlook.year !== reportYear) {
     console.warn(
       'Outlook tracker hidden: published outlook is for ' + outlook.year +
       ' but the report date is ' + date + '.'
@@ -410,8 +423,8 @@ async function initOutlookTracker() {
   marker.classList.toggle('align-end', pct > 94);
 
   document.getElementById('outlookPrice').textContent =
-    close < bear ? '\u25C2 ' + formatUsd(close)
-    : close > bull ? formatUsd(close) + ' \u25B8'
+    close < bear ? '◂ ' + formatUsd(close)
+    : close > bull ? formatUsd(close) + ' ▸'
     : formatUsd(close);
 
   document.getElementById('outlookSummary').textContent =
@@ -420,16 +433,29 @@ async function initOutlookTracker() {
 
   document.getElementById('outlookRead').innerHTML = readingLine(close, date);
   root.hidden = false;
+
+  // Labels can only be measured once the tracker is laid out.
+  separateCrowdedLabels(root);
+  let relayout = 0;
+  window.addEventListener('resize', () => {
+    cancelAnimationFrame(relayout);
+    relayout = requestAnimationFrame(() => separateCrowdedLabels(root));
+  });
 }
 
-/* Fetch with an explicit deadline; a pending promise would hide the tracker silently. */
-async function fetchCsv(url) {
+/*
+ * Fetch a published file's raw bytes with an explicit deadline — a pending promise would
+ * hide the tracker silently. The bytes, not decoded text, are what the manifest hashes.
+ * `no-cache` revalidates against the ETag on every load, so the browser cannot pair a
+ * cached file from one release with a fresh manifest from the next.
+ */
+async function fetchBytes(url) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const res = await fetch(url, { cache: 'default', signal: controller.signal });
+    const res = await fetch(url, { cache: 'no-cache', signal: controller.signal });
     if (!res.ok) return null;
-    return await res.text();
+    return await res.arrayBuffer();
   } catch (err) {
     return null;
   } finally {
@@ -437,35 +463,51 @@ async function fetchCsv(url) {
   }
 }
 
-async function fetchReleaseManifest() {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+function decodeText(bytes) {
+  return new TextDecoder().decode(bytes);
+}
+
+/*
+ * The manifest is required. A missing, unreadable or mismatched manifest hides the
+ * tracker, the same as a missing CSV.
+ */
+async function matchesReleaseManifest(manifestBytes, reportDate, files) {
+  if (!manifestBytes) return false;
+  let manifest;
   try {
-    const response = await fetch(RELEASE_MANIFEST_URL, {
-      cache: 'default',
-      signal: controller.signal,
-    });
-    if (!response.ok) return null;
-    const manifest = await response.json();
-    if (!manifest || typeof manifest !== 'object'
-        || manifest.schema_version !== 1
-        || manifest.release_id !== manifest.report_date
-        || !manifest.files
-        || !manifest.files['report_ohlc_summary.csv']
-        || !manifest.files['price_outlook.csv']) return { __invalid: true };
-    return manifest;
+    manifest = JSON.parse(decodeText(manifestBytes));
   } catch (err) {
-    // Older releases do not have the platform manifest yet.
+    return false;
+  }
+  if (!manifest || typeof manifest !== 'object'
+      || manifest.schema_version !== 1
+      || manifest.release_id !== manifest.report_date
+      || manifest.report_date !== reportDate
+      || !manifest.files || typeof manifest.files !== 'object') return false;
+
+  for (const [name, bytes] of Object.entries(files)) {
+    const entry = manifest.files[name];
+    if (!entry || typeof entry.sha256 !== 'string') return false;
+    const digest = await sha256Hex(bytes);
+    if (digest === null || digest !== entry.sha256.toLowerCase()) return false;
+  }
+  return true;
+}
+
+/* Null when Web Crypto is unavailable (insecure context), which fails closed. */
+async function sha256Hex(bytes) {
+  try {
+    const digest = await crypto.subtle.digest('SHA-256', bytes);
+    return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
+  } catch (err) {
     return null;
-  } finally {
-    clearTimeout(timer);
   }
 }
 
 /*
  * Quote-aware split. The published CSVs are written by pandas, which quotes any field
- * containing a comma — `report_tables._format_fundamental_value` already produces
- * "1,611,544,931,672.75" elsewhere in csv/. A naive split(',') on such a row shifts
+ * containing a comma — price_outlook.csv's support and resistance labels such as
+ * "Resistance $126,219 - 2025 ATH" among them. A naive split(',') on such a row shifts
  * every column index, so a header lookup would silently address the wrong cell and the
  * homepage would publish a wrong price.
  */
@@ -523,11 +565,10 @@ function isValidReportDate(date) {
   return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === date;
 }
 
-async function fetchLatestClose() {
-  const text = await fetchCsv(OHLC_URL);
-  if (!text) return null;
+/* The summary is a single row: the latest completed daily close. */
+function parseLatestClose(text) {
   const records = parseCsv(text);
-  if (!records) return null;
+  if (!records || records.length !== 1) return null;
 
   const row = records[0];
   const close = Number(row['Daily Close']);
@@ -536,29 +577,29 @@ async function fetchLatestClose() {
   return { close, date };
 }
 
-/* The three case levels and the year they forecast, straight from the published CSV. */
-async function fetchOutlook() {
-  const text = await fetchCsv(OUTLOOK_URL);
-  if (!text) return null;
+/*
+ * The three case levels and the year they forecast. The file also carries the chart's
+ * support and resistance levels, so only rows typed `case` are the forecast.
+ */
+function parseOutlook(text) {
   const records = parseCsv(text);
   if (!records) return null;
 
-  const levels = { bear: 'Bear Case', base: 'Base Case', bull: 'Bull Case' };
-  const outlook = {};
-  if (records.length !== 3) return null;
-  const year = Number(records[0].outlook_year);
+  const cases = records.filter((row) => row.type === 'case');
+  if (cases.length !== 3) return null;
+  const year = Number(cases[0].outlook_year);
   if (!Number.isInteger(year) || year < 2009 || year > 9999
-      || records.some((row) => Number(row.outlook_year) !== year)) return null;
+      || cases.some((row) => Number(row.outlook_year) !== year)) return null;
+
+  const levels = { bear: 'Bear Case', base: 'Base Case', bull: 'Bull Case' };
+  const outlook = { year };
   for (const [key, label] of Object.entries(levels)) {
-    const matches = records.filter((row) => row.label === label);
+    const matches = cases.filter((row) => row.label === label);
     if (matches.length !== 1) return null;
-    const match = matches[0];
-    const price = Number(match.price);
+    const price = Number(matches[0].price);
     if (!Number.isFinite(price) || price <= 0) return null;
     outlook[key] = price;
   }
-
-  outlook.year = year;
 
   // The track maps bear→0% and bull→100%; a non-ascending set would invert it.
   if (!(outlook.bear < outlook.base && outlook.base < outlook.bull)) return null;
@@ -572,14 +613,38 @@ function pctOfRange(value) {
 }
 
 /*
+ * Case labels are centred on their ticks, so a base case close to either end overlaps
+ * that end's label on a narrow track. When two collide, each is turned to hang away
+ * from the other — they then meet at most at the ticks themselves.
+ */
+function separateCrowdedLabels(root) {
+  const ticks = {};
+  root.querySelectorAll('.outlook-tick').forEach((tick) => {
+    tick.classList.remove('label-start', 'label-end');
+    ticks[tick.dataset.case] = tick;
+  });
+
+  const collide = (left, right) =>
+    left.querySelector('i').getBoundingClientRect().right + 6 >
+    right.querySelector('i').getBoundingClientRect().left;
+
+  if (collide(ticks.bear, ticks.base)) {
+    ticks.bear.classList.add('label-end');
+    ticks.base.classList.add('label-start');
+  } else if (collide(ticks.base, ticks.bull)) {
+    ticks.base.classList.add('label-end');
+    ticks.bull.classList.add('label-start');
+  }
+}
+
+/*
  * Always anchors on the base case first — that is the forecast — then the
  * nearest other case. Outside the range the sentence says so plainly rather
  * than reframing the target.
  */
 function readingLine(close, reportDate) {
   const { bear, base, bull } = OUTLOOK;
-  const weeks = weeksLeftInYear(reportDate);
-  const tail = ', with ' + weeks + ' week' + (weeks === 1 ? '' : 's') + ' left in the year.';
+  const tail = timeLeftInYear(reportDate);
   const lead = (text) => '<strong>' + text + '</strong>';
 
   if (close < bear) {
@@ -605,16 +670,24 @@ function relativeTo(close, level, name) {
   return pct + '% ' + (close < level ? 'below' : 'above') + ' the ' + name + ' case';
 }
 
-/* Whole weeks remaining as of the same close shown by the tracker. Deriving this from
- * the browser clock creates a year-boundary contradiction when the latest completed
- * report still belongs to 31 December. */
-function weeksLeftInYear(reportDate) {
+/*
+ * Time remaining as of the same close shown by the tracker. Deriving this from the
+ * browser clock creates a year-boundary contradiction when the latest completed report
+ * still belongs to 31 December. Whole weeks while a week remains, then days, so the
+ * last week of the year never reads as "0 weeks left".
+ */
+function timeLeftInYear(reportDate) {
+  const days = daysLeftInYear(reportDate);
+  if (days === 0) return ', on the final day of the year.';
+  const [count, unit] = days < 7 ? [days, 'day'] : [Math.floor(days / 7), 'week'];
+  return ', with ' + count + ' ' + unit + (count === 1 ? '' : 's') + ' left in the year.';
+}
+
+function daysLeftInYear(reportDate) {
   const [year, month, day] = String(reportDate).split('-').map(Number);
-  if (![year, month, day].every(Number.isInteger)) return 0;
   const asOf = Date.UTC(year, month - 1, day);
   const yearEnd = Date.UTC(year, 11, 31);
-  const days = Math.max(0, Math.ceil((yearEnd - asOf) / 86400000));
-  return Math.max(0, Math.round(days / 7));
+  return Math.max(0, Math.round((yearEnd - asOf) / 86400000));
 }
 
 function formatUsd(value) {
