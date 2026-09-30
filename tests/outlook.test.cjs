@@ -25,13 +25,12 @@ const OHLC = 'date,daily_close\n2026-09-27,84146.38';
 
 test('valid leap date is accepted and formatted currency is rejected', () => {
   const ctx = context();
-  assert.equal(ctx.parseLatestClose('Report Date,Daily Close\n2024-02-29,"77,000"'), null); // Formatted currency is not a numeric feed value.
-  assert.equal(ctx.parseLatestClose('Report Date,Daily Close\n2024-02-29,77000').close, 77000);
+  assert.equal(ctx.parseLatestClose('date,daily_close\n2024-02-29,"77,000"'), null); // Formatted currency is not a numeric feed value.
   assert.equal(ctx.parseLatestClose('date,daily_close\n2024-02-29,77000').close, 77000);
 });
 test('impossible dates, duplicate headers, unclosed quotes and extra rows fail closed', () => {
   const ctx = context();
-  for (const csv of ['Report Date,Daily Close\n2026-02-29,77000', 'Report Date,Daily Close,Daily Close\n2026-09-10,77000,99999', 'Report Date,Daily Close\n2026-09-10,"77000', 'Report Date,Daily Close\n2026-09-10,77000\n2026-09-09,76000']) {
+  for (const csv of ['date,daily_close\n2026-02-29,77000', 'date,daily_close,daily_close\n2026-09-10,77000,99999', 'date,daily_close\n2026-09-10,"77000', 'date,daily_close\n2026-09-10,77000\n2026-09-09,76000']) {
     assert.equal(ctx.parseLatestClose(csv), null);
   }
 });

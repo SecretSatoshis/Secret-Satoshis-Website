@@ -581,9 +581,8 @@ function parseLatestClose(text) {
   if (!records || records.length !== 1) return null;
 
   const row = records[0];
-  // Releases before October 2026 used "Daily Close" and "Report Date".
-  const close = Number(row.daily_close ?? row['Daily Close']);
-  const date = row.date ?? row['Report Date'];
+  const close = Number(row.daily_close);
+  const date = row.date;
   if (!Number.isFinite(close) || close <= 0 || !isValidReportDate(date)) return null;
   return { close, date };
 }
