@@ -21,12 +21,13 @@ const OUTLOOK = [
   '"Resistance $126,219 - 2025 ATH",126219,resistance,#9ca3af,2026',
   '"Support $60,132 - 2026 Low",60132,support,#9ca3af,2026',
 ].join('\n');
-const OHLC = 'Report Date,Daily Close\n2026-09-27,84146.38';
+const OHLC = 'date,daily_close\n2026-09-27,84146.38';
 
 test('valid leap date is accepted and formatted currency is rejected', () => {
   const ctx = context();
   assert.equal(ctx.parseLatestClose('Report Date,Daily Close\n2024-02-29,"77,000"'), null); // Formatted currency is not a numeric feed value.
   assert.equal(ctx.parseLatestClose('Report Date,Daily Close\n2024-02-29,77000').close, 77000);
+  assert.equal(ctx.parseLatestClose('date,daily_close\n2024-02-29,77000').close, 77000);
 });
 test('impossible dates, duplicate headers, unclosed quotes and extra rows fail closed', () => {
   const ctx = context();
