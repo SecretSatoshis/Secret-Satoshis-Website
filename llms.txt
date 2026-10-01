@@ -13,7 +13,7 @@ cases, then tracked in public against what actually happens.
 
 - [Secret Satoshis](https://secretsatoshis.com/): the platform and the starting point.
 - [Market Dashboard](https://dashboard.secretsatoshis.com/): current Bitcoin market data, valuation models, on-chain conditions and cycle context, updated daily.
-- [Chart Library](https://charts.secretsatoshis.com/): 50 interactive charts covering price, on-chain activity, supply, mining and valuation. Each chart is a standalone page with its own definition.
+- [Chart Library](https://charts.secretsatoshis.com/): 46 interactive charts covering price, on-chain activity, supply, mining and valuation. Each chart is a standalone page with its own definition.
 - [Newsletter](https://newsletter.secretsatoshis.com/): written analysis, the annual outlook and the reports that score it.
 - [Agent 21](https://chatgpt.com/g/g-BZXtVdU6M-agent-21): a custom GPT interface to the published research and live Bitcoin network data.
 
