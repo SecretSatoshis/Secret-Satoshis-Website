@@ -34,7 +34,7 @@
 <link rel="preload" href="assets/fonts/JetBrainsMono-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/Syne-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="css/fonts.css?v=1">
-<link rel="stylesheet" href="css/style.css?v=19">
+<link rel="stylesheet" href="css/style.css?v=25">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -113,7 +113,7 @@
         Market analysis and open data, built on a decade inside Bitcoin markets.
       </p>
       <div class="hero-actions">
-        <a href="#newsletter" class="agent-cta hero-cta">Follow Our Bitcoin Outlook</a>
+        <a href="#newsletter" class="agent-cta hero-cta">Follow Our Bitcoin Price Outlook</a>
       </div>
       <div class="hero-trust">
         <span>Independent</span>
@@ -128,61 +128,79 @@
 <section class="newsletter section-divider" id="newsletter">
   <div class="container newsletter-inner">
     <p class="section-label"><span class="accent">//</span> Secret Satoshis Newsletter</p>
-    <h2 class="newsletter-title">A Bitcoin outlook, tested in public.</h2>
+    <h2 class="newsletter-title">A Bitcoin price outlook, tested in public.</h2>
     <p class="newsletter-sub">
       Stay informed on Bitcoin markets with research that puts the news and data in context. Understand the week’s developments, track our investment strategy, and follow our bear, base, and bull cases over time.
     </p>
 
-    <!-- Outlook tracker. Case levels and marker are written by initOutlookTracker();
-         the block stays hidden if the close cannot be fetched. -->
-    <div class="outlook" id="outlookTracker" hidden>
-      <p class="outlook-label">
-        <span class="accent">//</span> <span id="outlookYear"></span> Price Outlook
-        <span class="outlook-asof" id="outlookAsOf"></span>
-      </p>
-      <div class="outlook-track" aria-hidden="true">
-        <span class="outlook-pad outlook-pad-l"></span>
-        <span class="outlook-pad outlook-pad-r"></span>
-        <span class="outlook-tick" data-case="bear"><i><b>Bear</b><span></span></i></span>
-        <span class="outlook-tick" data-case="base"><i><b>Base</b><span></span></i></span>
-        <span class="outlook-tick" data-case="bull"><i><b>Bull</b><span></span></i></span>
-        <span class="outlook-now" id="outlookNow"><i id="outlookPrice"></i></span>
-      </div>
-      <p class="visually-hidden" id="outlookSummary"></p>
-      <p class="outlook-read" id="outlookRead"></p>
-    </div>
-
     <div class="ladder" id="newsletterLadder">
-      <div class="platform-track" aria-hidden="true"><div class="platform-track-fill" id="ladderFill"></div></div>
-
+      <h3 class="ladder-heading">
+        <span class="ladder-slashes">//</span> Newsletter Offering
+        <span class="ladder-intro-track" aria-hidden="true"><span class="ladder-intro-fill"></span></span>
+      </h3>
       <div class="rung">
         <div class="rung-top">
-          <span class="rung-cad">Weekly</span>
-          <h3 class="rung-name">Weekly Bitcoin Recap</h3>
+          <span class="rung-cad">Every Year</span>
+          <h4 class="rung-name">Yearly Bitcoin Price Outlook</h4>
         </div>
-        <p class="rung-desc">The week&#39;s Bitcoin news and market data—what changed, why it mattered, and what it means for the outlook.</p>
+        <p class="rung-desc">The year’s Bitcoin price outlook and the key drivers behind our bear, base, and bull cases.</p>
+        <a class="rung-link" href="https://newsletter.secretsatoshis.com/p/bitcoin-2026-price-outlook" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">→</span> Read this year’s price outlook</a>
+
+        <!-- Outlook tracker. Case levels and marker are written by initOutlookTracker();
+             the block stays hidden if the close cannot be fetched. -->
+        <div class="outlook" id="outlookTracker" hidden>
+          <p class="outlook-label">
+            <span class="accent">//</span> <span id="outlookYear"></span> Bitcoin Price Outlook
+            <span class="outlook-asof" id="outlookAsOf"></span>
+          </p>
+          <div class="outlook-track" aria-hidden="true">
+            <span class="outlook-pad outlook-pad-l"></span>
+            <span class="outlook-pad outlook-pad-r"></span>
+            <span class="outlook-tick" data-case="bear"><i><b>Bear</b><span></span></i></span>
+            <span class="outlook-tick" data-case="base"><i><b>Base</b><span></span></i></span>
+            <span class="outlook-tick" data-case="bull"><i><b>Bull</b><span></span></i></span>
+            <span class="outlook-now" id="outlookNow"><i id="outlookPrice"></i></span>
+          </div>
+          <p class="visually-hidden" id="outlookSummary"></p>
+          <p class="outlook-read" id="outlookRead"></p>
+        </div>
       </div>
 
-      <div class="rung">
-        <div class="rung-top">
-          <span class="rung-cad">Quarterly</span>
-          <h3 class="rung-name">Bitcoin Strategy Report</h3>
-        </div>
-        <p class="rung-desc">How our Bitcoin investment strategy performed against the broader market, and where price stands relative to our bear, base, and bull cases.</p>
-      </div>
+      <div class="cadence-rail">
+        <div class="platform-track" aria-hidden="true"><div class="platform-track-fill" id="ladderFill"></div></div>
 
-      <div class="rung">
-        <div class="rung-top">
-          <span class="rung-cad">Yearly</span>
-          <h3 class="rung-name">Review &amp; Outlook</h3>
+        <div class="rung">
+          <div class="rung-top">
+            <span class="rung-cad">Weekly</span>
+            <h4 class="rung-name">Weekly Bitcoin Recap</h4>
+          </div>
+          <p class="rung-desc">The week’s Bitcoin news and market data, with context on what changed, why it mattered, and what it means for the outlook.</p>
+          <a class="rung-link" href="https://newsletter.secretsatoshis.com/p/weekly-bitcoin-recap-week-39-2026" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">→</span> Read last week’s Bitcoin recap</a>
         </div>
-        <p class="rung-desc">What the outlook got right, what it missed, and what we’re changing for the year ahead.</p>
+
+        <div class="rung">
+          <div class="rung-top">
+            <span class="rung-cad">Quarterly</span>
+            <h4 class="rung-name">Bitcoin Strategy Review</h4>
+          </div>
+          <p class="rung-desc">Our Bitcoin strategy’s quarterly performance and how our price outlook is holding up.</p>
+          <a class="rung-link" href="https://newsletter.secretsatoshis.com/" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">→</span> Read last quarter’s review</a>
+        </div>
+
+        <div class="rung">
+          <div class="rung-top">
+            <span class="rung-cad">Year End</span>
+            <h4 class="rung-name">Yearly Review</h4>
+          </div>
+          <p class="rung-desc">What the outlook got right, what it missed, and how our analysis performed.</p>
+          <a class="rung-link" href="https://newsletter.secretsatoshis.com/p/bitcoin-2025-year-end-review" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">→</span> Read last year’s review</a>
+        </div>
       </div>
     </div>
 
     <div class="subscribe-box">
-      <p class="subscribe-title"><span class="accent">//</span> Follow the Bitcoin Outlook</p>
-      <p class="subscribe-support">Get new research, weekly recaps, and outlook updates in your inbox.</p>
+      <p class="subscribe-title"><span class="accent">//</span> Follow Our Bitcoin Price Outlook</p>
+      <p class="subscribe-support">Get our yearly price outlook, weekly recaps, quarterly strategy reviews, and year-end review in your inbox.</p>
       <form class="subscribe-form" action="https://newsletter.secretsatoshis.com/subscribe" method="get" target="_blank" rel="noopener noreferrer">
         <label for="subscribeEmail" class="visually-hidden">Email address</label>
         <input type="email" id="subscribeEmail" name="email" class="subscribe-input"
@@ -379,7 +397,7 @@
   </div>
 </footer>
 
-<script src="js/main.js?v=15"></script>
+<script src="js/main.js?v=18"></script>
 
 </body>
 </html>

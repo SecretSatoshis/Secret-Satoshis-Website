@@ -297,7 +297,10 @@ function initScrollRail(containerId, fillId, onProgress) {
     const viewH = window.innerHeight;
     const scrollStart = viewH * 0.6;
     const progress = Math.min(1, Math.max(0, (scrollStart - rect.top) / (rect.height)));
-    trackFill.style.height = (progress * 100) + '%';
+    // The newsletter's visible rail starts at Weekly, below its outlook introduction.
+    const railRect = trackFill.parentElement.getBoundingClientRect();
+    const railProgress = Math.min(1, Math.max(0, (scrollStart - railRect.top) / railRect.height));
+    trackFill.style.height = (railProgress * 100) + '%';
     if (onProgress) onProgress(progress, rect.height * progress);
   }
 
@@ -313,20 +316,43 @@ function initScrollRail(containerId, fillId, onProgress) {
 
   window.addEventListener('scroll', requestTrackUpdate, { passive: true });
   window.addEventListener('resize', requestTrackUpdate);
+  // The newsletter rail changes height when the live outlook finishes loading.
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(requestTrackUpdate).observe(container);
+  }
   updateTrack();
 }
 
 initScrollRail('platformLayers', 'trackFill');
 
-/* The ladder lights each node as the fill passes it, then the subscribe box
-   once the rail is spent — so the rhythm resolves into the call to action. */
+/* Begin at the content heading's slashes, follow its short connector into the
+   yearly node and tracker, then resume the rail at Weekly and finish at Subscribe. */
 initScrollRail('newsletterLadder', 'ladderFill', (progress, filledPx) => {
   const ladder = document.getElementById('newsletterLadder');
   if (!ladder) return;
 
+  const ladderTop = ladder.getBoundingClientRect().top;
+  const heading = ladder.querySelector('.ladder-heading');
+  const introTrack = ladder.querySelector('.ladder-intro-track');
+  const introFill = ladder.querySelector('.ladder-intro-fill');
+  if (heading && introTrack && introFill) {
+    heading.classList.toggle('is-lit', filledPx > 4);
+    const introRect = introTrack.getBoundingClientRect();
+    const introTop = introRect.top - ladderTop;
+    const introProgress = Math.min(1, Math.max(0, (filledPx - introTop) / introRect.height));
+    introFill.style.height = (introProgress * 100) + '%';
+  }
+
   ladder.querySelectorAll('.rung').forEach((rung) => {
-    rung.classList.toggle('is-lit', filledPx > 4 && rung.offsetTop <= filledPx + 8);
+    const rungTop = rung.getBoundingClientRect().top - ladderTop;
+    rung.classList.toggle('is-lit', filledPx >= rungTop + 10.5);
   });
+
+  const tracker = document.getElementById('outlookTracker');
+  if (tracker && !tracker.hidden) {
+    const trackerTop = tracker.getBoundingClientRect().top - ladderTop;
+    tracker.classList.toggle('is-lit', filledPx >= trackerTop + 16);
+  }
 
   const box = document.querySelector('#newsletter .subscribe-box');
   if (box) box.classList.toggle('is-lit', progress >= 0.995);

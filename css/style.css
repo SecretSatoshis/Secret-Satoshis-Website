@@ -1398,14 +1398,20 @@ footer {
 
 .outlook {
   max-width: 820px;
-  margin: 0 auto 44px;
+  margin: var(--cadence-gap, 32px) 0 0;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 28px 30px 24px;
+  transition: border-color 0.45s ease, box-shadow 0.45s ease;
 }
 
 .outlook[hidden] { display: none; }
+
+.outlook.is-lit {
+  border-color: var(--accent);
+  box-shadow: 0 0 24px rgba(247, 147, 26, 0.07), inset 0 0 40px rgba(247, 147, 26, 0.02);
+}
 
 .outlook-label {
   font-family: var(--mono);
@@ -1444,8 +1450,14 @@ footer {
   top: -5px;
   width: 1px;
   height: 12px;
-  background: var(--border-ctl);
+  color: var(--text-mute);
+  background: currentColor;
 }
+/* Match the case colors in the published Bitcoin price outlook chart. */
+.outlook-tick[data-case="bear"] { color: #FF3B30; }
+.outlook-tick[data-case="base"] { color: #FFD700; }
+.outlook-tick[data-case="bull"] { color: #00FF88; }
+
 .outlook-tick i {
   position: absolute;
   left: 50%;
@@ -1453,7 +1465,7 @@ footer {
   top: -32px;
   font-style: normal;
   font-size: 10px;
-  color: var(--text-mute);
+  color: inherit;
   white-space: nowrap;
   text-align: center;
   line-height: 1.4;
@@ -1506,14 +1518,66 @@ footer {
 /* ── cadence ladder ── */
 
 .ladder {
+  --cadence-gap: 32px;
   position: relative;
   max-width: 820px;
-  margin: 0 auto 34px;
+  margin: 0 auto var(--cadence-gap);
   padding-left: 24px;
 }
 
-.rung { position: relative; padding: 0 0 26px; }
+.ladder-heading {
+  position: relative;
+  margin: 0 0 var(--cadence-gap);
+  color: var(--white);
+  font-family: var(--display);
+  font-size: clamp(20px, 2.5vw, 26px);
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.ladder-slashes {
+  position: absolute;
+  top: 0;
+  left: -31.5px;
+  width: 24px;
+  color: var(--text-mute);
+  font-family: var(--mono);
+  font-size: 0.75em;
+  line-height: 1.6667;
+  letter-spacing: -0.08em;
+  text-align: center;
+  transition: color 0.3s ease;
+}
+
+.ladder-heading.is-lit .ladder-slashes { color: var(--accent); }
+
+/* A short connector ends at the yearly node, above the outlook widget. */
+.ladder-intro-track {
+  position: absolute;
+  top: 1.25em;
+  bottom: calc(-1 * var(--cadence-gap) - 10.5px);
+  left: -21px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--border);
+}
+
+.ladder-intro-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 0;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: height 0.15s linear;
+}
+
+.rung { position: relative; padding: 0 0 var(--cadence-gap); }
 .rung:last-child { padding-bottom: 0; }
+
+.cadence-rail { position: relative; }
 
 .rung::before {
   content: '';
@@ -1532,7 +1596,7 @@ footer {
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
-  margin-bottom: 5px;
+  margin-bottom: 8px;
 }
 
 .rung-cad {
@@ -1560,6 +1624,20 @@ footer {
   color: var(--text-dim);
 }
 
+.rung-link {
+  display: inline-block;
+  margin-top: 16px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent);
+}
+
+.rung-link:hover {
+  color: var(--white);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
 @media (max-width: 700px) {
   .outlook { padding: 22px 18px 20px; }
   .outlook-track { margin: 56px 14% 8px; }
@@ -1576,10 +1654,9 @@ footer {
 /* Nodes sit above the rail so the fill reads as passing behind them, and each
    lights as it is reached. The rail stops at the foot of the ladder — it never
    runs into the subscribe box; the box lights instead. */
-/* The 9px node is flush with the ladder's left edge, so the 3px rail is
-   inset by 3px to run through its centre. Keeps both inside .container,
-   which clips overflow-x on mobile and would shave the node's left side. */
-.ladder .platform-track { z-index: 0; left: 3px; }
+/* The rail starts at Weekly. Its wrapper sits inside the ladder's 24px inset,
+   so shifting it left by 21px centres it on the nodes at the ladder's edge. */
+.ladder .platform-track { z-index: 0; left: -21px; }
 .ladder .rung { z-index: 1; }
 
 .rung::before {
@@ -1599,6 +1676,9 @@ footer {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .outlook,
+  .ladder-slashes,
+  .ladder-intro-fill,
   .rung::before,
   #newsletter .subscribe-box { transition: none; }
 }
