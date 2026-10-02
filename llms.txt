@@ -9,33 +9,36 @@ Secret Satoshis publishes Bitcoin market analysis alongside the data and code
 behind it. One price forecast is published each year with bear, base and bull
 cases, then tracked in public against what actually happens.
 
+To check the data, start from the release manifest. It records the release ID,
+report date and generation time, and the size and SHA-256 hash of every
+published file.
+
+Content and code are licensed GPL-3.0. Third-party datasets keep the terms of
+their upstream publishers. Nothing published here is investment advice. Created
+by Trey Brunson (https://treybrunson.com/).
+
 ## Where the work is published
 
 - [Secret Satoshis](https://secretsatoshis.com/): the platform and the starting point.
 - [Market Dashboard](https://dashboard.secretsatoshis.com/): current Bitcoin market data, valuation models, on-chain conditions and cycle context, updated daily.
 - [Chart Library](https://charts.secretsatoshis.com/): 46 interactive charts covering price, on-chain activity, supply, mining and valuation. Each chart is a standalone page with its own definition.
-- [Newsletter](https://newsletter.secretsatoshis.com/): written analysis, the annual outlook and the reports that score it.
+- [Newsletter](https://newsletter.secretsatoshis.com/): written analysis, the annual price outlook, and the weekly, quarterly and year-end reports that track it.
 - [Agent 21](https://chatgpt.com/g/g-BZXtVdU6M-agent-21): a custom GPT interface to the published research and live Bitcoin network data.
 
 ## Data and code
 
+- [GitHub organisation](https://github.com/SecretSatoshis): every public repository.
+- [Release manifest](https://secretsatoshis.github.io/Bitcoin-Report-Library/csv/release_manifest.json): the day's Report Library release, listing every published file with its hash.
+- [Price outlook levels](https://secretsatoshis.github.io/Bitcoin-Report-Library/csv/price_outlook.csv): this year's bear, base and bull case prices (rows typed `case`), plus the support and resistance levels drawn on the outlook chart.
+- [Daily price summary](https://secretsatoshis.github.io/Bitcoin-Report-Library/csv/report_ohlc_summary.csv): the latest daily Bitcoin open, high, low and close, with week-to-date figures.
 - [Chart catalog](https://charts.secretsatoshis.com/catalog.json): machine-readable index of every chart, with title, description, category and tags.
 - [Chart sitemap](https://charts.secretsatoshis.com/sitemap.xml): every chart URL.
 - [Report Library](https://github.com/SecretSatoshis/Bitcoin-Report-Library): publishes the daily CSV release used by the Market Dashboard, Chart Library, Bitcoin Investment Strategy notebooks, homepage outlook tracker, and newsletter. Agent 21 and Trey Brunson's personal site also use separate data sources.
-- [Published CSV release](https://secretsatoshis.github.io/Bitcoin-Report-Library/csv/report_ohlc_summary.csv): daily Bitcoin OHLC and week-to-date summary. Other series are published alongside it in the same directory.
 - [Chart Library source](https://github.com/SecretSatoshis/Bitcoin-Chart-Library): chart definitions and the catalog generator.
 - [Bitcoin Investment Strategy](https://github.com/SecretSatoshis/Bitcoin-Investment-Strategy): three notebooks built on the Report Library release: a savings plan run against real price history, companion to the *Should I buy bitcoin?* framework, and two studies of Bitcoin's supply and demand.
-- [GitHub organisation](https://github.com/SecretSatoshis): all public repositories.
 
-## Reference
+## Optional
 
 - [Start Here](https://newsletter.secretsatoshis.com/p/start-here): what the platform is and where to begin.
 - [Disclaimer and licensing](https://newsletter.secretsatoshis.com/p/secret-satoshis-newsletter-disclaimer): how the content is produced, the AI disclosure, and the GPL-3.0 terms.
 - [Privacy](https://secretsatoshis.com/privacy.html)
-
-## Notes for agents
-
-- Content and code are licensed GPL-3.0. Third-party datasets keep the terms of their upstream publishers.
-- The Report Library release manifest records the release ID, report date, generation time, file sizes, and SHA-256 hashes of the published CSV files.
-- Nothing published here is investment advice.
-- Created by Trey Brunson (https://treybrunson.com/).

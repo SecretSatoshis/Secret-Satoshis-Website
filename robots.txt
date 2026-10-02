@@ -1,7 +1,10 @@
 # All crawlers welcome, including AI retrieval, user-initiated fetch and
 # training agents. Deliberate: the platform is GPL-3.0 and its promise is that
 # the work can be inspected and reused.
+# Content Signals (contentsignals.org): search, AI answers and AI training are
+# all allowed, for the same reason.
 User-agent: *
+Content-Signal: search=yes, ai-input=yes, ai-train=yes
 Allow: /
 
 Sitemap: https://secretsatoshis.com/sitemap.xml
