@@ -102,7 +102,8 @@ file.
 
 Node's built-in test runner covers the outlook tracker's parsing and release checks,
 and checks that every page's local files exist, share one cache version per asset, and
-load nothing from a third-party font service. There are no dependencies to install:
+load nothing from a third-party font service. There are no dependencies to install. Use Node 20
+or later; older versions run only some of the tests:
 
 ```bash
 node --test tests/*.test.cjs

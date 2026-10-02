@@ -21,10 +21,10 @@ cases, then tracked in public against what actually happens.
 
 - [Chart catalog](https://charts.secretsatoshis.com/catalog.json): machine-readable index of every chart, with title, description, category and tags.
 - [Chart sitemap](https://charts.secretsatoshis.com/sitemap.xml): every chart URL.
-- [Report Library](https://github.com/SecretSatoshis/Bitcoin-Report-Library): publishes the daily CSV release used by the Market Dashboard, Chart Library, homepage outlook tracker, and newsletter pipeline. Agent 21 and Trey Brunson's personal site also use separate data sources.
+- [Report Library](https://github.com/SecretSatoshis/Bitcoin-Report-Library): publishes the daily CSV release used by the Market Dashboard, Chart Library, Bitcoin Investment Strategy notebooks, homepage outlook tracker, and newsletter. Agent 21 and Trey Brunson's personal site also use separate data sources.
 - [Published CSV release](https://secretsatoshis.github.io/Bitcoin-Report-Library/csv/report_ohlc_summary.csv): daily Bitcoin OHLC and week-to-date summary. Other series are published alongside it in the same directory.
 - [Chart Library source](https://github.com/SecretSatoshis/Bitcoin-Chart-Library): chart definitions and the catalog generator.
-- [Bitcoin Investment Strategy](https://github.com/SecretSatoshis/Bitcoin-Investment-Strategy): a savings-plan notebook, companion to the *Should I buy bitcoin?* framework.
+- [Bitcoin Investment Strategy](https://github.com/SecretSatoshis/Bitcoin-Investment-Strategy): three notebooks built on the Report Library release: a savings plan run against real price history, companion to the *Should I buy bitcoin?* framework, and two studies of Bitcoin's supply and demand.
 - [GitHub organisation](https://github.com/SecretSatoshis): all public repositories.
 
 ## Reference

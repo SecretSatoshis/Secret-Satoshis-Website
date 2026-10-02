@@ -95,8 +95,6 @@ a:hover { color: var(--accent); }
 }
 
 .subscribe-input:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
   border-color: var(--accent);
 }
 
@@ -151,10 +149,6 @@ nav {
 
 .nav-logo .accent {
   color: var(--accent);
-}
-
-.nav-logo .nav-typewriter {
-  color: var(--white);
 }
 
 .nav-links {
@@ -250,14 +244,13 @@ section {
 }
 
 /* Hero mark */
-.hero-ascii-wrap {
+.hero-mark {
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .hero-logo-container {
-  position: relative;
   width: clamp(280px, 38vw, 420px);
   height: clamp(280px, 38vw, 420px);
 }
@@ -307,7 +300,6 @@ section {
   font-size: 13px;
   color: var(--text-dim);
   line-height: 1.75;
-  margin-bottom: 0;
   max-width: 420px;
 }
 
@@ -341,9 +333,9 @@ section {
 
 .hero-trust span:first-child::before { display: none; }
 
-/* ─── AGENT 21 ────────────────────────────────────── */
+/* ─── SECTION DIVIDER ─────────────────────────────── */
 
-/* Animated orange section divider */
+/* Orange line drawn across the top of a section as it scrolls into view */
 .section-divider {
   position: relative;
 }
@@ -364,6 +356,8 @@ section {
 .section-divider.divider-visible::before {
   transform: scaleX(1);
 }
+
+/* ─── AGENT 21 ────────────────────────────────────── */
 
 .agent {
   background: var(--bg-alt);
@@ -578,7 +572,6 @@ section {
   border: 1px solid rgba(247,147,26,0.18);
   color: var(--text);
   border-bottom-right-radius: 4px;
-  font-family: var(--mono);
   font-size: 13px;
 }
 
@@ -686,7 +679,6 @@ section {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  margin-bottom: 0;
   position: relative;
   padding-left: 24px;
 }
@@ -912,7 +904,7 @@ section {
   }
 }
 
-/* ─── SUBSCRIBE ───────────────────────────────────── */
+/* ─── NEWSLETTER ──────────────────────────────────── */
 
 .newsletter {
   background: var(--bg-alt);
@@ -1115,12 +1107,7 @@ footer {
 
 .footer-bottom a:hover { color: var(--white); }
 
-.footer-credit {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 16px;
-}
-
+.footer-credit,
 .footer-legal {
   display: flex;
   flex-wrap: wrap;
@@ -1159,16 +1146,10 @@ footer {
   font-size: 18px;
 }
 
-.privacy-page p,
-.privacy-page li {
+.privacy-page p {
   color: var(--text-dim);
   font-size: 14px;
   line-height: 1.8;
-}
-
-.privacy-page ul {
-  margin: 14px 0 0;
-  padding-left: 20px;
 }
 
 .privacy-page a {
@@ -1217,11 +1198,6 @@ footer {
     gap: 32px;
   }
 
-  .hero-ascii-wrap {
-    min-height: auto;
-    justify-content: center;
-  }
-
   .hero-logo-container {
     width: clamp(240px, 60vw, 320px);
     height: clamp(240px, 60vw, 320px);
@@ -1265,7 +1241,6 @@ footer {
   }
 
   .chat-body {
-    min-height: 420px;
     max-height: 520px;
   }
 
@@ -1322,10 +1297,6 @@ footer {
   .layer-desc {
     font-size: 12px;
     line-height: 1.65;
-  }
-
-  .resources-title {
-    margin-bottom: 8px;
   }
 
   .resources-sub {
@@ -1589,6 +1560,7 @@ footer {
   border-radius: 50%;
   background: var(--bg-alt);
   border: 1px solid var(--border-ctl);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .rung-top {
@@ -1647,21 +1619,14 @@ footer {
   .rung-desc { font-size: 12px; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .outlook-now { transition: none; }
-}
-
-/* Nodes sit above the rail so the fill reads as passing behind them, and each
-   lights as it is reached. The rail stops at the foot of the ladder — it never
-   runs into the subscribe box; the box lights instead. */
-/* The rail starts at Weekly. Its wrapper sits inside the ladder's 24px inset,
-   so shifting it left by 21px centres it on the nodes at the ladder's edge. */
+/* The rail starts at Weekly and stops at the foot of the ladder; the subscribe
+   box lights instead of the rail running into it. The rail sits inside the
+   ladder's 24px inset, so shifting it left by 21px centres it on the nodes, which
+   sit above it so the fill reads as passing behind them. Each node lights as
+   the fill reaches it. */
 .ladder .platform-track { z-index: 0; left: -21px; }
 .ladder .rung { z-index: 1; }
 
-.rung::before {
-  transition: background-color 0.3s ease, border-color 0.3s ease;
-}
 .rung.is-lit::before {
   background: var(--accent);
   border-color: var(--accent);
@@ -1673,12 +1638,4 @@ footer {
 #newsletter .subscribe-box.is-lit {
   border-color: var(--accent);
   box-shadow: 0 0 24px rgba(247, 147, 26, 0.07), inset 0 0 40px rgba(247, 147, 26, 0.02);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .outlook,
-  .ladder-slashes,
-  .ladder-intro-fill,
-  .rung::before,
-  #newsletter .subscribe-box { transition: none; }
 }
