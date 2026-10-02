@@ -1,116 +1,108 @@
 # Secret Satoshis
 
-**Bitcoin intelligence you can verify.**
+The home page of [Secret Satoshis](https://secretsatoshis.com/): Bitcoin market analysis and
+open data, built on a decade inside Bitcoin markets. The site introduces the platform, tracks
+the year's Bitcoin price outlook against the latest daily close, and points visitors to the
+newsletter, Agent 21, the Market Dashboard and the Chart Library.
 
-This repository contains the primary Secret Satoshis website at [secretsatoshis.com](https://secretsatoshis.com/).
+- **Visit the site:** [secretsatoshis.com](https://secretsatoshis.com/)
+- **Read the newsletter:** [newsletter.secretsatoshis.com](https://newsletter.secretsatoshis.com/)
 
-## What Secret Satoshis Is
+## What's on the site
 
-Secret Satoshis is an AI-native Bitcoin market intelligence platform built from four connected layers:
+| Section | What it does |
+|---------|--------------|
+| **Hero** | The tagline, "Bitcoin intelligence you can verify", and a link to the price outlook |
+| **Newsletter** | The yearly, weekly, quarterly and year-end issues, the live outlook tracker, and a sign-up form that goes straight to Substack |
+| **The Platform** | How market experience, research, open data and Agent 21 fit together |
+| **Agent 21** | A short animated conversation, with a link to Agent 21 on ChatGPT |
+| **Your Next Step** | Start Here, the Market Dashboard, the Chart Library and *Should I buy bitcoin?* |
 
-1. **Market experience** — more than a decade operating across Bitcoin markets and infrastructure.
-2. **Original research** — Bitcoin fundamentals, market structure, and long-term investment frameworks published since 2018.
-3. **Open evidence** — market data, interactive charts, valuation models, notebooks, and open-source code.
-4. **Agent 21** — an AI-native interface for exploring the complete intelligence system.
+Alongside the home page are a privacy page, a 404 page, a sitemap, `robots.txt`, and
+[`llms.txt`](llms.txt), a short guide to the platform for AI agents.
 
-The website introduces that system and directs visitors to its live products, research, data, and newsletter.
+## How it works
 
-## Project Structure
+```mermaid
+flowchart LR
+    R[("Report Library<br/>daily release")]
 
-```text
-Bitcoin-Secret-Satoshis/
-├── index.html
-├── 404.html
-├── privacy.html
-├── favicon.ico
-├── llms.txt
-├── css/
-│   ├── fonts.css              # self-hosted @font-face rules
-│   └── style.css
-├── js/
-│   └── main.js
-├── assets/
-│   ├── fonts/                 # Syne and JetBrains Mono (WOFF2) with their OFL licenses
-│   └── images/
-│       ├── hero-logo-840.jpg
-│       ├── hero-logo-420.jpg
-│       ├── social-card.jpg
-│       └── favicon.png
-├── tests/
-│   ├── outlook.test.cjs
-│   └── site.test.cjs
-├── .github/
-│   ├── workflows/test.yml
-│   └── dependabot.yml
-├── CNAME
-├── robots.txt
-├── sitemap.xml
-├── LICENSE
-├── SECURITY.md
-└── README.md
+    subgraph Browser
+        direction LR
+        F["Fetch close,<br/>outlook & manifest"] --> V["Verify<br/>hashes & dates"] --> T["Outlook<br/>tracker"]
+    end
+
+    G["GitHub Pages<br/>secretsatoshis.com"] --> Browser
+    R --> F
 ```
 
-## Technology and Design
+The site is plain HTML, CSS and JavaScript with no build step and no dependencies. GitHub
+Pages serves the `main` branch at the custom domain in `CNAME`, so every push to `main` goes
+live. Fonts are self-hosted, and the pages load nothing from other services except the
+outlook tracker's data, which each page's Content-Security-Policy allows from the Report
+Library's release only.
 
-- Semantic HTML5
-- CSS custom properties, Grid, Flexbox, and responsive layouts
-- Vanilla JavaScript using modern browser APIs
-- Syne for display typography
-- JetBrains Mono for body copy and interface details
-- Both fonts self-hosted in `assets/fonts/` under the SIL Open Font License, so no page
-  load reaches a third-party font service and the Content-Security-Policy allows
-  styles and fonts from this site only
-- Bitcoin orange (`#F7931A`) as the primary accent
-- GitHub Pages hosting through the custom domain in `CNAME`
+## The outlook tracker
 
-## Outlook Tracker
+The newsletter section shows where Bitcoin's latest daily close sits against the year's
+published bear, base and bull cases. Nothing in it is hardcoded: `js/main.js` reads three files
+from the [Report Library's release](https://secretsatoshis.github.io/Bitcoin-Report-Library/csv/release_manifest.json):
 
-The newsletter section shows where Bitcoin's latest daily close sits against the
-year's published bear, base, and bull cases. Nothing in it is hardcoded: `js/main.js`
-reads three files from the
-[Report Library's published release](https://secretsatoshis.github.io/Bitcoin-Report-Library/csv/):
+| File | What the tracker uses |
+|------|-----------------------|
+| `report_ohlc_summary.csv` | The latest daily close and its date |
+| `price_outlook.csv` | The case levels (rows typed `case`) and the year they forecast |
+| `release_manifest.json` | The release's report date and the SHA-256 hash of each file |
 
-- `report_ohlc_summary.csv` — the latest daily close and its report date
-- `price_outlook.csv` — the case levels (rows typed `case`) and the year they forecast
-- `release_manifest.json` — the release's report date and the SHA-256 hash of each file
+The tracker stays hidden if any file can't be fetched, the case levels are malformed, the
+files' hashes or report date don't match the manifest, or the outlook is for a different year
+than the latest close. A hidden tracker logs the reason to the browser console. If the data
+ever moves, update `connect-src` in `index.html`'s Content-Security-Policy to match.
 
-The tracker fails closed. It stays hidden, leaving the rest of the section intact, if
-any file cannot be fetched, the case levels are malformed, the files' hashes or report
-date do not match the manifest, or the outlook year differs from the report date's year.
-A hidden tracker logs the reason to the browser console.
+## Quick start
 
-The page's Content-Security-Policy allows `connect-src https://secretsatoshis.github.io`
-for these requests; keep that in step if the data moves.
-
-## Local Development
-
-Serve the folder over HTTP so root-relative links and browser security behavior match production more closely:
+Serve the folder over HTTP, so root-relative links and browser security behave as they do in
+production:
 
 ```bash
 python3 -m http.server 8000
 ```
 
-Then open [http://localhost:8000](http://localhost:8000). The outlook tracker fetches
-the live published release, so it works locally with a network connection.
+Then open [http://localhost:8000](http://localhost:8000). The outlook tracker reads the live
+release, so it needs a network connection.
 
-The site uses cache-version query strings for `css/fonts.css`, `css/style.css` and `js/main.js`.
-Increment the version for the asset that changed and update that asset's reference on
-`index.html`, `404.html`, and `privacy.html` so every page receives the same production
-file.
-
-## Tests
-
-Node's built-in test runner covers the outlook tracker's parsing and release checks,
-and checks that every page's local files exist, share one cache version per asset, and
-load nothing from a third-party font service. There are no dependencies to install. Use Node 20
-or later; older versions run only some of the tests:
+Run the tests with Node 20 or later (older versions run only some of them):
 
 ```bash
 node --test tests/*.test.cjs
 ```
 
-GitHub Actions runs the same command on every pull request and every push to `main`.
+They cover the tracker's parsing and release checks, and check that every page's local files
+exist, share one cache version per asset, and load no fonts or styles from another service.
+GitHub Actions runs them on every pull request and every push to `main`.
+
+## Making changes
+
+- **CSS or JavaScript:** pages load `css/fonts.css`, `css/style.css` and `js/main.js` with a
+  version query, such as `style.css?v=26`. Raise the version of the file you changed on all
+  three pages, so every visitor gets the new file. The tests fail if the pages disagree.
+- **Page content:** update the page's `<lastmod>` in `sitemap.xml`.
+- **Products, chart counts or links:** keep `llms.txt` in step with the site.
+
+## Project layout
+
+| Path | What's there |
+|------|--------------|
+| `index.html` | The home page |
+| `privacy.html`, `404.html` | The privacy and not-found pages |
+| `css/style.css` | All page styles |
+| `css/fonts.css` | Self-hosted font rules, one per character set |
+| `js/main.js` | The Agent 21 animation, navigation, scroll effects and outlook tracker |
+| `assets/fonts/` | Syne and JetBrains Mono, with their licenses |
+| `assets/images/` | The logo, favicon and social card |
+| `llms.txt`, `robots.txt`, `sitemap.xml` | Guides for AI agents, crawlers and search engines |
+| `tests/` | Outlook tracker and page checks |
 
 ## License
 
-Licensed under the [GNU General Public License v3.0](LICENSE).
+[GPL-3.0](LICENSE). The fonts are under the SIL Open Font License; see `assets/fonts/`.
