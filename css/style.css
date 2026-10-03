@@ -19,7 +19,8 @@
   --white:     #ffffff;
   --mono:      'JetBrains Mono', monospace;
   --display:   'Syne', sans-serif;
-  --nav-h:     64px;
+  --nav-safe-top: env(safe-area-inset-top, 0px);
+  --nav-h:     calc(64px + var(--nav-safe-top));
   --max-w:     1120px;
   --gutter:    clamp(20px, 5vw, 60px);
 }
@@ -27,10 +28,11 @@
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
 html {
+  background: var(--bg);
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
+  overflow-x: clip;
   /* Offset in-page anchor targets by the fixed nav height */
   scroll-padding-top: calc(var(--nav-h) + 16px);
 }
@@ -41,7 +43,8 @@ body {
   font-family: var(--mono);
   font-size: 14px;
   line-height: 1.7;
-  overflow-x: hidden;
+  /* Keep the document as the vertical scroller on mobile browsers. */
+  overflow-x: clip;
 }
 
 /* Scanline overlay */
@@ -127,7 +130,7 @@ nav {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 var(--gutter);
+  padding: var(--nav-safe-top) var(--gutter) 0;
   background: rgba(8,8,12,0.8);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -844,9 +847,8 @@ section {
 }
 
 .resource-arrow {
-  color: var(--text-mute);
-  font-size: 18px;
-  transition: color 0.3s ease, transform 0.3s ease;
+  display: inline-block;
+  transition: transform 0.3s ease;
 }
 
 .resource-card-content {
@@ -884,8 +886,7 @@ section {
 }
 
 .resource-card:hover .resource-arrow {
-  color: var(--accent);
-  transform: translateX(4px);
+  transform: translateX(2px);
 }
 
 @media (max-width: 1024px) {
@@ -1182,6 +1183,8 @@ footer {
 /* ─── RESPONSIVE ──────────────────────────────────── */
 
 @media (max-width: 768px) {
+  nav { background: var(--bg); }
+
   /* Reduce section padding on mobile */
   section {
     padding: 48px var(--gutter);
