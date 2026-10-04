@@ -1,0 +1,31 @@
+allowBuilds:
+  "@swc/core": true
+  cbor-extract: false
+  esbuild: true
+  unrs-resolver: false
+minimumReleaseAgeExclude:
+  - "@clerk/backend@3.21.1"
+  - "@clerk/nextjs@7.9.9"
+  - "@clerk/react@6.17.4"
+  - "@clerk/shared@4.37.1"
+  - "@workflow/astro@5.0.0"
+  - "@workflow/builders@5.0.0"
+  - "@workflow/cli@5.0.0"
+  - "@workflow/core@5.0.0"
+  - "@workflow/errors@5.0.0"
+  - "@workflow/nest@5.0.0"
+  - "@workflow/next@5.0.0"
+  - "@workflow/nitro@5.0.0"
+  - "@workflow/nuxt@5.0.0"
+  - "@workflow/rollup@5.0.0"
+  - "@workflow/serde@5.0.0"
+  - "@workflow/sveltekit@5.0.0"
+  - "@workflow/swc-plugin@5.0.0"
+  - "@workflow/typescript-plugin@5.0.0"
+  - "@workflow/utils@5.0.0"
+  - "@workflow/vite@5.0.0"
+  - "@workflow/web@5.0.0"
+  - "@workflow/world-local@5.0.0"
+  - "@workflow/world-vercel@5.0.0"
+  - "@workflow/world@5.0.0"
+  - workflow@5.0.0

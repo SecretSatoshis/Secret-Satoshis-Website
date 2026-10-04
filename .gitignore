@@ -40,11 +40,3 @@ CLAUDE.md
 artifacts/
 outputs/
 runs/
-node_modules/
-.next/
-public/
-.vercel/
-*.tsbuildinfo
-next-env.d.ts
-/.swc
-/app/.well-known/workflow/

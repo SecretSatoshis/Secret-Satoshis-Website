@@ -1,0 +1,1047 @@
+{
+  "source_commit": "dc5bd4c59da0eba793fb55db612deba3edc1cc8d",
+  "operations": [
+    {
+      "name": "searchSeries",
+      "description": "Fuzzy-search the BRK catalog by a short concept term before requesting an unfamiliar series.",
+      "base": "https://bitview.space",
+      "path": "/api/series/search",
+      "parameters": [
+        {
+          "name": "q",
+          "in": "query",
+          "required": true,
+          "description": "Short series name or concept to search for.",
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "description": "Maximum number of matches to return.",
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string",
+            "minLength": 1
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": ["q"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getSeriesIndexes",
+      "description": "Return every supported aggregation index and the aliases accepted in series requests.",
+      "base": "https://bitview.space",
+      "path": "/api/series/indexes",
+      "parameters": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getSeriesInfo",
+      "description": "Confirm that a canonical series exists, then inspect its supported indexes and value type before fetching data.",
+      "base": "https://bitview.space",
+      "path": "/api/series/{series}",
+      "parameters": [
+        {
+          "name": "series",
+          "in": "path",
+          "required": true,
+          "description": "Canonical BRK series name. Search first if the exact name is unknown.",
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "series": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": ["series"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getSeriesData",
+      "description": "Fetch one series as JSON with version, index, inclusive start, exclusive end, response timestamp, and data values.",
+      "base": "https://bitview.space",
+      "path": "/api/series/{series}/{index}",
+      "parameters": [
+        {
+          "name": "series",
+          "in": "path",
+          "required": true,
+          "description": "Canonical BRK series name. Search first if the exact name is unknown.",
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "name": "index",
+          "in": "path",
+          "required": true,
+          "description": "Aggregation index or accepted alias, such as day, day1, week, month, year1, or height.",
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "name": "start",
+          "in": "query",
+          "description": "Inclusive start as an integer index, negative offset from the end, YYYY-MM-DD date, or ISO 8601 timestamp.",
+          "schema": {
+            "type": "string",
+            "examples": ["-30", "2026-03-01", "2026-03-01T00:00:00Z"]
+          }
+        },
+        {
+          "name": "end",
+          "in": "query",
+          "description": "Exclusive end as an integer index, negative offset from the end, YYYY-MM-DD date, or ISO 8601 timestamp.",
+          "schema": {
+            "type": "string",
+            "examples": ["-1", "2026-04-01", "2026-04-01T00:00:00Z"]
+          }
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "description": "Maximum values to return. BRK ignores this parameter when end is set.",
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "series": {
+            "type": "string",
+            "minLength": 1
+          },
+          "index": {
+            "type": "string",
+            "minLength": 1
+          },
+          "start": {
+            "type": "string",
+            "examples": ["-30", "2026-03-01", "2026-03-01T00:00:00Z"]
+          },
+          "end": {
+            "type": "string",
+            "examples": ["-1", "2026-04-01", "2026-04-01T00:00:00Z"]
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": ["series", "index"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getSeriesDataRaw",
+      "description": "Fetch only the value array for one series. Use the wrapped endpoint when range metadata is needed for alignment.",
+      "base": "https://bitview.space",
+      "path": "/api/series/{series}/{index}/data",
+      "parameters": [
+        {
+          "name": "series",
+          "in": "path",
+          "required": true,
+          "description": "Canonical BRK series name. Search first if the exact name is unknown.",
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "name": "index",
+          "in": "path",
+          "required": true,
+          "description": "Aggregation index or accepted alias, such as day, day1, week, month, year1, or height.",
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "name": "start",
+          "in": "query",
+          "description": "Inclusive start as an integer index, negative offset from the end, YYYY-MM-DD date, or ISO 8601 timestamp.",
+          "schema": {
+            "type": "string",
+            "examples": ["-30", "2026-03-01", "2026-03-01T00:00:00Z"]
+          }
+        },
+        {
+          "name": "end",
+          "in": "query",
+          "description": "Exclusive end as an integer index, negative offset from the end, YYYY-MM-DD date, or ISO 8601 timestamp.",
+          "schema": {
+            "type": "string",
+            "examples": ["-1", "2026-04-01", "2026-04-01T00:00:00Z"]
+          }
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "description": "Maximum values to return. BRK ignores this parameter when end is set.",
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "series": {
+            "type": "string",
+            "minLength": 1
+          },
+          "index": {
+            "type": "string",
+            "minLength": 1
+          },
+          "start": {
+            "type": "string",
+            "examples": ["-30", "2026-03-01", "2026-03-01T00:00:00Z"]
+          },
+          "end": {
+            "type": "string",
+            "examples": ["-1", "2026-04-01", "2026-04-01T00:00:00Z"]
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": ["series", "index"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getSeriesLatest",
+      "description": "Return the single most recent unwrapped value for one series and index.",
+      "base": "https://bitview.space",
+      "path": "/api/series/{series}/{index}/latest",
+      "parameters": [
+        {
+          "name": "series",
+          "in": "path",
+          "required": true,
+          "description": "Canonical BRK series name. Search first if the exact name is unknown.",
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "name": "index",
+          "in": "path",
+          "required": true,
+          "description": "Aggregation index or accepted alias, such as day, day1, week, month, year1, or height.",
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "series": {
+            "type": "string",
+            "minLength": 1
+          },
+          "index": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": ["series", "index"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getSeriesBulk",
+      "description": "Fetch several canonical series for one index and range. Include date or timestamp when the values will be joined as a time series.",
+      "base": "https://bitview.space",
+      "path": "/api/series/bulk",
+      "parameters": [
+        {
+          "name": "series",
+          "in": "query",
+          "required": true,
+          "description": "Comma-separated canonical series names, such as date,price_close,market_cap.",
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "name": "index",
+          "in": "query",
+          "required": true,
+          "description": "Aggregation index or accepted alias, such as day, day1, week, month, year1, or height.",
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "name": "start",
+          "in": "query",
+          "description": "Inclusive start as an integer index, negative offset from the end, YYYY-MM-DD date, or ISO 8601 timestamp.",
+          "schema": {
+            "type": "string",
+            "examples": ["-30", "2026-03-01", "2026-03-01T00:00:00Z"]
+          }
+        },
+        {
+          "name": "end",
+          "in": "query",
+          "description": "Exclusive end as an integer index, negative offset from the end, YYYY-MM-DD date, or ISO 8601 timestamp.",
+          "schema": {
+            "type": "string",
+            "examples": ["-1", "2026-04-01", "2026-04-01T00:00:00Z"]
+          }
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "description": "Maximum values to return. BRK ignores this parameter when end is set.",
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "series": {
+            "type": "string",
+            "minLength": 1
+          },
+          "index": {
+            "type": "string",
+            "minLength": 1
+          },
+          "start": {
+            "type": "string",
+            "examples": ["-30", "2026-03-01", "2026-03-01T00:00:00Z"]
+          },
+          "end": {
+            "type": "string",
+            "examples": ["-1", "2026-04-01", "2026-04-01T00:00:00Z"]
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": ["series", "index"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "mempoolGetTipHeight",
+      "description": "Returns the current mainnet chain-tip height as plain text. Recheck it when an exact current height matters.",
+      "base": "https://mempool.space/api",
+      "path": "/blocks/tip/height",
+      "parameters": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "mempoolGetTipHash",
+      "description": "Get the current Bitcoin chain-tip hash",
+      "base": "https://mempool.space/api",
+      "path": "/blocks/tip/hash",
+      "parameters": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "mempoolGetRecentBlocks",
+      "description": "Returns a bounded recent-block summary from the current mainnet view.",
+      "base": "https://mempool.space/api",
+      "path": "/v1/blocks",
+      "parameters": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "mempoolGetBlockHashByHeight",
+      "description": "Resolve a block height to its block hash",
+      "base": "https://mempool.space/api",
+      "path": "/block-height/{height}",
+      "parameters": [
+        {
+          "name": "height",
+          "in": "path",
+          "required": true,
+          "description": "Bitcoin mainnet block height.",
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "height": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": ["height"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "mempoolGetBlock",
+      "description": "Get a Bitcoin block summary by hash",
+      "base": "https://mempool.space/api",
+      "path": "/block/{hash}",
+      "parameters": [
+        {
+          "name": "hash",
+          "in": "path",
+          "required": true,
+          "description": "A 64-character Bitcoin block hash.",
+          "schema": {
+            "type": "string",
+            "pattern": "^[A-Fa-f0-9]{64}$"
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "hash": {
+            "type": "string",
+            "pattern": "^[A-Fa-f0-9]{64}$"
+          }
+        },
+        "required": ["hash"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "mempoolGetTransaction",
+      "description": "Returns public mainnet transaction details. Use only when transaction-level detail is needed; very large transactions may exceed platform response limits.",
+      "base": "https://mempool.space/api",
+      "path": "/tx/{txid}",
+      "parameters": [
+        {
+          "name": "txid",
+          "in": "path",
+          "required": true,
+          "description": "A 64-character Bitcoin transaction ID.",
+          "schema": {
+            "type": "string",
+            "pattern": "^[A-Fa-f0-9]{64}$"
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "txid": {
+            "type": "string",
+            "pattern": "^[A-Fa-f0-9]{64}$"
+          }
+        },
+        "required": ["txid"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "mempoolGetTransactionStatus",
+      "description": "Get confirmation status for a Bitcoin transaction",
+      "base": "https://mempool.space/api",
+      "path": "/tx/{txid}/status",
+      "parameters": [
+        {
+          "name": "txid",
+          "in": "path",
+          "required": true,
+          "description": "A 64-character Bitcoin transaction ID.",
+          "schema": {
+            "type": "string",
+            "pattern": "^[A-Fa-f0-9]{64}$"
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "txid": {
+            "type": "string",
+            "pattern": "^[A-Fa-f0-9]{64}$"
+          }
+        },
+        "required": ["txid"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "mempoolGetAddressSummary",
+      "description": "Returns funded, spent, and transaction-count statistics for a user-requested mainnet address. Querying sends that public address to mempool.space. Treat addresses as privacy-sensitive pseudonymous identifiers and never infer identity or ownership from the result.",
+      "base": "https://mempool.space/api",
+      "path": "/address/{address}",
+      "parameters": [
+        {
+          "name": "address",
+          "in": "path",
+          "required": true,
+          "description": "A public Bitcoin mainnet address supplied or explicitly requested by the user.",
+          "schema": {
+            "type": "string",
+            "minLength": 14,
+            "maxLength": 90
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "type": "string",
+            "minLength": 14,
+            "maxLength": 90
+          }
+        },
+        "required": ["address"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "mempoolValidateAddress",
+      "description": "Validates a user-requested Bitcoin address and returns its public script metadata. The queried address is sent to mempool.space.",
+      "base": "https://mempool.space/api",
+      "path": "/v1/validate-address/{address}",
+      "parameters": [
+        {
+          "name": "address",
+          "in": "path",
+          "required": true,
+          "description": "A public Bitcoin address string supplied or explicitly requested by the user.",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 90
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 90
+          }
+        },
+        "required": ["address"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "mempoolGetCurrentMempool",
+      "description": "Returns a point-in-time public mempool view. It is operational state, not a complete historical series.",
+      "base": "https://mempool.space/api",
+      "path": "/mempool",
+      "parameters": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "mempoolGetRecommendedFees",
+      "description": "Returns fee-rate estimates in satoshis per virtual byte. Estimates are not confirmation guarantees.",
+      "base": "https://mempool.space/api",
+      "path": "/v1/fees/recommended",
+      "parameters": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "mempoolGetDifficultyAdjustment",
+      "description": "Returns a changing estimate for the current adjustment period. Label it as an estimate and include the retrieval time.",
+      "base": "https://mempool.space/api",
+      "path": "/v1/difficulty-adjustment",
+      "parameters": [],
+      "schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "mempoolGetMiningHashrate",
+      "description": "Get estimated Bitcoin mining hashrate history",
+      "base": "https://mempool.space/api",
+      "path": "/v1/mining/hashrate/{timePeriod}",
+      "parameters": [
+        {
+          "name": "timePeriod",
+          "in": "path",
+          "required": true,
+          "description": "History window supported by mempool.space.",
+          "schema": {
+            "type": "string",
+            "enum": ["1m", "3m", "6m", "1y", "2y", "3y"]
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "timePeriod": {
+            "type": "string",
+            "enum": ["1m", "3m", "6m", "1y", "2y", "3y"]
+          }
+        },
+        "required": ["timePeriod"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "mempoolGetMiningBlockFees",
+      "description": "Get historical block-fee statistics",
+      "base": "https://mempool.space/api",
+      "path": "/v1/mining/blocks/fees/{timePeriod}",
+      "parameters": [
+        {
+          "name": "timePeriod",
+          "in": "path",
+          "required": true,
+          "description": "Block-fee history window supported by mempool.space.",
+          "schema": {
+            "type": "string",
+            "enum": ["24h", "3d", "1w", "1m", "3m", "6m", "1y", "2y", "3y"]
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "timePeriod": {
+            "type": "string",
+            "enum": ["24h", "3d", "1w", "1m", "3m", "6m", "1y", "2y", "3y"]
+          }
+        },
+        "required": ["timePeriod"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "polymarketGetTagBySlug",
+      "description": "Resolve a concise topical slug before market discovery. A successful tag lookup does not by itself establish relevance or market quality.",
+      "base": "https://gamma-api.polymarket.com",
+      "path": "/tags/slug/{slug}",
+      "parameters": [
+        {
+          "name": "slug",
+          "in": "path",
+          "required": true,
+          "description": "Concise candidate topic slug to validate, such as bitcoin. If it does not resolve, do not invent a tag ID.",
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "maxLength": 80
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "maxLength": 80
+          }
+        },
+        "required": ["slug"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "polymarketListRelevantMarkets",
+      "description": "Find candidate markets using an exact tag ID resolved by the tag operation. Keep only Bitcoin, crypto, economic, political, regulatory, liquidity, or macro markets with a material and explainable Bitcoin connection. Liquidity and volume filters are optional aids, not universal quality thresholds.",
+      "base": "https://gamma-api.polymarket.com",
+      "path": "/markets/keyset",
+      "parameters": [
+        {
+          "name": "tag_id",
+          "in": "query",
+          "required": true,
+          "description": "A one-item array containing the exact numeric tag ID returned by polymarketGetTagBySlug.",
+          "style": "form",
+          "explode": true,
+          "schema": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "minItems": 1,
+            "maxItems": 1
+          }
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "description": "Small response-size cap. Start with the narrowest useful result set.",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5,
+            "default": 3
+          }
+        },
+        {
+          "name": "closed",
+          "in": "query",
+          "description": "Whether to request closed markets. Keep false for current expectations unless the user explicitly asks for history.",
+          "schema": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        {
+          "name": "liquidity_num_min",
+          "in": "query",
+          "description": "Optional adaptive minimum for the API's reported liquidity value. Do not apply a fixed universal cutoff; choose only after considering the scale and peers of the relevant market set.",
+          "schema": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        {
+          "name": "volume_num_min",
+          "in": "query",
+          "description": "Optional adaptive minimum for the API's reported cumulative volume value. Do not apply a fixed universal cutoff; compare relevant candidates first.",
+          "schema": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        {
+          "name": "order",
+          "in": "query",
+          "description": "Optional live API field used for candidate ordering.",
+          "schema": {
+            "type": "string",
+            "enum": ["volumeNum", "liquidityNum"]
+          }
+        },
+        {
+          "name": "ascending",
+          "in": "query",
+          "description": "Sort direction for the selected order field. Use false when seeking the most liquid or highest-volume candidates.",
+          "schema": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        {
+          "name": "related_tags",
+          "in": "query",
+          "description": "Optionally include markets under related tags. Keep false unless broader discovery is necessary and manually recheck relevance.",
+          "schema": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        {
+          "name": "include_tag",
+          "in": "query",
+          "description": "Include tag metadata with each candidate for relevance review.",
+          "schema": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        {
+          "name": "after_cursor",
+          "in": "query",
+          "description": "Opaque cursor returned by a prior keyset response. Do not invent or alter it.",
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "tag_id": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "minItems": 1,
+            "maxItems": 1
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5,
+            "default": 3
+          },
+          "closed": {
+            "type": "boolean",
+            "default": false
+          },
+          "liquidity_num_min": {
+            "type": "number",
+            "minimum": 0
+          },
+          "volume_num_min": {
+            "type": "number",
+            "minimum": 0
+          },
+          "order": {
+            "type": "string",
+            "enum": ["volumeNum", "liquidityNum"]
+          },
+          "ascending": {
+            "type": "boolean",
+            "default": false
+          },
+          "related_tags": {
+            "type": "boolean",
+            "default": false
+          },
+          "include_tag": {
+            "type": "boolean",
+            "default": true
+          },
+          "after_cursor": {
+            "type": "string"
+          }
+        },
+        "required": ["tag_id"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "polymarketGetMarketById",
+      "description": "Inspect one public market's question, outcomes, prices, status, activity, spread, and resolution source.",
+      "base": "https://gamma-api.polymarket.com",
+      "path": "/markets/{id}",
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "Exact public Polymarket market ID returned by the API.",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        },
+        "required": ["id"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "polymarketGetMarketBySlug",
+      "description": "Get a prediction market by exact slug",
+      "base": "https://gamma-api.polymarket.com",
+      "path": "/markets/slug/{slug}",
+      "parameters": [
+        {
+          "name": "slug",
+          "in": "path",
+          "required": true,
+          "description": "Exact public market slug returned by Polymarket.",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 250
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 250
+          }
+        },
+        "required": ["slug"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "polymarketGetMarketTags",
+      "description": "Use tags as supporting relevance metadata, not as proof that a market is useful or Bitcoin-related.",
+      "base": "https://gamma-api.polymarket.com",
+      "path": "/markets/{id}/tags",
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "Exact public Polymarket market ID returned by the API.",
+          "schema": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        },
+        "required": ["id"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "getRepoContent",
+      "description": "Returns a directory listing or a small file with base64 content. Keep responses below the ChatGPT Action payload limit; use '.' for the repository root.",
+      "base": "https://api.github.com",
+      "path": "/repos/{owner}/{repo}/contents/{path}",
+      "parameters": [
+        {
+          "name": "owner",
+          "in": "path",
+          "required": true,
+          "description": "GitHub account or organization that owns the public repository.",
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "name": "repo",
+          "in": "path",
+          "required": true,
+          "description": "Public repository name without the owner prefix.",
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "name": "path",
+          "in": "path",
+          "required": true,
+          "description": "URL-encoded file or directory path. Use '.' to list the repository root.",
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        {
+          "name": "ref",
+          "in": "query",
+          "required": false,
+          "description": "Branch name, tag, or commit SHA. Omit to use the repository's default branch.",
+          "schema": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "owner": {
+            "type": "string",
+            "minLength": 1
+          },
+          "repo": {
+            "type": "string",
+            "minLength": 1
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "ref": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": ["owner", "repo", "path"],
+        "additionalProperties": false
+      }
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+node_modules/
+.next/
+public/
+app/.well-known/workflow/
+pnpm-lock.yaml
+tsconfig.tsbuildinfo
+.swc/

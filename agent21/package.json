@@ -1,0 +1,56 @@
+{
+  "name": "secret-satoshis-agent21",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.25.0",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "dev": "node scripts/prepare-static.mjs && next dev",
+    "build": "node scripts/prepare-static.mjs && next build",
+    "start": "next start",
+    "typecheck": "next typegen && tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "tsx --test tests/*.test.ts",
+    "contracts": "node scripts/sync-contracts.mjs",
+    "migrate": "tsx scripts/migrate.ts",
+    "preflight": "tsx scripts/preflight.ts",
+    "beta": "tsx scripts/beta.ts",
+    "ops": "tsx scripts/ops.ts"
+  },
+  "dependencies": {
+    "@assistant-ui/react": "0.15.22",
+    "@assistant-ui/react-markdown": "0.14.17",
+    "@clerk/nextjs": "7.9.9",
+    "@sentry/nextjs": "11.4.0",
+    "@vercel/blob": "2.8.0",
+    "@vercel/functions": "3.9.11",
+    "ajv": "8.17.1",
+    "kysely": "0.29.6",
+    "next": "16.3.6",
+    "openai": "7.25.0",
+    "pdf-lib": "1.17.1",
+    "pg": "8.23.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "workflow": "5.0.0",
+    "zod": "4.3.6"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.3.14",
+    "@types/node": "24.19.0",
+    "@types/pg": "8.23.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.3.6",
+    "prettier": "3.9.9",
+    "tsx": "4.22.1",
+    "typescript": "6.0.3",
+    "yaml": "2.8.2"
+  }
+}
