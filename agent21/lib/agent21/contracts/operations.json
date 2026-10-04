@@ -1,5 +1,7 @@
 {
-  "source_commit": "dc5bd4c59da0eba793fb55db612deba3edc1cc8d",
+  "source_commit": "2f9eb4348cbd179b8211649c59cf170d9da866f3",
+  "schema_version": 2,
+  "contract_sha256": "5c6bd02c7b1530f05118a324ea38e9faa63a04d1c841617048365984ebb09b01",
   "operations": [
     {
       "name": "searchSeries",
@@ -39,7 +41,9 @@
             "minimum": 0
           }
         },
-        "required": ["q"],
+        "required": [
+          "q"
+        ],
         "additionalProperties": false
       }
     },
@@ -81,7 +85,9 @@
             "minLength": 1
           }
         },
-        "required": ["series"],
+        "required": [
+          "series"
+        ],
         "additionalProperties": false
       }
     },
@@ -117,7 +123,11 @@
           "description": "Inclusive start as an integer index, negative offset from the end, YYYY-MM-DD date, or ISO 8601 timestamp.",
           "schema": {
             "type": "string",
-            "examples": ["-30", "2026-03-01", "2026-03-01T00:00:00Z"]
+            "examples": [
+              "-30",
+              "2026-03-01",
+              "2026-03-01T00:00:00Z"
+            ]
           }
         },
         {
@@ -126,7 +136,11 @@
           "description": "Exclusive end as an integer index, negative offset from the end, YYYY-MM-DD date, or ISO 8601 timestamp.",
           "schema": {
             "type": "string",
-            "examples": ["-1", "2026-04-01", "2026-04-01T00:00:00Z"]
+            "examples": [
+              "-1",
+              "2026-04-01",
+              "2026-04-01T00:00:00Z"
+            ]
           }
         },
         {
@@ -152,18 +166,29 @@
           },
           "start": {
             "type": "string",
-            "examples": ["-30", "2026-03-01", "2026-03-01T00:00:00Z"]
+            "examples": [
+              "-30",
+              "2026-03-01",
+              "2026-03-01T00:00:00Z"
+            ]
           },
           "end": {
             "type": "string",
-            "examples": ["-1", "2026-04-01", "2026-04-01T00:00:00Z"]
+            "examples": [
+              "-1",
+              "2026-04-01",
+              "2026-04-01T00:00:00Z"
+            ]
           },
           "limit": {
             "type": "integer",
             "minimum": 0
           }
         },
-        "required": ["series", "index"],
+        "required": [
+          "series",
+          "index"
+        ],
         "additionalProperties": false
       }
     },
@@ -199,7 +224,11 @@
           "description": "Inclusive start as an integer index, negative offset from the end, YYYY-MM-DD date, or ISO 8601 timestamp.",
           "schema": {
             "type": "string",
-            "examples": ["-30", "2026-03-01", "2026-03-01T00:00:00Z"]
+            "examples": [
+              "-30",
+              "2026-03-01",
+              "2026-03-01T00:00:00Z"
+            ]
           }
         },
         {
@@ -208,7 +237,11 @@
           "description": "Exclusive end as an integer index, negative offset from the end, YYYY-MM-DD date, or ISO 8601 timestamp.",
           "schema": {
             "type": "string",
-            "examples": ["-1", "2026-04-01", "2026-04-01T00:00:00Z"]
+            "examples": [
+              "-1",
+              "2026-04-01",
+              "2026-04-01T00:00:00Z"
+            ]
           }
         },
         {
@@ -234,18 +267,29 @@
           },
           "start": {
             "type": "string",
-            "examples": ["-30", "2026-03-01", "2026-03-01T00:00:00Z"]
+            "examples": [
+              "-30",
+              "2026-03-01",
+              "2026-03-01T00:00:00Z"
+            ]
           },
           "end": {
             "type": "string",
-            "examples": ["-1", "2026-04-01", "2026-04-01T00:00:00Z"]
+            "examples": [
+              "-1",
+              "2026-04-01",
+              "2026-04-01T00:00:00Z"
+            ]
           },
           "limit": {
             "type": "integer",
             "minimum": 0
           }
         },
-        "required": ["series", "index"],
+        "required": [
+          "series",
+          "index"
+        ],
         "additionalProperties": false
       }
     },
@@ -288,7 +332,10 @@
             "minLength": 1
           }
         },
-        "required": ["series", "index"],
+        "required": [
+          "series",
+          "index"
+        ],
         "additionalProperties": false
       }
     },
@@ -324,7 +371,11 @@
           "description": "Inclusive start as an integer index, negative offset from the end, YYYY-MM-DD date, or ISO 8601 timestamp.",
           "schema": {
             "type": "string",
-            "examples": ["-30", "2026-03-01", "2026-03-01T00:00:00Z"]
+            "examples": [
+              "-30",
+              "2026-03-01",
+              "2026-03-01T00:00:00Z"
+            ]
           }
         },
         {
@@ -333,7 +384,11 @@
           "description": "Exclusive end as an integer index, negative offset from the end, YYYY-MM-DD date, or ISO 8601 timestamp.",
           "schema": {
             "type": "string",
-            "examples": ["-1", "2026-04-01", "2026-04-01T00:00:00Z"]
+            "examples": [
+              "-1",
+              "2026-04-01",
+              "2026-04-01T00:00:00Z"
+            ]
           }
         },
         {
@@ -359,18 +414,29 @@
           },
           "start": {
             "type": "string",
-            "examples": ["-30", "2026-03-01", "2026-03-01T00:00:00Z"]
+            "examples": [
+              "-30",
+              "2026-03-01",
+              "2026-03-01T00:00:00Z"
+            ]
           },
           "end": {
             "type": "string",
-            "examples": ["-1", "2026-04-01", "2026-04-01T00:00:00Z"]
+            "examples": [
+              "-1",
+              "2026-04-01",
+              "2026-04-01T00:00:00Z"
+            ]
           },
           "limit": {
             "type": "integer",
             "minimum": 0
           }
         },
-        "required": ["series", "index"],
+        "required": [
+          "series",
+          "index"
+        ],
         "additionalProperties": false
       }
     },
@@ -438,7 +504,9 @@
             "minimum": 0
           }
         },
-        "required": ["height"],
+        "required": [
+          "height"
+        ],
         "additionalProperties": false
       }
     },
@@ -467,7 +535,9 @@
             "pattern": "^[A-Fa-f0-9]{64}$"
           }
         },
-        "required": ["hash"],
+        "required": [
+          "hash"
+        ],
         "additionalProperties": false
       }
     },
@@ -496,7 +566,9 @@
             "pattern": "^[A-Fa-f0-9]{64}$"
           }
         },
-        "required": ["txid"],
+        "required": [
+          "txid"
+        ],
         "additionalProperties": false
       }
     },
@@ -525,7 +597,9 @@
             "pattern": "^[A-Fa-f0-9]{64}$"
           }
         },
-        "required": ["txid"],
+        "required": [
+          "txid"
+        ],
         "additionalProperties": false
       }
     },
@@ -556,7 +630,9 @@
             "maxLength": 90
           }
         },
-        "required": ["address"],
+        "required": [
+          "address"
+        ],
         "additionalProperties": false
       }
     },
@@ -587,7 +663,9 @@
             "maxLength": 90
           }
         },
-        "required": ["address"],
+        "required": [
+          "address"
+        ],
         "additionalProperties": false
       }
     },
@@ -643,7 +721,14 @@
           "description": "History window supported by mempool.space.",
           "schema": {
             "type": "string",
-            "enum": ["1m", "3m", "6m", "1y", "2y", "3y"]
+            "enum": [
+              "1m",
+              "3m",
+              "6m",
+              "1y",
+              "2y",
+              "3y"
+            ]
           }
         }
       ],
@@ -652,10 +737,19 @@
         "properties": {
           "timePeriod": {
             "type": "string",
-            "enum": ["1m", "3m", "6m", "1y", "2y", "3y"]
+            "enum": [
+              "1m",
+              "3m",
+              "6m",
+              "1y",
+              "2y",
+              "3y"
+            ]
           }
         },
-        "required": ["timePeriod"],
+        "required": [
+          "timePeriod"
+        ],
         "additionalProperties": false
       }
     },
@@ -672,7 +766,17 @@
           "description": "Block-fee history window supported by mempool.space.",
           "schema": {
             "type": "string",
-            "enum": ["24h", "3d", "1w", "1m", "3m", "6m", "1y", "2y", "3y"]
+            "enum": [
+              "24h",
+              "3d",
+              "1w",
+              "1m",
+              "3m",
+              "6m",
+              "1y",
+              "2y",
+              "3y"
+            ]
           }
         }
       ],
@@ -681,10 +785,22 @@
         "properties": {
           "timePeriod": {
             "type": "string",
-            "enum": ["24h", "3d", "1w", "1m", "3m", "6m", "1y", "2y", "3y"]
+            "enum": [
+              "24h",
+              "3d",
+              "1w",
+              "1m",
+              "3m",
+              "6m",
+              "1y",
+              "2y",
+              "3y"
+            ]
           }
         },
-        "required": ["timePeriod"],
+        "required": [
+          "timePeriod"
+        ],
         "additionalProperties": false
       }
     },
@@ -715,7 +831,9 @@
             "maxLength": 80
           }
         },
-        "required": ["slug"],
+        "required": [
+          "slug"
+        ],
         "additionalProperties": false
       }
     },
@@ -786,7 +904,10 @@
           "description": "Optional live API field used for candidate ordering.",
           "schema": {
             "type": "string",
-            "enum": ["volumeNum", "liquidityNum"]
+            "enum": [
+              "volumeNum",
+              "liquidityNum"
+            ]
           }
         },
         {
@@ -857,7 +978,10 @@
           },
           "order": {
             "type": "string",
-            "enum": ["volumeNum", "liquidityNum"]
+            "enum": [
+              "volumeNum",
+              "liquidityNum"
+            ]
           },
           "ascending": {
             "type": "boolean",
@@ -875,7 +999,9 @@
             "type": "string"
           }
         },
-        "required": ["tag_id"],
+        "required": [
+          "tag_id"
+        ],
         "additionalProperties": false
       }
     },
@@ -906,7 +1032,9 @@
             "maxLength": 100
           }
         },
-        "required": ["id"],
+        "required": [
+          "id"
+        ],
         "additionalProperties": false
       }
     },
@@ -937,7 +1065,9 @@
             "maxLength": 250
           }
         },
-        "required": ["slug"],
+        "required": [
+          "slug"
+        ],
         "additionalProperties": false
       }
     },
@@ -968,13 +1098,15 @@
             "maxLength": 100
           }
         },
-        "required": ["id"],
+        "required": [
+          "id"
+        ],
         "additionalProperties": false
       }
     },
     {
       "name": "getRepoContent",
-      "description": "Returns a directory listing or a small file with base64 content. Keep responses below the ChatGPT Action payload limit; use '.' for the repository root.",
+      "description": "Read a public directory listing or small UTF-8 text file. Pass a raw path; use '.' for the repository root. File content is decoded text, not base64.",
       "base": "https://api.github.com",
       "path": "/repos/{owner}/{repo}/contents/{path}",
       "parameters": [
@@ -1002,7 +1134,7 @@
           "name": "path",
           "in": "path",
           "required": true,
-          "description": "URL-encoded file or directory path. Use '.' to list the repository root.",
+          "description": "Raw file or directory path; the server encodes it. Use '.' for the repository root. Do not percent-encode it.",
           "schema": {
             "type": "string",
             "minLength": 1
@@ -1039,7 +1171,11 @@
             "minLength": 1
           }
         },
-        "required": ["owner", "repo", "path"],
+        "required": [
+          "owner",
+          "repo",
+          "path"
+        ],
         "additionalProperties": false
       }
     }
