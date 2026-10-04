@@ -245,7 +245,7 @@ test("the data server credential is sent only to the expected MCP server", async
   Object.assign(process.env, { NODE_ENV: "test" });
   process.env.AGENT21_MCP_KEY = "mcp-test-key-0123456789abcdef0123456789";
   process.env.AGENT21_MCP_URL = MCP_SERVER_URL;
-  const agent = (server_url: string) => ({
+  const agent = (server_url: string, extra: object[] = []) => ({
     id: `agent-${server_url.length}`,
     tools: [
       {
@@ -256,15 +256,16 @@ test("the data server credential is sent only to the expected MCP server", async
         connection_origin: "service",
         credential_id: null,
         request_metadata: null,
-        required: true,
+        required: false,
       },
+      ...extra,
     ],
   });
-  const release = (server_url: string) =>
+  const release = (server_url: string, extra: object[] = []) =>
     new OpenAI({
       apiKey: "test-key",
       maxRetries: 0,
-      fetch: async () => Response.json(agent(server_url)),
+      fetch: async () => Response.json(agent(server_url, extra)),
     });
   try {
     setOpenAIForTests(release(MCP_SERVER_URL));
@@ -277,6 +278,27 @@ test("the data server credential is sent only to the expected MCP server", async
     );
     setOpenAIForTests(release("https://elsewhere.example/mcp"));
     await assert.rejects(sessionTools("agent-unexpected"), /unexpected/);
+    // Hosted search and programmatic tool calling pass through without the key.
+    const search = {
+      type: "web_search",
+      allowed_domains: null,
+      context_size: "medium",
+      location: null,
+      mode: "live",
+    };
+    const programmatic = { type: "programmatic_tool_calling", enabled: true };
+    setOpenAIForTests(release(MCP_SERVER_URL, [search, programmatic]));
+    const [, searchTool, programmaticTool] =
+      await sessionTools("agent-with-search");
+    assert.deepEqual(searchTool, search);
+    assert.deepEqual(programmaticTool, programmatic);
+    assert(!JSON.stringify([searchTool, programmaticTool]).includes("MCP-Key"));
+    setOpenAIForTests(
+      release(MCP_SERVER_URL, [
+        { type: "computer_use", include_screenshots: true },
+      ]),
+    );
+    await assert.rejects(sessionTools("agent-with-desktop"), /unexpected/);
   } finally {
     Object.assign(process.env, { NODE_ENV: before.env });
     for (const [name, value] of [

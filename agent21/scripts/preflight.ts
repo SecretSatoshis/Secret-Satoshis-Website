@@ -24,10 +24,16 @@ if (missing.length) {
     assert.equal(agent.service_tier, "default");
     assert.equal(agent.multi_agent.enabled, false);
     assert.equal(agent.metadata.runtime, required("AGENT21_RUNTIME_VERSION"));
-    // Releases reach external data only through the data server.
-    assert.equal(agent.tools.length, 1);
-    const [mcp] = agent.tools;
-    assert(mcp.type === "mcp" && mcp.transport.type === "http");
+    // One data server, plus optional hosted search and programmatic tool calling.
+    const mcp = agent.tools.find((tool) => tool.type === "mcp");
+    assert(
+      agent.tools.every((tool) =>
+        ["mcp", "web_search", "programmatic_tool_calling"].includes(tool.type),
+      ),
+      "The release declares an unreviewed tool type",
+    );
+    assert.equal(agent.tools.filter((tool) => tool.type === "mcp").length, 1);
+    assert(mcp?.type === "mcp" && mcp.transport.type === "http");
     assert.equal(mcp.transport.server_url, mcpServerUrl());
     assert.deepEqual(
       [...(mcp.allowed_tools ?? [])].sort(),

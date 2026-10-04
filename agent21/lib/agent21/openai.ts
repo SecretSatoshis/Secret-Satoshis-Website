@@ -111,8 +111,19 @@ export async function sessionTools(agentId: string): Promise<AgentToolParam[]> {
   }
   const key = required("AGENT21_MCP_KEY");
   const url = mcpServerUrl();
-  return (await tools).map((tool) => {
-    // The release defines only the data server; anything else needs review.
+  return (await tools).map((tool): AgentToolParam => {
+    // Releases may add hosted search and programmatic tool calling; any other
+    // tool or MCP server needs review before the data key is attached.
+    if (tool.type === "web_search")
+      return {
+        type: "web_search",
+        allowed_domains: tool.allowed_domains,
+        context_size: tool.context_size,
+        location: tool.location,
+        mode: tool.mode,
+      };
+    if (tool.type === "programmatic_tool_calling")
+      return { type: "programmatic_tool_calling", enabled: tool.enabled };
     if (
       tool.type !== "mcp" ||
       tool.transport.type !== "http" ||
