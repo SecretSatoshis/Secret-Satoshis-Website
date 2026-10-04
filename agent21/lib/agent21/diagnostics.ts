@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-import catalog from "./contracts/operations.json";
 
 const providers = [
   "application",
@@ -14,7 +13,6 @@ type Provider = (typeof providers)[number];
 const events = [
   "request_failed",
   "run_failed",
-  "tool_failed",
   "diagnostic_persist_failed",
   "migration_failed",
   "ops_report_failed",
@@ -57,15 +55,11 @@ const openaiErrors = new Set([
   "APIConnectionError",
   "APIConnectionTimeoutError",
 ]);
-const toolNames = new Set(
-  catalog.operations.map((operation) => operation.name),
-);
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export type DiagnosticContext = {
   requestId?: string;
   runId?: string;
   provider?: Provider;
-  toolName?: string;
 };
 export type Diagnostic = {
   id: string;
@@ -75,7 +69,6 @@ export type Diagnostic = {
   status?: number;
   requestId?: string;
   runId?: string;
-  toolName?: string;
 };
 
 /** Deliberately never reads message, stack, body, details, headers, URLs or arguments. */
@@ -122,9 +115,6 @@ export function diagnostic(
     ...(context.runId && uuid.test(context.runId)
       ? { runId: context.runId }
       : {}),
-    ...(context.toolName && toolNames.has(context.toolName)
-      ? { toolName: context.toolName }
-      : {}),
   };
 }
 let reporter: ((record: Diagnostic) => void) | undefined;
@@ -170,9 +160,6 @@ export function storedDiagnostic(value: unknown): Diagnostic | null {
       : {}),
     ...(typeof row.runId === "string" && uuid.test(row.runId)
       ? { runId: row.runId }
-      : {}),
-    ...(typeof row.toolName === "string" && toolNames.has(row.toolName)
-      ? { toolName: row.toolName }
       : {}),
   };
 }

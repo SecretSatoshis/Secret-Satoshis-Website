@@ -15,10 +15,11 @@ import {
   environmentId,
   hostedEnvironment,
   isProviderError,
+  sessionTools,
 } from "./openai";
-import { boundedBytes, retrieveTool } from "./tools";
 import {
   attachToEnvironment,
+  boundedBytes,
   fileView,
   inputPath,
   providerFile,
@@ -292,8 +293,12 @@ async function createSession(run: Run) {
     prior_turn_ids: "[]",
     session_creation_started_at: new Date(),
   });
+  // The data server's credential joins the request here and is never stored.
   const session = await openai().beta.agents.sessions.create(
-    submission.body as unknown as SessionCreateParamsNonStreaming,
+    {
+      ...submission.body,
+      agent: { tools: await sessionTools(run.agent_id) },
+    } as unknown as SessionCreateParamsNonStreaming,
     { maxRetries: 0 },
   );
   await adoptSession(run, session);
@@ -455,115 +460,6 @@ async function start(run: Run) {
   }
   await createSession(run);
 }
-async function pendingCalls(run: Run, session: AgentSession) {
-  for (const action of session.required_actions.slice(0, 2)) {
-    if (action.type !== "function_call") continue;
-    await keepLease(run);
-    const key = {
-      session_id: session.id,
-      turn_id: action.turn_id,
-      call_id: action.call_id,
-    };
-    const call = () =>
-      db()
-        .selectFrom("agent21_calls")
-        .selectAll()
-        .where("session_id", "=", key.session_id)
-        .where("turn_id", "=", key.turn_id)
-        .where("call_id", "=", key.call_id)
-        .executeTakeFirstOrThrow();
-    await db()
-      .insertInto("agent21_calls")
-      .values(key)
-      .onConflict((oc) => oc.doNothing())
-      .execute();
-    let row = await call();
-    if (row.submitted) continue;
-    if (!row.result) {
-      const leased = await db()
-        .updateTable("agent21_calls")
-        .set({ lease_until: sql<Date>`now()+interval '60 seconds'` })
-        .where("session_id", "=", key.session_id)
-        .where("turn_id", "=", key.turn_id)
-        .where("call_id", "=", key.call_id)
-        .where((eb) =>
-          eb.or([
-            eb("lease_until", "is", null),
-            eb("lease_until", "<", sql<Date>`now()`),
-          ]),
-        )
-        .returning("call_id")
-        .executeTakeFirst();
-      if (!leased) continue;
-      let result;
-      try {
-        const data = await retrieveTool(action.name, action.arguments);
-        if (Buffer.byteLength(data.text) > 16_000) {
-          const file = await reserveFile(
-            run.owner_id,
-            run.conversation_id,
-            `${action.call_id}.json`,
-            Buffer.byteLength(data.text),
-            "application/json",
-            "source",
-            run.id,
-            `source:${session.id}:${action.call_id}`,
-            { source: data.source, retrieved_at: data.retrieved_at },
-          );
-          await retainFile(file, Buffer.from(data.text));
-          const path = inputPath(file);
-          await attachOnce(session, file, path);
-          result = {
-            success: true as const,
-            output: JSON.stringify({
-              source: data.source,
-              retrieved_at: data.retrieved_at,
-              path,
-            }),
-          };
-        } else
-          result = { success: true as const, output: JSON.stringify(data) };
-      } catch (error) {
-        logDiagnostic(error, "tool_failed", {
-          runId: run.id,
-          toolName: action.name,
-          provider: "source",
-        });
-        result = {
-          success: false as const,
-          error:
-            "The selected source could not be retrieved or exceeded the beta limits. Do not substitute guessed data.",
-        };
-      }
-      await db()
-        .updateTable("agent21_calls")
-        .set({ result: JSON.stringify(result) })
-        .where("session_id", "=", key.session_id)
-        .where("turn_id", "=", key.turn_id)
-        .where("call_id", "=", key.call_id)
-        .execute();
-      row = await call();
-    }
-    await openai().beta.agents.sessions.events.create(session.id, {
-      "Idempotency-Key": `tool-${session.id}-${action.turn_id}-${action.call_id}`,
-      events: [
-        {
-          type: "agent.session.input.tool_result",
-          turn_id: action.turn_id,
-          call_id: action.call_id,
-          ...row.result!,
-        },
-      ],
-    });
-    await db()
-      .updateTable("agent21_calls")
-      .set({ submitted: true })
-      .where("session_id", "=", key.session_id)
-      .where("turn_id", "=", key.turn_id)
-      .where("call_id", "=", key.call_id)
-      .execute();
-  }
-}
 const contentTypes: Record<string, string> = {
   png: "image/png",
   csv: "text/csv",
@@ -684,7 +580,6 @@ async function monitor(run: Run) {
     await api.beta.agents.sessions.events.create(session.id, {
       events: [{ type: "agent.session.input.cancel" }],
     });
-  else await pendingCalls(run, session);
   const turns = await api.beta.agents.sessions.turns.list(session.id, {
     order: "desc",
     limit: 10,
@@ -707,9 +602,7 @@ async function monitor(run: Run) {
     turn_id: turn.id,
     display: JSON.stringify({
       text,
-      progress: session.required_actions.length
-        ? "Checking Bitcoin data…"
-        : "Working on your response…",
+      progress: "Working on your response…",
     }),
   });
   if (!terminal(turn.status)) return false;

@@ -108,14 +108,6 @@ export interface FilesTable {
   upload_token_expires_at: NullableTimestamp;
   created_at: DefaultTimestamp;
 }
-export interface CallsTable {
-  session_id: string;
-  turn_id: string;
-  call_id: string;
-  result: NullableJson<ToolResult>;
-  lease_until: NullableTimestamp;
-  submitted: Generated<boolean>;
-}
 export interface EventsTable {
   id: string;
   created_at: DefaultTimestamp;
@@ -158,7 +150,6 @@ export interface Database {
   agent21_sessions: SessionsTable;
   agent21_runs: RunsTable;
   agent21_files: FilesTable;
-  agent21_calls: CallsTable;
   agent21_events: EventsTable;
   agent21_deletions: DeletionsTable;
   agent21_file_deletions: FileDeletionsTable;

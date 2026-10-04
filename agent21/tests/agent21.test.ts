@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { toolRequest, retrieveTool, boundedBytes } from "../lib/agent21/tools";
-import { safeArtifact, safeFilename } from "../lib/agent21/files";
+import { boundedBytes, safeArtifact, safeFilename } from "../lib/agent21/files";
 import { validateUpload } from "../lib/agent21/validation";
 import { verifyOrigin } from "../lib/agent21/auth";
 import {
@@ -10,7 +9,6 @@ import {
   environmentId,
   estimatedTokens,
 } from "../lib/agent21/openai";
-import catalog from "../lib/agent21/contracts/operations.json";
 import { PDFDocument } from "pdf-lib";
 import {
   credentialNames,
@@ -64,64 +62,6 @@ test("webhook credentials are optional only for loopback development; production
   }
 });
 
-test("public Action contracts stay read-only and fixed-host; injected paths and unknown arguments fail", () => {
-  assert.equal(catalog.operations.length, 27);
-  assert.equal(new Set(catalog.operations.map((o) => o.name)).size, 27);
-  assert(
-    catalog.operations.every((o) => o.schema.additionalProperties === false),
-  );
-  const github = catalog.operations.find((o) =>
-    o.base.includes("api.github.com"),
-  )!;
-  const args = {
-    owner: "SecretSatoshis",
-    repo: "Bitcoin-Report-Library",
-    path: "data/report.csv",
-  };
-  assert.equal(toolRequest(github.name, args).url.hostname, "api.github.com");
-  for (const path of ["../.env", "%2e%2e/env", "data\\secret"]) {
-    assert.throws(() => toolRequest(github.name, { ...args, path }));
-  }
-  assert.throws(() =>
-    toolRequest(github.name, { ...args, url: "https://evil.example" }),
-  );
-  assert.throws(() => toolRequest("run_shell", {}));
-});
-test("address queries bypass shared cache and external failures stay explicit", async () => {
-  const address = catalog.operations.find(
-    (o) => o.path === "/address/{address}",
-  )!;
-  const args = { address: "bc1qtestexample" };
-  let requests = 0;
-  const fetcher: typeof fetch = async (_, options) => {
-    requests++;
-    assert.equal(options?.redirect, "error");
-    assert(options?.signal);
-    return Response.json({ chain_stats: { funded_txo_sum: 123 } });
-  };
-  await retrieveTool(address.name, args, fetcher);
-  await retrieveTool(address.name, args, fetcher);
-  assert.equal(requests, 2);
-  await assert.rejects(
-    retrieveTool(
-      address.name,
-      args,
-      async () => new Response("down", { status: 503 }),
-    ),
-    /temporarily unavailable/,
-  );
-  await assert.rejects(
-    retrieveTool(
-      address.name,
-      args,
-      async () =>
-        new Response("not JSON", {
-          headers: { "content-type": "application/json" },
-        }),
-    ),
-    /malformed/,
-  );
-});
 test("bounded streaming rejects both declared and chunked oversized source responses", async () => {
   await assert.rejects(
     boundedBytes(new Response("x", { headers: { "content-length": "99" } }), 2),
@@ -256,7 +196,10 @@ test("browser output includes final assistant text only, never private reasoning
     "Bitcoin answer",
   );
   assert.equal(hostedEnvironment("template").container_size, "medium");
-  assert.equal(hostedEnvironment("template").network.access, "disabled");
+  assert(
+    !("network" in hostedEnvironment("template")),
+    "Network access comes from the release template",
+  );
   assert.throws(() => environmentId({ environment: { type: "none" } }));
 });
 test("token estimates bill uncached input once, matching the provider's invoice", () => {
@@ -278,42 +221,69 @@ test("token estimates bill uncached input once, matching the provider's invoice"
   })!;
   assert(Math.abs(cachedTurn - 0.034) < 1e-9, String(cachedTurn));
   assert.equal(estimatedTokens(null), null);
+  // A tool-using turn's usage sums many requests; long-context pricing applies
+  // per request, so a large total is not doubled (October 4 run: 499k input).
+  const multiStep = estimatedTokens({
+    input_tokens: 499_467,
+    input_tokens_details: { cached_tokens: 441_055 },
+    output_tokens: 3_899,
+    output_tokens_details: { reasoning_tokens: 154 },
+    total_tokens: 503_366,
+  })!;
+  assert(Math.abs(multiStep - 0.229) < 0.0005, String(multiStep));
 });
-test("a rate-limited source is retried after its Retry-After; GitHub calls carry the optional token", async () => {
-  const github = catalog.operations.find((o) =>
-    o.base.includes("api.github.com"),
-  )!;
-  const args = {
-    owner: "SecretSatoshis",
-    repo: "Bitcoin-Report-Library",
-    path: "data/retry.csv",
+test("the data server credential is sent only to the expected MCP server", async () => {
+  const { default: OpenAI } = await import("openai");
+  const { sessionTools, setOpenAIForTests } =
+    await import("../lib/agent21/openai");
+  const MCP_SERVER_URL = "https://data.example.test/api/mcp";
+  const before = {
+    env: process.env.NODE_ENV,
+    key: process.env.AGENT21_MCP_KEY,
+    url: process.env.AGENT21_MCP_URL,
   };
-  let calls = 0;
-  let authorization: string | null = null;
-  process.env.AGENT21_GITHUB_TOKEN = "github-test-token";
-  try {
-    const result = await retrieveTool(github.name, args, async (_, options) => {
-      calls++;
-      authorization = new Headers(options?.headers).get("authorization");
-      if (calls === 1)
-        return new Response("slow down", {
-          status: 429,
-          headers: { "retry-after": "0" },
-        });
-      return Response.json({
-        type: "file",
-        size: 5,
-        encoding: "base64",
-        content: Buffer.from("hello").toString("base64"),
-        path: "data/retry.csv",
-        html_url: "https://github.com/SecretSatoshis/Bitcoin-Report-Library",
-        sha: "abc",
-      });
+  Object.assign(process.env, { NODE_ENV: "test" });
+  process.env.AGENT21_MCP_KEY = "mcp-test-key-0123456789abcdef0123456789";
+  process.env.AGENT21_MCP_URL = MCP_SERVER_URL;
+  const agent = (server_url: string) => ({
+    id: `agent-${server_url.length}`,
+    tools: [
+      {
+        type: "mcp",
+        server_label: "agent21_data",
+        transport: { type: "http", server_url, headers: {} },
+        allowed_tools: null,
+        connection_origin: "service",
+        credential_id: null,
+        request_metadata: null,
+        required: true,
+      },
+    ],
+  });
+  const release = (server_url: string) =>
+    new OpenAI({
+      apiKey: "test-key",
+      maxRetries: 0,
+      fetch: async () => Response.json(agent(server_url)),
     });
-    assert.equal(calls, 2);
-    assert.equal(authorization, "Bearer github-test-token");
-    assert.match(result.text, /hello/);
+  try {
+    setOpenAIForTests(release(MCP_SERVER_URL));
+    const [tool] = await sessionTools("agent-expected");
+    assert.equal(
+      tool.type === "mcp" &&
+        tool.transport.type === "http" &&
+        tool.transport.headers?.["X-Agent21-MCP-Key"],
+      process.env.AGENT21_MCP_KEY,
+    );
+    setOpenAIForTests(release("https://elsewhere.example/mcp"));
+    await assert.rejects(sessionTools("agent-unexpected"), /unexpected/);
   } finally {
-    delete process.env.AGENT21_GITHUB_TOKEN;
+    Object.assign(process.env, { NODE_ENV: before.env });
+    for (const [name, value] of [
+      ["AGENT21_MCP_KEY", before.key],
+      ["AGENT21_MCP_URL", before.url],
+    ] as const)
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
   }
 });

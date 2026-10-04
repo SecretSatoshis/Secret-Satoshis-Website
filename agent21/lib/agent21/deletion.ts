@@ -64,10 +64,6 @@ async function removeSessions(conversation: string) {
     .where("conversation_id", "=", conversation)
     .execute()) {
     await ignoreMissing(() => openai().beta.agents.sessions.delete(session.id));
-    await db()
-      .deleteFrom("agent21_calls")
-      .where("session_id", "=", session.id)
-      .execute();
   }
   await db()
     .deleteFrom("agent21_sessions")

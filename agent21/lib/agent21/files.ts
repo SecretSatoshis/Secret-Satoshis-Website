@@ -3,7 +3,6 @@ import { put, get, del } from "@vercel/blob";
 import { AppError } from "./errors";
 import { LIMITS } from "./config";
 import { db, userTransaction } from "./db";
-import { boundedBytes } from "./tools";
 import { isProviderError, openai } from "./openai";
 import type { FileRow } from "./schema";
 import type { FileView } from "./types";
@@ -27,6 +26,28 @@ export function safeArtifact(path: string, bytes: Buffer) {
   return !/AGENT21_PRIVATE_CONTROL|BEGIN (?:[A-Z]+ )?PRIVATE KEY|sk-(?:proj-|live-)[a-zA-Z0-9_-]{20,}/.test(
     text,
   );
+}
+/** Reads a response body, failing as soon as it exceeds max bytes. */
+export async function boundedBytes(response: Response, max: number) {
+  if (Number(response.headers.get("content-length") || 0) > max)
+    throw new AppError(413, "The source response is too large.");
+  const reader = response.body?.getReader();
+  if (!reader) return Buffer.alloc(0);
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      size += value.length;
+      if (size > max)
+        throw new AppError(413, "The source response is too large.");
+      chunks.push(value);
+    }
+  } finally {
+    await reader.cancel();
+  }
+  return Buffer.concat(chunks);
 }
 /** Blob paths are unique per file and never overwritten, so cached reads are current. */
 export async function blobBytes(path: string, max: number) {

@@ -1,5 +1,5 @@
 import { missingCredentials, required } from "../lib/agent21/config";
-import { openai } from "../lib/agent21/openai";
+import { mcpServerUrl, openai } from "../lib/agent21/openai";
 import { closeDatabase, db } from "../lib/agent21/db";
 import { migrator } from "../lib/agent21/migrations";
 import pricing from "../lib/agent21/contracts/pricing.json";
@@ -24,14 +24,19 @@ if (missing.length) {
     assert.equal(agent.service_tier, "default");
     assert.equal(agent.multi_agent.enabled, false);
     assert.equal(agent.metadata.runtime, required("AGENT21_RUNTIME_VERSION"));
+    // Releases reach external data only through the data server.
+    assert.equal(agent.tools.length, 1);
+    const [mcp] = agent.tools;
+    assert(mcp.type === "mcp" && mcp.transport.type === "http");
+    assert.equal(mcp.transport.server_url, mcpServerUrl());
     assert.deepEqual(
-      agent.tools.map((t) => (t.type === "function" ? t.name : t.type)).sort(),
+      [...(mcp.allowed_tools ?? [])].sort(),
       catalog.operations.map((t) => t.name).sort(),
     );
     const template = await api.beta.agents.environments.templates.retrieve(
       required("AGENT21_ENVIRONMENT_TEMPLATE_ID"),
     );
-    assert.equal(template.network.access, "disabled");
+    assert.equal(template.network.access, "enabled");
     assert.equal(template.desktop?.enabled, false);
     const pending = (await migrator(db()).getMigrations()).filter(
       (migration) => !migration.executedAt,

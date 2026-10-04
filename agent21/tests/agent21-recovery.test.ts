@@ -5,6 +5,8 @@ import { reserveRun } from "../lib/agent21/db";
 import { reconcileRun, markUncertain } from "../lib/agent21/runner";
 import { requestDeletion, performDeletion } from "../lib/agent21/deletion";
 import { fakeOpenAI, testDatabase } from "./support";
+const MCP_KEY = "mcp-test-key-0123456789abcdef0123456789";
+const MCP_SERVER_URL = "https://data.example.test/api/mcp";
 let database: Awaited<ReturnType<typeof testDatabase>>;
 const query = (text: string, values: unknown[] = []) =>
   database.sql(text, values);
@@ -23,8 +25,6 @@ let createCount = 0,
   rejectCreation = 0,
   environmentFileCopies = 0,
   rejectSubmission = false,
-  sourceRequests = 0,
-  toolResults = 0,
   loseSubmission = false,
   loseCreation = false,
   failArtifacts = false,
@@ -62,12 +62,24 @@ const fakeFetch: typeof fetch = async (input, options) => {
   const body =
     typeof options?.body === "string" ? JSON.parse(options.body) : {};
   const key = new Headers(options?.headers).get("idempotency-key");
-  if (url.hostname === "mempool.space") {
-    sourceRequests++;
-    return response({ fastestFee: 3, halfHourFee: 2, hourFee: 1 });
-  }
   if (url.hostname !== "api.openai.com")
     throw Error(`Unexpected request to ${url.hostname}`);
+  if (url.pathname === "/v1/agents/agent-selected" && method === "GET")
+    return response({
+      id: "agent-selected",
+      tools: [
+        {
+          type: "mcp",
+          server_label: "agent21_data",
+          transport: { type: "http", server_url: MCP_SERVER_URL, headers: {} },
+          allowed_tools: ["mempoolGetRecommendedFees"],
+          connection_origin: "service",
+          credential_id: null,
+          request_metadata: null,
+          required: true,
+        },
+      ],
+    });
   if (url.pathname === "/v1/agents/sessions" && method === "GET")
     return list([...sessions.values()].reverse());
   if (url.pathname === "/v1/agents/sessions" && method === "POST") {
@@ -78,8 +90,15 @@ const fakeFetch: typeof fetch = async (input, options) => {
     if (rejectSubmission && body.input)
       return response({ error: { message: "Input too long" } }, 400);
     assert.equal(body.environment.container_size, "medium");
-    assert.equal(body.environment.network.access, "disabled");
+    assert(!body.environment.network, "Network access comes from the template");
     assert.equal(body.agent_id, "agent-selected");
+    const [mcp] = body.agent.tools;
+    assert.equal(mcp.transport.server_url, MCP_SERVER_URL);
+    assert.equal(mcp.transport.headers["X-Agent21-MCP-Key"], MCP_KEY);
+    assert.equal(
+      mcp.transport.headers["OAI-Sites-Authorization"],
+      `Bearer ${MCP_KEY}`,
+    );
     const id = `session-${++createCount}`;
     const session = {
       id,
@@ -183,10 +202,6 @@ const fakeFetch: typeof fetch = async (input, options) => {
             throw Error("Connection lost after acceptance");
           }
         }
-        if (event.type === "agent.session.input.tool_result") {
-          toolResults++;
-          session.required_actions = [];
-        }
         if (event.type === "agent.session.input.cancel") {
           for (const turn of turns.get(id)!)
             if (turn.status === "in_progress") turn.status = "cancelled";
@@ -230,6 +245,8 @@ const creationFor = (run: string) =>
 before(async () => {
   database = await testDatabase();
   fakeOpenAI(fakeFetch);
+  process.env.AGENT21_MCP_KEY = MCP_KEY;
+  process.env.AGENT21_MCP_URL = MCP_SERVER_URL;
   await query("INSERT INTO agent21_users(id,beta_enabled) VALUES($1,true)", [
     owner,
   ]);
@@ -259,6 +276,15 @@ test("a lost creation response is recovered: one sandbox, one turn, the message 
     assert.equal(error.cause, undefined);
     return true;
   });
+  const [pending] = await query(
+    "SELECT submission::text AS submission FROM agent21_runs WHERE id=$1",
+    [first.id],
+  );
+  assert(pending.submission, "The creation request is kept for recovery");
+  assert(
+    !pending.submission.includes(MCP_KEY),
+    "The data server credential is never stored",
+  );
   await markUncertain(first.id);
   assert.equal(await reconcileRun(first.id), false);
   assert.equal(createCount, 1);
@@ -275,28 +301,6 @@ test("a lost creation response is recovered: one sandbox, one turn, the message 
   );
   assert.equal(stored.submission, null);
   assert.equal((await saved()).filter((m) => m.role === "user").length, 1);
-});
-test("repeated reconciliation deduplicates external calls and tool-result submissions", async () => {
-  const session = sessions.get("session-1");
-  const action = () => [
-    {
-      type: "function_call",
-      name: "mempoolGetRecommendedFees",
-      arguments: {},
-      turn_id: turns.get("session-1")![0].id,
-      call_id: "call-fees",
-    },
-  ];
-  session.required_actions = action();
-  assert.equal(await reconcileRun(first.id), false);
-  assert.equal(sourceRequests, 1);
-  assert.equal(toolResults, 1);
-  // A repeated required action must not execute or submit again.
-  session.required_actions = action();
-  assert.equal(await reconcileRun(first.id), false);
-  assert.equal(sourceRequests, 1);
-  assert.equal(toolResults, 1);
-  session.required_actions = [];
 });
 test("terminal output survives a provider outage; retry persists and settles only once", async () => {
   turns.get("session-1")![0].status = "completed";
@@ -347,21 +351,10 @@ test("an expired sandbox gets a new session with retained history and the pinned
   assert.match(body.input, /Earlier conversation/);
   assert.match(body.input, /Explain Bitcoin fees/);
   assert.equal(body.metadata.runtime, "runtime-selected");
-  const session = sessions.get("session-2");
-  session.required_actions = [
-    {
-      type: "function_call",
-      name: "mempoolGetRecommendedFees",
-      arguments: {},
-      turn_id: turns.get("session-2")![0].id,
-      call_id: "should-not-run",
-    },
-  ];
   await query("UPDATE agent21_runs SET cancel_requested=true WHERE id=$1", [
     next.id,
   ]);
   assert.equal(await reconcileRun(next.id), true);
-  assert.equal(sourceRequests, 1);
   assert.equal(turns.get("session-2")![0].status, "cancelled");
 });
 test("stop before provider submission preserves the user message without creating a sandbox", async () => {

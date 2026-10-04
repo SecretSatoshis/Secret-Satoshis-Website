@@ -172,10 +172,6 @@ async function snapshot() {
       const recent =
         await rows(sql`SELECT id,state,created_at,finished_at,cost_usd,usage_known,last_error_at,last_diagnostic
         FROM agent21_runs ORDER BY created_at DESC LIMIT 10`);
-      const [calls] =
-        await rows(sql`SELECT count(*)::int AS total,count(*) FILTER(WHERE submitted)::int AS submitted,
-        count(*) FILTER(WHERE result->>'success'='false')::int AS failed,
-        count(*) FILTER(WHERE result IS NULL)::int AS awaiting_result FROM agent21_calls`);
       const storage = await rows(
         sql`SELECT kind,state,count(*)::int AS files,COALESCE(sum(bytes),0)::float AS bytes FROM agent21_files GROUP BY kind,state ORDER BY kind,state`,
       );
@@ -214,7 +210,6 @@ async function snapshot() {
             last_diagnostic: storedDiagnostic(r.last_diagnostic),
           })),
         },
-        toolCalls: calls,
         storage: { totals: storageTotals, breakdown: storage },
         cleanup: { conversationsAndAccounts: deletions, files: fileDeletions },
         estimatedCostsThisUtcMonth: estimates,
@@ -232,7 +227,7 @@ async function reportData() {
     coverage: [
       "Read-only application snapshot; no agent runs, provider probes or mutations.",
       "No prompts, responses, tool arguments/results, file names, owner IDs or credential values are included.",
-      "Latency includes queue and persistence time. Tool counts and run history exclude deleted records.",
+      "Latency includes queue and persistence time. Run history excludes deleted records.",
       "Storage counts use database metadata, not a Blob inventory or invoice.",
       "Estimates use the release's pricing.json and each turn's token usage, which OpenAI reports best effort and often omits (unknown_usage_runs); sandbox time between answers is not included.",
       "Provider costs come from the OpenAI Costs API and lag by up to a day; organization scope includes other projects.",
@@ -266,7 +261,6 @@ function display(report: Awaited<ReturnType<typeof reportData>>) {
     console.log("End-to-end latency, last 30 days:", db.runs.latencyLast30Days);
     console.log("Recent runs and safe diagnostics:");
     console.dir(db.runs.recent, { depth: 4 });
-    console.log("Tool calls:", db.toolCalls);
     console.log("Storage metadata:", db.storage.totals);
     console.table(db.storage.breakdown);
     console.log("Cleanup:");

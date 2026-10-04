@@ -40,7 +40,6 @@ export async function register() {
           reference: record.id,
           requestId: record.requestId,
           runId: record.runId,
-          toolName: record.toolName,
         },
       },
     ),
