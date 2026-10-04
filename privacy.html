@@ -49,12 +49,12 @@
   <div class="privacy-inner">
     <p class="section-label"><span class="accent">//</span> Privacy</p>
     <h1>Privacy policy<span class="accent">.</span></h1>
-    <p class="privacy-updated">Effective August 25, 2026</p>
+    <p class="privacy-updated">Updated October 1, 2026 · Agent 21 terms apply when the invited beta opens</p>
 
-    <p>This notice covers the Secret Satoshis websites at secretsatoshis.com, dashboard.secretsatoshis.com, and charts.secretsatoshis.com. They are built to be explored without creating an account or providing personal information.</p>
+    <p>This notice covers the Secret Satoshis websites at secretsatoshis.com, dashboard.secretsatoshis.com, and charts.secretsatoshis.com. Public research and dashboards can be explored without an account. The Agent 21 invited beta requires an account.</p>
 
     <h2>Information this website collects</h2>
-    <p>These websites do not use advertising trackers, analytics cookies, account systems, or their own subscriber database. Their hosting providers may process standard request information—such as an IP address, browser type, requested page, and request time—to deliver and secure the sites.</p>
+    <p>The public pages do not use advertising trackers or analytics cookies. Agent 21 uses account and session cookies to authenticate invited users. Their hosting providers may process standard request information—such as an IP address, browser type, requested page, and request time—to deliver and secure the sites.</p>
 
     <h2>Newsletter subscriptions</h2>
     <p>The newsletter form sends the email address you enter directly to <a href="https://newsletter.secretsatoshis.com/" target="_blank" rel="noopener noreferrer">Secret Satoshis on Substack</a>. Secret Satoshis does not receive or store that form submission through this website. Substack processes subscriptions under its own terms and privacy policy.</p>
@@ -63,7 +63,22 @@
     <p>The site reads public Bitcoin data from the Secret Satoshis public repositories and links to external services including GitHub, ChatGPT, Substack, LinkedIn, and X. Those services may collect information under their own policies when you visit them.</p>
 
     <h2>Sale or sharing of personal information</h2>
-    <p>Secret Satoshis does not sell personal information collected through this website. Because the site does not operate its own accounts, analytics, or advertising system, it does not build behavioral profiles of visitors.</p>
+    <p>Secret Satoshis does not sell personal information collected through this website. The site does not use chat content to build advertising profiles.</p>
+
+    <h2>Agent 21 accounts and conversations</h2>
+    <p>When the beta opens, Clerk will manage sign-in, email verification, and account security. We associate your Clerk user identifier with beta access, conversations, files, and usage limits. OpenAI processes your messages, relevant history, research, tool results, and uploaded files to generate responses in its managed agent environment.</p>
+    <p>Neon Postgres stores your chat history, conversation titles, archive status, and feedback, along with ownership, provider identifiers, run status, file records, usage estimates and billing reconciliation records, diagnostics, and deletion jobs. It also stores temporary message-submission payloads, response snapshots, and tool results used for recovery and duplicate prevention; these operational records can contain user-related content. Message-submission payloads are cleared when a run settles, and related response snapshots and tool records are removed through conversation or account cleanup. Private Vercel Blob storage retains uploads, analysis inputs, source snapshots, charts, and generated files. Vercel hosts the application and runs its background jobs. These processors may retain request and security logs under their own policies. Their authorized administrators, and the Secret Satoshis administrator, may access stored content for support, operations, and abuse investigation; chats are not end-to-end encrypted.</p>
+    <h2>Files, tools, and retention</h2>
+    <p>Conversations and retained files remain until you delete them. Temporary OpenAI sandboxes expire; their expiration does not delete retained conversations or files. Read-only tools retrieve public data from BRK/Bitview, Mempool.space, Polymarket, and GitHub. A requested Bitcoin address or transaction identifier is sent to the relevant source; address-specific queries are excluded from shared caches and application operational logs. Do not upload passwords, wallet seed phrases, private keys, or information you do not want these processors to handle.</p>
+    <h2>Deleting Agent 21 data</h2>
+    <p>Deleting an individual file also clears the temporary analysis workspace; it does not remove previous answer text or other retained outputs. Use the conversation menu to delete a conversation and its files, or the account controls to request deletion of all Agent 21 data. Deletion immediately hides conversations and blocks further work. A background job then removes chat history, OpenAI sessions and uploaded files, Blob objects, and operational mappings; incomplete cleanup is retried and its status is available in the app. Account removal through Clerk also triggers cleanup through its signed webhook. A deletion receipt containing operational account and job identifiers, but no conversation content, and aggregate spending/reconciliation totals may remain for operational verification.</p>
+    <p>Application deletion does not override a processor's legally required or security-log retention. OpenAI API data handling is governed by its <a href="https://developers.openai.com/api/docs/guides/your-data" target="_blank" rel="noopener noreferrer">API data controls</a>. Review the policies of <a href="https://clerk.com/legal/privacy" target="_blank" rel="noopener noreferrer">Clerk</a>, <a href="https://www.databricks.com/legal/privacynotice" target="_blank" rel="noopener noreferrer">Neon</a>, and <a href="https://vercel.com/legal/privacy-notice" target="_blank" rel="noopener noreferrer">Vercel</a> for their services.</p>
+    <h2>Beta usage</h2>
+    <p>Invited users pay nothing during beta. Secret Satoshis pays the provider charges and applies daily message, concurrency, and storage limits. Responses may be paused when the usage allowance is reached; history and downloads remain accessible.</p>
+
+    <h2 id="agent21-chatgpt">Agent 21 on ChatGPT</h2>
+    <p>The Agent 21 custom GPT runs inside ChatGPT. When it needs data, ChatGPT sends only the parameters for that request to a read-only public service: a Bitcoin series name, index, range, and optional limit to the Bitcoin Research Kit (bitview.space); a public network endpoint and, when you ask for one, a block hash, transaction ID, block height, or Bitcoin address to mempool.space; public tag or market identifiers and discovery filters to Polymarket (gamma-api.polymarket.com); and a public repository owner, name, path, and optional reference to GitHub (api.github.com). Addresses and transaction IDs are pseudonymous but can still be privacy-sensitive; do not submit one you do not want sent to mempool.space.</p>
+    <p>These Actions use no Agent 21 account, API key, wallet, or login. They cannot write or delete external data, broadcast or accelerate transactions, place prediction-market orders, connect wallets, or access private positions or repositories. Secret Satoshis runs no intermediary server for the GPT and does not receive its requests; they go from ChatGPT to the services above, which may process them under their own policies. Uploaded files and conversations are handled by ChatGPT under your plan, workspace settings, and OpenAI's policies.</p>
 
     <h2>Policy updates</h2>
     <p>This notice may change if the website's features or service providers change. The effective date above identifies the current version.</p>
