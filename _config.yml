@@ -1,0 +1,9 @@
+# GitHub Pages serves the static homepage from this repository root.
+# The Agent 21 app deploys separately (Vercel, agent21.secretsatoshis.com);
+# tests and repository documents stay on GitHub, not on the website.
+exclude:
+  - agent21
+  - tests
+  - README.md
+  - SECURITY.md
+  - LICENSE
