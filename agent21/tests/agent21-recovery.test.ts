@@ -94,11 +94,10 @@ const fakeFetch: typeof fetch = async (input, options) => {
     assert.equal(body.agent_id, "agent-selected");
     const [mcp] = body.agent.tools;
     assert.equal(mcp.transport.server_url, MCP_SERVER_URL);
-    assert.equal(mcp.transport.headers["X-Agent21-MCP-Key"], MCP_KEY);
-    assert.equal(
-      mcp.transport.headers["OAI-Sites-Authorization"],
-      `Bearer ${MCP_KEY}`,
-    );
+    assert.deepEqual(mcp.transport.headers, {
+      Authorization: `Bearer ${MCP_KEY}`,
+    });
+    assert(!body.vault_ids, "Without a vault the website sends the key");
     const id = `session-${++createCount}`;
     const session = {
       id,

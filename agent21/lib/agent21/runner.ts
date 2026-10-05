@@ -13,6 +13,7 @@ import {
   environmentId,
   hostedEnvironment,
   isProviderError,
+  mcpVaultId,
   sessionTools,
 } from "./openai";
 import {
@@ -270,6 +271,7 @@ async function createSession(run: Run) {
       kind: "session",
       body: canonicalData({
         agent_id: run.agent_id,
+        ...(mcpVaultId() ? { vault_ids: [mcpVaultId()!] } : {}),
         environment: hostedEnvironment(run.template_id, environmentFiles),
         input: (await earlierHistory(run)) + messageText(run),
         metadata: {

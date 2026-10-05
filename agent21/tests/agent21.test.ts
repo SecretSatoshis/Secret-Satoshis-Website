@@ -21,6 +21,8 @@ test("webhook credentials are optional only for loopback development; production
     "NODE_ENV",
     "BLOB_STORE_ID",
     "BLOB_READ_WRITE_TOKEN",
+    "AGENT21_MCP_KEY",
+    "AGENT21_MCP_VAULT_ID",
   ];
   const before = Object.fromEntries(
     names.map((name) => [name, process.env[name]]),
@@ -28,6 +30,8 @@ test("webhook credentials are optional only for loopback development; production
   try {
     for (const name of credentialNames) process.env[name] = "configured";
     process.env.BLOB_STORE_ID = "store_configured";
+    process.env.AGENT21_MCP_KEY = "configured";
+    delete process.env.AGENT21_MCP_VAULT_ID;
     delete process.env.OPENAI_WEBHOOK_SECRET;
     delete process.env.CLERK_WEBHOOK_SIGNING_SECRET;
     process.env.APP_ORIGIN = "http://localhost:3000";
@@ -53,6 +57,11 @@ test("webhook credentials are optional only for loopback development; production
       true,
       "Local development may use a read-write token",
     );
+    // The data key comes from an OpenAI vault or from the website's setting.
+    delete process.env.AGENT21_MCP_KEY;
+    assert.deepEqual(missingCredentials(), ["AGENT21_MCP_VAULT_ID"]);
+    process.env.AGENT21_MCP_VAULT_ID = "vault_configured";
+    assert.equal(configured(), true);
   } finally {
     for (const name of names) {
       if (before[name] === undefined) delete process.env[name];
@@ -210,7 +219,9 @@ test("the data server credential is sent only to the expected MCP server", async
     env: process.env.NODE_ENV,
     key: process.env.AGENT21_MCP_KEY,
     url: process.env.AGENT21_MCP_URL,
+    vault: process.env.AGENT21_MCP_VAULT_ID,
   };
+  delete process.env.AGENT21_MCP_VAULT_ID;
   Object.assign(process.env, { NODE_ENV: "test" });
   process.env.AGENT21_MCP_KEY = "mcp-test-key-0123456789abcdef0123456789";
   process.env.AGENT21_MCP_URL = MCP_SERVER_URL;
@@ -223,7 +234,7 @@ test("the data server credential is sent only to the expected MCP server", async
         transport: { type: "http", server_url, headers: {} },
         allowed_tools: null,
         connection_origin: "service",
-        credential_id: null,
+        credential_id: "credential-dashboard",
         request_metadata: null,
         required: false,
       },
@@ -242,9 +253,17 @@ test("the data server credential is sent only to the expected MCP server", async
     assert.equal(
       tool.type === "mcp" &&
         tool.transport.type === "http" &&
-        tool.transport.headers?.["X-Agent21-MCP-Key"],
-      process.env.AGENT21_MCP_KEY,
+        tool.transport.headers?.Authorization,
+      `Bearer ${process.env.AGENT21_MCP_KEY}`,
     );
+    // With a vault, OpenAI supplies the key: the website sends no header and
+    // keeps the dashboard's credential selection.
+    process.env.AGENT21_MCP_VAULT_ID = "vault-test";
+    const [vaulted] = await sessionTools("agent-vaulted");
+    assert(vaulted.type === "mcp" && vaulted.transport.type === "http");
+    assert.equal(vaulted.transport.headers, undefined);
+    assert.equal(vaulted.credential_id, "credential-dashboard");
+    delete process.env.AGENT21_MCP_VAULT_ID;
     setOpenAIForTests(release("https://elsewhere.example/mcp"));
     await assert.rejects(sessionTools("agent-unexpected"), /unexpected/);
     // Hosted search and programmatic tool calling pass through without the key.
@@ -261,7 +280,7 @@ test("the data server credential is sent only to the expected MCP server", async
       await sessionTools("agent-with-search");
     assert.deepEqual(searchTool, search);
     assert.deepEqual(programmaticTool, programmatic);
-    assert(!JSON.stringify([searchTool, programmaticTool]).includes("MCP-Key"));
+    assert(!JSON.stringify([searchTool, programmaticTool]).includes("Bearer"));
     setOpenAIForTests(
       release(MCP_SERVER_URL, [
         { type: "computer_use", include_screenshots: true },
@@ -273,6 +292,7 @@ test("the data server credential is sent only to the expected MCP server", async
     for (const [name, value] of [
       ["AGENT21_MCP_KEY", before.key],
       ["AGENT21_MCP_URL", before.url],
+      ["AGENT21_MCP_VAULT_ID", before.vault],
     ] as const)
       if (value === undefined) delete process.env[name];
       else process.env[name] = value;
