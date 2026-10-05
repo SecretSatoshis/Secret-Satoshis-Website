@@ -314,12 +314,10 @@ test("terminal output survives a provider outage; retry persists and settles onl
   assert.equal(await reconcileRun(first.id), true);
   assert.equal(await reconcileRun(first.id), true);
   assert.equal((await saved()).filter((m) => m.role === "assistant").length, 1);
-  const [run] = await query(
-    "SELECT cost_usd::float AS cost,usage_known FROM agent21_runs WHERE id=$1",
-    [first.id],
-  );
-  assert(run.cost > 0 && run.cost < 1);
-  assert.equal(run.usage_known, true);
+  const [run] = await query("SELECT state FROM agent21_runs WHERE id=$1", [
+    first.id,
+  ]);
+  assert.equal(run.state, "completed");
 });
 test("a follow-up reuses the session; an ambiguous message send is retried identically", async () => {
   const next = await reserveRun(owner, conversation, randomUUID(), {
@@ -369,12 +367,10 @@ test("stop before provider submission preserves the user message without creatin
   await reconcileRun(run.id);
   assert.equal(await reconcileRun(run.id), true);
   assert.equal(createCount, count);
-  const [stored] = await query(
-    "SELECT state,cost_usd FROM agent21_runs WHERE id=$1",
-    [run.id],
-  );
+  const [stored] = await query("SELECT state FROM agent21_runs WHERE id=$1", [
+    run.id,
+  ]);
   assert.equal(stored.state, "cancelled");
-  assert.equal(Number(stored.cost_usd), 0);
   const history = await saved();
   const question = history.find((m) => m.external_id === `user-${run.id}`);
   const answer = history.find((m) => m.external_id === `assistant-${run.id}`);
@@ -424,8 +420,6 @@ test("stop after a lost creation response recovers the sandbox without creating 
   assert.equal(stored.state, "cancelled");
   assert.equal(stored.session_id, `session-${createCount}`);
   assert.equal(turns.get(stored.session_id)![0].status, "cancelled");
-  assert.equal(stored.usage_known, true);
-  assert(Number(stored.cost_usd) > 0, "The sandbox ran, so it is costed");
   const tracked = await query("SELECT id FROM agent21_sessions WHERE id=$1", [
     stored.session_id,
   ]);
@@ -558,16 +552,10 @@ test("a request the provider rejects fails at once instead of at the hard stop",
   assert.equal(await reconcileRun(run.id), true);
   rejectSubmission = false;
   const [stored] = await query(
-    "SELECT state,cost_usd,usage_known,submission,display,last_diagnostic FROM agent21_runs WHERE id=$1",
+    "SELECT state,submission,display,last_diagnostic FROM agent21_runs WHERE id=$1",
     [run.id],
   );
   assert.equal(stored.state, "failed");
-  assert.equal(
-    Number(stored.cost_usd),
-    0,
-    "Nothing is estimated for an unknown outcome",
-  );
-  assert.equal(stored.usage_known, false);
   assert.equal(stored.submission, null);
   assert.equal(stored.last_diagnostic.status, 400);
   assert.match(stored.display.error, /could not finish/);

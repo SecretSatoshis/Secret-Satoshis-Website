@@ -155,15 +155,11 @@ export async function reserveRun(
 export async function settle(
   runId: string,
   state: "completed" | "failed" | "cancelled",
-  cost: number,
-  known: boolean,
 ) {
   await db()
     .updateTable("agent21_runs")
     .set({
       state,
-      cost_usd: cost,
-      usage_known: known,
       finished_at: sql<Date>`now()`,
       input: null,
       submission: null,

@@ -75,8 +75,6 @@ export interface RunsTable {
   turn_id: string | null;
   workflow_id: string | null;
   cancel_requested: Generated<boolean>;
-  cost_usd: Numeric | null;
-  usage_known: Generated<boolean>;
   user_message_id: string | null;
   assistant_message_id: string | null;
   provider_accepted: Generated<boolean>;

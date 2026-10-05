@@ -140,15 +140,7 @@ export async function performDeletion(id: string): Promise<boolean> {
       .where("conversation_id", "=", conversation.id)
       .where("finished_at", "is", null)
       .execute())
-      await settle(
-        run.id,
-        "cancelled",
-        0,
-        !run.provider_accepted &&
-          !run.session_id &&
-          !run.session_creation_started_at &&
-          !run.submission,
-      );
+      await settle(run.id, "cancelled");
     await db()
       .deleteFrom("agent21_messages")
       .where("conversation_id", "=", conversation.id)

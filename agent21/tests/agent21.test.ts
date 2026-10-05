@@ -7,7 +7,6 @@ import {
   publicText,
   hostedEnvironment,
   environmentId,
-  estimatedTokens,
 } from "../lib/agent21/openai";
 import { PDFDocument } from "pdf-lib";
 import {
@@ -201,36 +200,6 @@ test("browser output includes final assistant text only, never private reasoning
     "Network access comes from the release template",
   );
   assert.throws(() => environmentId({ environment: { type: "none" } }));
-});
-test("token estimates bill uncached input once, matching the provider's invoice", () => {
-  // October 4, 2026 Agent 21 invoice: $0.0336 cache writes and $0.0003 output.
-  const firstTurn = estimatedTokens({
-    input_tokens: 13_444,
-    input_tokens_details: { cached_tokens: 0 },
-    output_tokens: 30,
-    output_tokens_details: { reasoning_tokens: 0 },
-    total_tokens: 13_474,
-  })!;
-  assert(Math.abs(firstTurn - 0.0339) < 0.0001, String(firstTurn));
-  const cachedTurn = estimatedTokens({
-    input_tokens: 100_000,
-    input_tokens_details: { cached_tokens: 90_000 },
-    output_tokens: 0,
-    output_tokens_details: { reasoning_tokens: 0 },
-    total_tokens: 100_000,
-  })!;
-  assert(Math.abs(cachedTurn - 0.034) < 1e-9, String(cachedTurn));
-  assert.equal(estimatedTokens(null), null);
-  // A tool-using turn's usage sums many requests; long-context pricing applies
-  // per request, so a large total is not doubled (October 4 run: 499k input).
-  const multiStep = estimatedTokens({
-    input_tokens: 499_467,
-    input_tokens_details: { cached_tokens: 441_055 },
-    output_tokens: 3_899,
-    output_tokens_details: { reasoning_tokens: 154 },
-    total_tokens: 503_366,
-  })!;
-  assert(Math.abs(multiStep - 0.229) < 0.0005, String(multiStep));
 });
 test("the data server credential is sent only to the expected MCP server", async () => {
   const { default: OpenAI } = await import("openai");

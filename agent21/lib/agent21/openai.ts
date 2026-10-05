@@ -1,10 +1,8 @@
 import OpenAI from "openai";
 import { required } from "./config";
-import pricing from "./contracts/pricing.json";
 import type {
   AgentToolParam,
   PersistedAgentTool,
-  TokenUsage,
   AgentSessionItem,
   HostedEnvironmentFileParam,
 } from "openai/resources/beta/agents/agents";
@@ -52,31 +50,6 @@ export async function turnItems(session: string, turn: string) {
     else if (items.length) break;
   }
   return items;
-}
-/**
- * Model cost of a turn in USD, from the release's pricing.json. Turn usage
- * sums every model request in the turn, while long-context pricing applies
- * per request, so the estimate uses standard rates; the Costs API is exact.
- */
-export function estimatedTokens(usage: TokenUsage | null) {
-  if (!usage) return null;
-  const rates = pricing.usd_per_million_tokens;
-  const cached = usage.input_tokens_details.cached_tokens;
-  // Uncached input is billed once, as input or as a cache write. Usage does
-  // not say which, so price it at the higher rate.
-  return (
-    ((usage.input_tokens - cached) * Math.max(rates.input, rates.cache_write) +
-      cached * rates.cached_input +
-      usage.output_tokens * rates.output) /
-    1_000_000
-  );
-}
-/** Sandbox cost: billed per minute with a minimum per sandbox. */
-export function containerCost(minutes: number) {
-  return (
-    (pricing.container_usd_per_hour / 60) *
-    Math.max(pricing.container_minimum_minutes, minutes)
-  );
 }
 // The documented container_size field is not yet declared by SDK 7.25.0.
 // Preserve the managed runtime and send the documented field through the SDK.

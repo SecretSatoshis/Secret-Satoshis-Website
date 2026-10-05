@@ -69,24 +69,21 @@ test("request retries return the same run; settlement is recorded once and relea
     /current response/,
   );
   await assert.rejects(ownedRun(other, first.id), /not found/);
-  await settle(first.id, "completed", 0.4, true);
-  await settle(first.id, "completed", 10, true);
+  await settle(first.id, "completed");
+  await settle(first.id, "failed");
   const [run] = await query("SELECT * FROM agent21_runs WHERE id=$1", [
     first.id,
   ]);
-  assert.equal(Number(run.cost_usd), 0.4, "The first settlement stands");
+  assert.equal(run.state, "completed", "The first settlement stands");
   assert.equal(run.input, null);
   const next = await reserveRun(owner, conversation, randomUUID(), input());
-  await settle(next.id, "failed", 0, false);
-  const [unknown] = await query(
-    "SELECT cost_usd FROM agent21_runs WHERE id=$1",
+  await settle(next.id, "failed");
+  const [failed] = await query(
+    "SELECT state,finished_at FROM agent21_runs WHERE id=$1",
     [next.id],
   );
-  assert.equal(
-    Number(unknown.cost_usd),
-    0,
-    "Nothing is held or charged for an unknown outcome",
-  );
+  assert.equal(failed.state, "failed");
+  assert(failed.finished_at, "A settled run frees the user's active slot");
 });
 test("file ownership, attachment count, storage quota and idempotent artifacts are enforced", async () => {
   await assert.rejects(
@@ -262,6 +259,6 @@ test("migrations are recorded once and the database allows one unfinished answer
     /agent21_runs_one_active/,
     "The unique index holds even outside reserveRun",
   );
-  await settle(run.id, "completed", 0, true);
+  await settle(run.id, "completed");
   await reserveRun(user, second, randomUUID(), input());
 });

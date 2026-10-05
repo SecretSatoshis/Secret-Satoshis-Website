@@ -8,8 +8,6 @@ import { messages, saveMessage } from "./history";
 import {
   openai,
   publicText,
-  estimatedTokens,
-  containerCost,
   canonicalData,
   turnItems,
   environmentId,
@@ -49,7 +47,6 @@ type Run = RunRow & {
 const FAILED =
   "Agent 21 could not finish this response. You can send a new message to try again.";
 const age = (run: Run) => Date.now() - new Date(run.created_at).getTime();
-const minutes = (run: Run) => age(run) / 60_000;
 // Session creation includes at most this many files; sessions accept 50.
 const SESSION_FILES = 50;
 
@@ -183,12 +180,7 @@ async function stopBeforeSubmission(run: Run) {
   await updateRun(run.id, {
     display: JSON.stringify({ text: answer, progress: "", files: [] }),
   });
-  await settle(
-    run.id,
-    "cancelled",
-    run.session_id ? containerCost(minutes(run)) : 0,
-    true,
-  );
+  await settle(run.id, "cancelled");
 }
 /** Stops a run whose user pressed Stop or deleted the conversation before it was sent. */
 async function withdrawn(run: Run) {
@@ -198,7 +190,7 @@ async function withdrawn(run: Run) {
     .select(["r.cancel_requested", "c.deleting"])
     .where("r.id", "=", run.id)
     .executeTakeFirstOrThrow();
-  if (current.deleting) await settle(run.id, "cancelled", 0, unsent(run));
+  if (current.deleting) await settle(run.id, "cancelled");
   else if (current.cancel_requested)
     await stopBeforeSubmission(await load(run.id));
   return current.deleting || current.cancel_requested;
@@ -334,8 +326,7 @@ async function submitMessage(run: Run) {
       events: [{ type: "agent.session.input.cancel" }],
     });
     if (found) await accept(run, { turn_id: found.id });
-    else if (age(run) > LIMITS.turnMs)
-      await settle(run.id, "cancelled", 0, false);
+    else if (age(run) > LIMITS.turnMs) await settle(run.id, "cancelled");
     return;
   }
   let submission =
@@ -438,7 +429,7 @@ async function start(run: Run) {
     return;
   }
   if (run.deleting) {
-    await settle(run.id, "cancelled", 0, unsent(run));
+    await settle(run.id, "cancelled");
     return;
   }
   if (!run.user_message_id) await saveUserMessage(run);
@@ -471,10 +462,8 @@ async function finishRun(run: Run, turn: Turn, text: string) {
   const api = openai();
   if (run.finished_at) return;
   const state = turn.status as "completed" | "failed" | "cancelled";
-  const tokens = estimatedTokens(turn.usage);
-  const cost = (tokens || 0) + containerCost(minutes(run));
   if (run.deleting) {
-    await settle(run.id, state, cost, tokens !== null);
+    await settle(run.id, state);
     return;
   }
   const notRetained: string[] = [];
@@ -539,7 +528,7 @@ async function finishRun(run: Run, turn: Turn, text: string) {
   await updateRun(run.id, {
     display: JSON.stringify({ text: answer, files, error, progress: "" }),
   });
-  await settle(run.id, state, cost, tokens !== null);
+  await settle(run.id, state);
 }
 // The hard stop for every phase. A run that cannot finish (a rejected
 // submission, a provider or storage failure) must not hold the user's only
@@ -569,8 +558,7 @@ async function abandonRun(run: Run) {
       error: FAILED,
     }),
   });
-  // Usage is unknown, so nothing is estimated for this run.
-  await settle(run.id, "failed", 0, false);
+  await settle(run.id, "failed");
 }
 /** Follows an accepted run: tool calls, live text, Stop and the final answer. */
 async function monitor(run: Run) {

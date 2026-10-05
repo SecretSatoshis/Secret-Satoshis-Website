@@ -2,7 +2,6 @@ import { missingCredentials, required } from "../lib/agent21/config";
 import { mcpServerUrl, openai } from "../lib/agent21/openai";
 import { closeDatabase, db } from "../lib/agent21/db";
 import { migrator } from "../lib/agent21/migrations";
-import pricing from "../lib/agent21/contracts/pricing.json";
 import catalog from "../lib/agent21/contracts/operations.json";
 import assert from "node:assert/strict";
 import { logDiagnostic } from "../lib/agent21/diagnostics";
@@ -17,9 +16,9 @@ if (missing.length) {
 } else {
   try {
     const api = openai();
-    await api.models.retrieve(pricing.model);
     const agent = await api.beta.agents.retrieve(required("AGENT21_AGENT_ID"));
-    assert.equal(agent.model, pricing.model);
+    // The release chooses the model; confirm this project can use it.
+    await api.models.retrieve(agent.model);
     assert.equal(agent.reasoning.effort, "medium");
     assert.equal(agent.service_tier, "default");
     assert.equal(agent.multi_agent.enabled, false);

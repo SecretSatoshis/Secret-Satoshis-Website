@@ -8,7 +8,6 @@ import {
   setting,
 } from "../lib/agent21/config";
 import { logDiagnostic, storedDiagnostic } from "../lib/agent21/diagnostics";
-import pricing from "../lib/agent21/contracts/pricing.json";
 
 const args = process.argv.slice(2);
 const json = args.includes("--json");
@@ -70,7 +69,6 @@ function configuration() {
       storagePerUserBytes: LIMITS.storageBytes,
       attachmentsPerConversation: LIMITS.attachments,
     },
-    pricing: { model: pricing.model, ...pricing.usd_per_million_tokens },
   };
 }
 
@@ -161,7 +159,6 @@ async function snapshot() {
         count(*) FILTER(WHERE state='unknown')::int AS uncertain,
         count(*) FILTER(WHERE finished_at IS NULL AND created_at<now()-interval '10 minutes')::int AS unfinished_over_deadline,
         count(*) FILTER(WHERE worker_lease_until>now())::int AS leased,
-        count(*) FILTER(WHERE finished_at IS NOT NULL AND NOT usage_known)::int AS unknown_usage_runs,
         count(*) FILTER(WHERE created_at>=(date_trunc('day',now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'))::int AS started_today
         FROM agent21_runs`);
       const [latency] = await rows(sql`SELECT count(*)::int AS finished_runs,
@@ -170,7 +167,7 @@ async function snapshot() {
         percentile_cont(0.95) WITHIN GROUP(ORDER BY extract(epoch FROM finished_at-created_at))::float AS p95_seconds
         FROM agent21_runs WHERE finished_at>=now()-interval '30 days'`);
       const recent =
-        await rows(sql`SELECT id,state,created_at,finished_at,cost_usd,usage_known,last_error_at,last_diagnostic
+        await rows(sql`SELECT id,state,created_at,finished_at,last_error_at,last_diagnostic
         FROM agent21_runs ORDER BY created_at DESC LIMIT 10`);
       const storage = await rows(
         sql`SELECT kind,state,count(*)::int AS files,COALESCE(sum(bytes),0)::float AS bytes FROM agent21_files GROUP BY kind,state ORDER BY kind,state`,
@@ -184,12 +181,6 @@ async function snapshot() {
       const fileDeletions = await rows(
         sql`SELECT state,count(*)::int AS jobs,min(created_at) AS oldest_created_at FROM agent21_file_deletions GROUP BY state ORDER BY state`,
       );
-      const estimates =
-        await rows(sql`SELECT to_char((created_at AT TIME ZONE 'UTC')::date,'YYYY-MM-DD') AS day,
-        count(*)::int AS runs,COALESCE(sum(cost_usd),0)::float AS estimated_usd,
-        count(*) FILTER(WHERE NOT usage_known)::int AS unknown_usage_runs
-        FROM agent21_runs WHERE created_at>=date_trunc('month',now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'
-        GROUP BY 1 ORDER BY 1 DESC`);
       return {
         status: "snapshot_available" as const,
         migrations: migrations.length,
@@ -212,7 +203,6 @@ async function snapshot() {
         },
         storage: { totals: storageTotals, breakdown: storage },
         cleanup: { conversationsAndAccounts: deletions, files: fileDeletions },
-        estimatedCostsThisUtcMonth: estimates,
       };
     });
 }
@@ -229,7 +219,6 @@ async function reportData() {
       "No prompts, responses, tool arguments/results, file names, owner IDs or credential values are included.",
       "Latency includes queue and persistence time. Run history excludes deleted records.",
       "Storage counts use database metadata, not a Blob inventory or invoice.",
-      "Estimates use the release's pricing.json and each turn's token usage, which OpenAI reports best effort and often omits (unknown_usage_runs); sandbox time between answers is not included.",
       "Provider costs come from the OpenAI Costs API and lag by up to a day; organization scope includes other projects.",
     ],
   };
@@ -265,8 +254,6 @@ function display(report: Awaited<ReturnType<typeof reportData>>) {
     console.table(db.storage.breakdown);
     console.log("Cleanup:");
     console.dir(db.cleanup, { depth: 3 });
-    console.log("Estimated run costs this UTC month:");
-    console.table(db.estimatedCostsThisUtcMonth);
   }
   const costs = report.providerCosts;
   if (costs.status === "available") {

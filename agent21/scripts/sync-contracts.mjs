@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { writeFile, mkdir } from "node:fs/promises";
-// The MCP tool catalog and model prices live in the private runtime checkout; pass
-// its path explicitly. Both are read from its current commit, not the working tree.
+// The MCP tool catalog lives in the private runtime checkout; pass its path
+// explicitly. It is read from the checkout's current commit, not its working tree.
 const repo = process.argv[2];
 if (!repo || repo.startsWith("--"))
   throw Error("Usage: pnpm contracts <runtime checkout> [--stdout]");
@@ -22,13 +22,10 @@ const catalog = committed(
   "platforms/mcp-server/lib/mcp/contracts/operations.json",
 );
 const operations = withSource(catalog);
-// Model prices for run cost estimates come from the same release commit.
-const pricing = withSource(committed("platforms/agents-api/pricing.json"));
 if (process.argv.includes("--stdout")) process.stdout.write(operations);
 else {
   await mkdir("lib/agent21/contracts", { recursive: true });
   await writeFile("lib/agent21/contracts/operations.json", operations);
-  await writeFile("lib/agent21/contracts/pricing.json", pricing);
   console.log(
     `Synced ${catalog.operations.length} read-only MCP operations from ${sha}.`,
   );
