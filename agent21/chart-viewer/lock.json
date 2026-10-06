@@ -1,0 +1,14 @@
+{
+  "source": "https://charts.secretsatoshis.com",
+  "renderer": "Lightweight Charts 5.2.1",
+  "synced_from_report_date": "2026-10-05",
+  "files": {
+    "chart.css": "714ec02638c2d66ad1f8bb8fab1bf986f1043d9dd59d02313a4ecb2ae837576d",
+    "lightweight-charts.js": "e21cc5caa0226ef30bd8549c50b9ef926615f2a4ee6b4e486353477a55f598cf",
+    "renderer.js": "90d23339c0e0c02bcfc108d727bb5ba1f7b95a677ebee146530f62b4bb2c315e",
+    "LICENSE": "70c9d5382506dd184465425c08a99ad9bd6d9ac1313c252968ba0b585e5ef823",
+    "NOTICE": "f76c6afab94884448f0426e30d6e9d555ca7247894cd3484e477d2f87513036e",
+    "JetBrainsMono-OFL.txt": "b2fe5e8987594e9ffd1d2ca52a2f5d73eb8335243893c5d6254b5ad69269591d",
+    "Syne-OFL.txt": "cc43cdce6f91c57989af8459341c276655e34224e954fa69c2ad700831a742d8"
+  }
+}

@@ -6,6 +6,7 @@ import { db, userTransaction } from "./db";
 import { isProviderError, openai } from "./openai";
 import type { FileRow } from "./schema";
 import type { FileView } from "./types";
+import { isChartFile, validChart } from "./charts";
 export const fileView = (row: FileRow): FileView => ({
   id: row.id,
   name: row.name,
@@ -18,14 +19,21 @@ export function safeFilename(name: string) {
 }
 export function safeArtifact(path: string, bytes: Buffer) {
   if (
-    !/^\/workspace\/outputs\/[a-zA-Z0-9_.-]+\.(png|csv|md|pdf|py)$/.test(path)
+    !/^\/workspace\/outputs\/[a-zA-Z0-9_.-]+\.(png|csv|md|pdf|py|chart\.json)$/.test(
+      path,
+    )
   )
     return false;
   if (bytes.length > LIMITS.outputBytes) return false;
   const text = bytes.toString("utf8");
-  return !/AGENT21_PRIVATE_CONTROL|BEGIN (?:[A-Z]+ )?PRIVATE KEY|sk-(?:proj-|live-)[a-zA-Z0-9_-]{20,}/.test(
-    text,
-  );
+  if (
+    /AGENT21_PRIVATE_CONTROL|BEGIN (?:[A-Z]+ )?PRIVATE KEY|sk-(?:proj-|live-)[a-zA-Z0-9_-]{20,}/.test(
+      text,
+    )
+  )
+    return false;
+  // A chart is drawn by the viewer, so it must match the payload schema.
+  return !isChartFile(path) || validChart(text);
 }
 /** Reads a response body, failing as soon as it exceeds max bytes. */
 export async function boundedBytes(response: Response, max: number) {

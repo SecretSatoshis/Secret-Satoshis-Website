@@ -1,6 +1,7 @@
 node_modules/
 .next/
 public/
+chart-viewer/assets/
 app/.well-known/workflow/
 pnpm-lock.yaml
 tsconfig.tsbuildinfo

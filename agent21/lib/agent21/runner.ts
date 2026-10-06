@@ -459,6 +459,8 @@ const contentTypes: Record<string, string> = {
   md: "text/markdown",
   pdf: "application/pdf",
   py: "text/plain",
+  // <id>.chart.json: drawn as an interactive chart in the conversation.
+  json: "application/json",
 };
 async function finishRun(run: Run, turn: Turn, text: string) {
   const api = openai();

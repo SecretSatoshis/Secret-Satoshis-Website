@@ -39,3 +39,5 @@ export type RunView = {
 export const SITE = "https://secretsatoshis.com";
 export const terminal = (state: string) =>
   ["completed", "failed", "cancelled"].includes(state);
+/** Chart Library payloads the conversation draws as interactive charts. */
+export const isChartFile = (name: string) => name.endsWith(".chart.json");

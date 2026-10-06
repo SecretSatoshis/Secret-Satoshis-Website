@@ -18,6 +18,8 @@ export default defineConfig([
     "out/**",
     "build/**",
     "public/**",
+    // Vendored from the Chart Library by scripts/sync-chart-viewer.mjs.
+    "chart-viewer/assets/**",
     "next-env.d.ts",
     "app/.well-known/workflow/**",
   ]),

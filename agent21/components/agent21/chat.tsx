@@ -29,7 +29,7 @@ import type {
   RunView,
   FileView,
 } from "../../lib/agent21/types";
-import { SITE, terminal } from "../../lib/agent21/types";
+import { SITE, isChartFile, terminal } from "../../lib/agent21/types";
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 async function api<T>(
@@ -55,11 +55,69 @@ async function api<T>(
 }
 const message = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback;
+/**
+ * Draws a <id>.chart.json file with the Chart Library renderer. The viewer is a
+ * same-origin static page that runs only its own scripts; the payload reaches
+ * it as data through postMessage, and its height comes back the same way.
+ */
+function ChartFrame({ file }: { file: FileView }) {
+  const frame = useRef<HTMLIFrameElement>(null);
+  const [payload, setPayload] = useState<{ title?: unknown } | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let active = true;
+    fetch(`/api/agent21/files/${file.id}`, { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : Promise.reject()))
+      .then((data) => active && setPayload(data))
+      .catch(() => active && setFailed(true));
+    return () => {
+      active = false;
+    };
+  }, [file.id]);
+  useEffect(() => {
+    const target = frame.current?.contentWindow;
+    if (loaded && payload && target)
+      target.postMessage(
+        { type: "ss-chart-payload", payload },
+        window.location.origin,
+      );
+  }, [loaded, payload]);
+  useEffect(() => {
+    const resize = (event: MessageEvent) => {
+      const element = frame.current;
+      if (
+        !element ||
+        event.origin !== window.location.origin ||
+        event.source !== element.contentWindow ||
+        event.data?.type !== "ss-chart-size" ||
+        typeof event.data.height !== "number"
+      )
+        return;
+      element.style.height = `${Math.min(Math.max(event.data.height, 320), 2400)}px`;
+    };
+    window.addEventListener("message", resize);
+    return () => window.removeEventListener("message", resize);
+  }, []);
+  if (failed)
+    return <p className="a21-chart-error">This chart could not be loaded.</p>;
+  return (
+    <iframe
+      ref={frame}
+      className="a21-chart"
+      src="/agent21-chart/viewer.html"
+      title={typeof payload?.title === "string" ? payload.title : file.name}
+      loading="lazy"
+      onLoad={() => setLoaded(true)}
+    />
+  );
+}
 function Files({ files }: { files: FileView[] }) {
   return (
     <div className="a21-files">
       {files.map((file) => (
         <div className="a21-file" key={file.id}>
+          {isChartFile(file.name) && <ChartFrame file={file} />}
           {file.type === "image/png" && (
             // Private, authenticated downloads cannot use the image optimizer.
             // eslint-disable-next-line @next/next/no-img-element
