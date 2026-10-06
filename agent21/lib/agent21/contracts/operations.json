@@ -1,11 +1,237 @@
 {
-  "source_commit": "5106e6334021aa9564d45096ffe8b7c3b40af8b6",
+  "source_commit": "f75025c9aa3d5e202a32ff7349ca4c43b492dab2",
   "schema_version": 2,
-  "contract_sha256": "070c87e1929f229b9d22d433d0303fbe301a105adccacd54419565f5c2debff8",
+  "contract_sha256": "dc86ad29996da68124d887e7e36c456ac3c65822d58f3b0f30916b9c0c51f263",
   "operations": [
     {
+      "name": "polymarketSearch",
+      "description": "Search Polymarket events by topic, ranked by total volume by default. Sports, esports, weather, science, entertainment, pop culture and word-mention markets are excluded. Each event lists every outcome market with its question, outcomes, prices, best bid and ask, last trade and spread, plus the event's id, slug, end date, negRisk flag and closed status; volume and liquidity are on the event record. Matching is fuzzy and results can include closed events.",
+      "base": "https://gamma-api.polymarket.com",
+      "path": "/public-search?optimized=true&search_tags=false&search_profiles=false&ascending=false&exclude_tag_id=1&exclude_tag_id=64&exclude_tag_id=84&exclude_tag_id=74&exclude_tag_id=315&exclude_tag_id=596&exclude_tag_id=100343",
+      "parameters": [
+        {
+          "name": "q",
+          "in": "query",
+          "required": true,
+          "description": "A short topic query, such as fed decision december, us recession 2026 or bitcoin above october 7.",
+          "schema": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 100
+          }
+        },
+        {
+          "name": "limit_per_type",
+          "in": "query",
+          "description": "Number of events to return. Events with dozens of outcomes can exceed the result limit at higher values.",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5,
+            "default": 3
+          }
+        },
+        {
+          "name": "events_tag",
+          "in": "query",
+          "description": "Optional category to restrict results to: crypto, finance, economy, geopolitics, tech or politics.",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "crypto",
+              "finance",
+              "economy",
+              "geopolitics",
+              "tech",
+              "politics"
+            ]
+          }
+        },
+        {
+          "name": "sort",
+          "in": "query",
+          "description": "Rank by total volume (default) or liquidity, highest first.",
+          "schema": {
+            "type": "string",
+            "enum": [
+              "volume",
+              "liquidity"
+            ],
+            "default": "volume"
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 100
+          },
+          "limit_per_type": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5,
+            "default": 3
+          },
+          "events_tag": {
+            "type": "string",
+            "enum": [
+              "crypto",
+              "finance",
+              "economy",
+              "geopolitics",
+              "tech",
+              "politics"
+            ]
+          },
+          "sort": {
+            "type": "string",
+            "enum": [
+              "volume",
+              "liquidity"
+            ],
+            "default": "volume"
+          }
+        },
+        "required": [
+          "q"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "polymarketGetEventBySlug",
+      "description": "Get one event with every market's question, resolution rules (description), prices, bid and ask, volume, liquidity, status, end date, condition ID and outcome IDs. Events with dozens of outcomes can exceed the result limit; open single markets instead.",
+      "base": "https://gamma-api.polymarket.com",
+      "path": "/events/slug/{slug}",
+      "parameters": [
+        {
+          "name": "slug",
+          "in": "path",
+          "required": true,
+          "description": "Event slug from search results or a polymarket.com/event/<slug> link.",
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "maxLength": 250
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "maxLength": 250
+          }
+        },
+        "required": [
+          "slug"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "polymarketGetEventById",
+      "description": "Get one event by its numeric ID, with the same fields as polymarketGetEventBySlug.",
+      "base": "https://gamma-api.polymarket.com",
+      "path": "/events/{id}",
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "Numeric event ID from search results or a market's events list.",
+          "schema": {
+            "type": "string",
+            "pattern": "^[0-9]{1,20}$"
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9]{1,20}$"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "polymarketGetMarketBySlug",
+      "description": "Get one market with its question, resolution rules (description), prices, bid and ask, volume, liquidity, status, end date, price changes, condition ID and outcome IDs.",
+      "base": "https://gamma-api.polymarket.com",
+      "path": "/markets/slug/{slug}",
+      "parameters": [
+        {
+          "name": "slug",
+          "in": "path",
+          "required": true,
+          "description": "Market slug from search or event results.",
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "maxLength": 250
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "maxLength": 250
+          }
+        },
+        "required": [
+          "slug"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "polymarketGetMarketById",
+      "description": "Get one market by its numeric ID, with the same fields as polymarketGetMarketBySlug.",
+      "base": "https://gamma-api.polymarket.com",
+      "path": "/markets/{id}",
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "Numeric market ID from event or listing results.",
+          "schema": {
+            "type": "string",
+            "pattern": "^[0-9]{1,20}$"
+          }
+        }
+      ],
+      "schema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9]{1,20}$"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
       "name": "polymarketGetTagBySlug",
-      "description": "Resolve a concise topical slug before market discovery. A successful tag lookup does not by itself establish relevance or market quality.",
+      "description": "Resolve a topic tag, such as bitcoin or fed, to the numeric ID that polymarketListMarketsByTag takes.",
       "base": "https://gamma-api.polymarket.com",
       "path": "/tags/slug/{slug}",
       "parameters": [
@@ -13,7 +239,7 @@
           "name": "slug",
           "in": "path",
           "required": true,
-          "description": "Concise candidate topic slug to validate, such as bitcoin. If it does not resolve, do not invent a tag ID.",
+          "description": "Lowercase topic slug, such as bitcoin.",
           "schema": {
             "type": "string",
             "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
@@ -37,8 +263,8 @@
       }
     },
     {
-      "name": "polymarketListRelevantMarkets",
-      "description": "Find candidate markets using an exact tag ID resolved by the tag operation. Keep only Bitcoin, crypto, economic, political, regulatory, liquidity, or macro markets with a material and explainable Bitcoin connection. Liquidity and volume filters are optional aids, not universal quality thresholds.",
+      "name": "polymarketListMarketsByTag",
+      "description": "List markets under one tag, by total volume by default. Each market includes its event. Tags are broad, so check each market's relevance.",
       "base": "https://gamma-api.polymarket.com",
       "path": "/markets/keyset",
       "parameters": [
@@ -46,7 +272,7 @@
           "name": "tag_id",
           "in": "query",
           "required": true,
-          "description": "A one-item array containing the exact numeric tag ID returned by polymarketGetTagBySlug.",
+          "description": "A one-item array holding the numeric tag ID from polymarketGetTagBySlug.",
           "style": "form",
           "explode": true,
           "schema": {
@@ -62,7 +288,7 @@
         {
           "name": "limit",
           "in": "query",
-          "description": "Small response-size cap. Start with the narrowest useful result set.",
+          "description": "Number of markets to return.",
           "schema": {
             "type": "integer",
             "minimum": 1,
@@ -73,73 +299,39 @@
         {
           "name": "closed",
           "in": "query",
-          "description": "Whether to request closed markets. Keep false for current expectations unless the user explicitly asks for history.",
+          "description": "Return closed markets instead of open ones.",
           "schema": {
             "type": "boolean",
             "default": false
-          }
-        },
-        {
-          "name": "liquidity_num_min",
-          "in": "query",
-          "description": "Optional adaptive minimum for the API's reported liquidity value. Do not apply a fixed universal cutoff; choose only after considering the scale and peers of the relevant market set.",
-          "schema": {
-            "type": "number",
-            "minimum": 0
-          }
-        },
-        {
-          "name": "volume_num_min",
-          "in": "query",
-          "description": "Optional adaptive minimum for the API's reported cumulative volume value. Do not apply a fixed universal cutoff; compare relevant candidates first.",
-          "schema": {
-            "type": "number",
-            "minimum": 0
           }
         },
         {
           "name": "order",
           "in": "query",
-          "description": "Optional live API field used for candidate ordering.",
+          "description": "Sort field: total volume (default), liquidity or 24-hour volume.",
           "schema": {
             "type": "string",
             "enum": [
               "volumeNum",
-              "liquidityNum"
-            ]
+              "liquidityNum",
+              "volume24hr"
+            ],
+            "default": "volumeNum"
           }
         },
         {
           "name": "ascending",
           "in": "query",
-          "description": "Sort direction for the selected order field. Use false when seeking the most liquid or highest-volume candidates.",
+          "description": "Sort direction; false lists the highest values first.",
           "schema": {
             "type": "boolean",
             "default": false
-          }
-        },
-        {
-          "name": "related_tags",
-          "in": "query",
-          "description": "Optionally include markets under related tags. Keep false unless broader discovery is necessary and manually recheck relevance.",
-          "schema": {
-            "type": "boolean",
-            "default": false
-          }
-        },
-        {
-          "name": "include_tag",
-          "in": "query",
-          "description": "Include tag metadata with each candidate for relevance review.",
-          "schema": {
-            "type": "boolean",
-            "default": true
           }
         },
         {
           "name": "after_cursor",
           "in": "query",
-          "description": "Opaque cursor returned by a prior keyset response. Do not invent or alter it.",
+          "description": "The next_cursor from a previous response, passed unchanged to get the next page.",
           "schema": {
             "type": "string"
           }
@@ -167,32 +359,18 @@
             "type": "boolean",
             "default": false
           },
-          "liquidity_num_min": {
-            "type": "number",
-            "minimum": 0
-          },
-          "volume_num_min": {
-            "type": "number",
-            "minimum": 0
-          },
           "order": {
             "type": "string",
             "enum": [
               "volumeNum",
-              "liquidityNum"
-            ]
+              "liquidityNum",
+              "volume24hr"
+            ],
+            "default": "volumeNum"
           },
           "ascending": {
             "type": "boolean",
             "default": false
-          },
-          "related_tags": {
-            "type": "boolean",
-            "default": false
-          },
-          "include_tag": {
-            "type": "boolean",
-            "default": true
           },
           "after_cursor": {
             "type": "string"
@@ -200,105 +378,6 @@
         },
         "required": [
           "tag_id"
-        ],
-        "additionalProperties": false
-      }
-    },
-    {
-      "name": "polymarketGetMarketById",
-      "description": "Inspect one public market's question, outcomes, prices, status, activity, spread, and resolution source.",
-      "base": "https://gamma-api.polymarket.com",
-      "path": "/markets/{id}",
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "description": "Exact public Polymarket market ID returned by the API.",
-          "schema": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          }
-        }
-      ],
-      "schema": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          }
-        },
-        "required": [
-          "id"
-        ],
-        "additionalProperties": false
-      }
-    },
-    {
-      "name": "polymarketGetMarketBySlug",
-      "description": "Get a prediction market by exact slug",
-      "base": "https://gamma-api.polymarket.com",
-      "path": "/markets/slug/{slug}",
-      "parameters": [
-        {
-          "name": "slug",
-          "in": "path",
-          "required": true,
-          "description": "Exact public market slug returned by Polymarket.",
-          "schema": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 250
-          }
-        }
-      ],
-      "schema": {
-        "type": "object",
-        "properties": {
-          "slug": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 250
-          }
-        },
-        "required": [
-          "slug"
-        ],
-        "additionalProperties": false
-      }
-    },
-    {
-      "name": "polymarketGetMarketTags",
-      "description": "Use tags as supporting relevance metadata, not as proof that a market is useful or Bitcoin-related.",
-      "base": "https://gamma-api.polymarket.com",
-      "path": "/markets/{id}/tags",
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "description": "Exact public Polymarket market ID returned by the API.",
-          "schema": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          }
-        }
-      ],
-      "schema": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          }
-        },
-        "required": [
-          "id"
         ],
         "additionalProperties": false
       }
