@@ -1,13 +1,14 @@
 import { missingCredentials, required } from "../lib/agent21/config";
-import { mcpServerUrl, openai } from "../lib/agent21/openai";
+import { BRK_MCP_URL, mcpServerUrl, openai } from "../lib/agent21/openai";
 import { closeDatabase, db } from "../lib/agent21/db";
 import { migrator } from "../lib/agent21/migrations";
 import catalog from "../lib/agent21/contracts/operations.json";
 import assert from "node:assert/strict";
 import { logDiagnostic } from "../lib/agent21/diagnostics";
 const missing = missingCredentials();
-console.log("Managed runtime SDK and 27 public function contracts available.");
-assert.equal(catalog.operations.length, 27);
+console.log(
+  `Managed runtime SDK and ${catalog.operations.length} data-server contracts available.`,
+);
 if (missing.length) {
   console.error(
     `Live preflight blocked: configure ${missing.join(", ")} privately.`,
@@ -23,17 +24,31 @@ if (missing.length) {
     assert.equal(agent.service_tier, "default");
     assert.equal(agent.multi_agent.enabled, false);
     assert.equal(agent.metadata.runtime, required("AGENT21_RUNTIME_VERSION"));
-    // One data server, plus optional hosted search and programmatic tool calling.
-    const mcp = agent.tools.find((tool) => tool.type === "mcp");
+    // Our data server and BRK's keyless server, plus optional hosted search and
+    // programmatic tool calling.
     assert(
       agent.tools.every((tool) =>
         ["mcp", "web_search", "programmatic_tool_calling"].includes(tool.type),
       ),
       "The release declares an unreviewed tool type",
     );
-    assert.equal(agent.tools.filter((tool) => tool.type === "mcp").length, 1);
-    assert(mcp?.type === "mcp" && mcp.transport.type === "http");
-    assert.equal(mcp.transport.server_url, mcpServerUrl());
+    const servers = agent.tools.flatMap((tool) =>
+      tool.type === "mcp" && tool.transport.type === "http"
+        ? [{ tool, url: tool.transport.server_url }]
+        : [],
+    );
+    const ours = servers.find((server) => server.url === mcpServerUrl());
+    assert(ours, "The release does not name the Agent 21 data server");
+    assert(
+      servers.length ===
+        agent.tools.filter((tool) => tool.type === "mcp").length &&
+        servers.every(
+          (server) =>
+            server === ours || new URL(server.url).href === BRK_MCP_URL,
+        ),
+      "The release names an unreviewed MCP server",
+    );
+    const mcp = ours.tool;
     assert.deepEqual(
       [...(mcp.allowed_tools ?? [])].sort(),
       catalog.operations.map((t) => t.name).sort(),

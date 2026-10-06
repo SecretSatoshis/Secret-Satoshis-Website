@@ -72,7 +72,7 @@ const fakeFetch: typeof fetch = async (input, options) => {
           type: "mcp",
           server_label: "agent21_data",
           transport: { type: "http", server_url: MCP_SERVER_URL, headers: {} },
-          allowed_tools: ["mempoolGetRecommendedFees"],
+          allowed_tools: ["polymarketGetMarketById"],
           connection_origin: "service",
           credential_id: null,
           request_metadata: null,

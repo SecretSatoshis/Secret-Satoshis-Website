@@ -67,6 +67,15 @@ export function hostedEnvironment(
 }
 /** The Agent 21 data server; the data key is sent to this URL only. */
 export const mcpServerUrl = () => required("AGENT21_MCP_URL");
+/** BRK's public MCP server for Bitcoin series and network data; it takes no key. */
+export const BRK_MCP_URL = "https://mcp.bitview.space/";
+const isBrkServer = (url: string) => {
+  try {
+    return new URL(url).href === BRK_MCP_URL;
+  } catch {
+    return false;
+  }
+};
 /**
  * The OpenAI vault holding the data key, when the agent authenticates through
  * one (OpenAI's recommended setup). Without it, the website sends the key from
@@ -100,8 +109,8 @@ export async function sessionTools(agentId: string): Promise<AgentToolParam[]> {
   const key = vault ? null : required("AGENT21_MCP_KEY");
   const url = mcpServerUrl();
   return (await cached.tools).map((tool): AgentToolParam => {
-    // Releases may add hosted search and programmatic tool calling; any other
-    // tool or MCP server needs review before the data key is attached.
+    // Releases may add hosted search, programmatic tool calling and BRK's
+    // keyless server; any other tool or MCP server needs review first.
     if (tool.type === "web_search")
       return {
         type: "web_search",
@@ -112,6 +121,19 @@ export async function sessionTools(agentId: string): Promise<AgentToolParam[]> {
       };
     if (tool.type === "programmatic_tool_calling")
       return { type: "programmatic_tool_calling", enabled: tool.enabled };
+    if (
+      tool.type === "mcp" &&
+      tool.transport.type === "http" &&
+      isBrkServer(tool.transport.server_url)
+    )
+      return {
+        type: "mcp",
+        server_label: tool.server_label,
+        allowed_tools: tool.allowed_tools,
+        connection_origin: tool.connection_origin,
+        required: tool.required,
+        transport: { type: "http", server_url: tool.transport.server_url },
+      };
     if (
       tool.type !== "mcp" ||
       tool.transport.type !== "http" ||

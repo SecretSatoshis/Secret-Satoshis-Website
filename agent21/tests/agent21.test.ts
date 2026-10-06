@@ -281,6 +281,31 @@ test("the data server credential is sent only to the expected MCP server", async
     assert.deepEqual(searchTool, search);
     assert.deepEqual(programmaticTool, programmatic);
     assert(!JSON.stringify([searchTool, programmaticTool]).includes("Bearer"));
+    // BRK's public server passes through without the key or a credential.
+    const brk = {
+      type: "mcp",
+      server_label: "brk",
+      transport: {
+        type: "http",
+        server_url: "https://mcp.bitview.space",
+        headers: {},
+      },
+      allowed_tools: null,
+      connection_origin: "service",
+      credential_id: "credential-dashboard",
+      request_metadata: null,
+      required: false,
+    };
+    setOpenAIForTests(release(MCP_SERVER_URL, [brk]));
+    const [, brkTool] = await sessionTools("agent-with-brk");
+    assert.deepEqual(brkTool, {
+      type: "mcp",
+      server_label: "brk",
+      allowed_tools: null,
+      connection_origin: "service",
+      required: false,
+      transport: { type: "http", server_url: "https://mcp.bitview.space" },
+    });
     setOpenAIForTests(
       release(MCP_SERVER_URL, [
         { type: "computer_use", include_screenshots: true },
