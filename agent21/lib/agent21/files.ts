@@ -75,7 +75,6 @@ export async function reserveFile(
   kind: FileView["kind"],
   runId?: string,
   artifactKey?: string,
-  provenance?: Record<string, unknown>,
 ) {
   if (
     !Number.isSafeInteger(bytes) ||
@@ -145,7 +144,6 @@ export async function reserveFile(
         bytes,
         blob_path: `agent21/${owner}/${conversation}/${id}/${safe}`,
         artifact_key: artifactKey || null,
-        provenance: provenance ? JSON.stringify(provenance) : null,
       })
       .returningAll()
       .executeTakeFirstOrThrow();

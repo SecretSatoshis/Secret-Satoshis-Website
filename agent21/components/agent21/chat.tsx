@@ -568,7 +568,7 @@ export function Chat() {
       setError(message(e, "Deletion failed."));
     }
   };
-  const retained = files.filter((f) => f.kind !== "artifact");
+  const uploads = files.filter((f) => f.kind === "upload");
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <div className="a21-shell">
@@ -671,22 +671,20 @@ export function Chat() {
               <ThreadPrimitive.Messages
                 components={{ UserMessage, AssistantMessage }}
               />
-              {retained.length > 0 && (
+              {uploads.length > 0 && (
                 <details className="a21-sources">
                   <summary>Files in this conversation</summary>
-                  <Files files={retained} />
+                  <Files files={uploads} />
                   <div className="a21-attachments">
-                    {retained
-                      .filter((f) => f.kind === "upload")
-                      .map((f) => (
-                        <button
-                          key={f.id}
-                          disabled={active}
-                          onClick={() => void removeFile(f)}
-                        >
-                          Delete {f.name}
-                        </button>
-                      ))}
+                    {uploads.map((f) => (
+                      <button
+                        key={f.id}
+                        disabled={active}
+                        onClick={() => void removeFile(f)}
+                      >
+                        Delete {f.name}
+                      </button>
+                    ))}
                   </div>
                 </details>
               )}

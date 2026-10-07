@@ -25,6 +25,7 @@ import {
   retainFile,
   reserveFile,
   safeArtifact,
+  safeFilename,
 } from "./files";
 import { LIMITS } from "./config";
 import { logDiagnostic } from "./diagnostics";
@@ -471,22 +472,31 @@ async function finishRun(run: Run, turn: Turn, text: string) {
     return;
   }
   const notRetained: string[] = [];
+  // Files saved for the user that the website refuses (another type, over the
+  // size limit, an invalid chart): the answer says so instead of omitting them.
+  const notShown: string[] = [];
   if (state === "completed") {
     for await (const artifact of api.beta.agents.sessions.artifacts.list(
       run.session_id!,
     )) {
       await keepLease(run);
-      if (
-        artifact.turn_id !== turn.id ||
-        artifact.size_bytes > LIMITS.outputBytes
-      )
+      if (artifact.turn_id !== turn.id) continue;
+      const delivered = /^\/workspace\/outputs\/[^/]+$/.test(artifact.path);
+      if (artifact.size_bytes > LIMITS.outputBytes) {
+        if (delivered)
+          notShown.push(safeFilename(artifact.path.split("/").at(-1)!));
         continue;
+      }
       const response = await api.beta.agents.sessions.artifacts.content(
         artifact.id,
         { session_id: run.session_id! },
       );
       const bytes = await boundedBytes(response, LIMITS.outputBytes);
-      if (!safeArtifact(artifact.path, bytes)) continue;
+      if (!safeArtifact(artifact.path, bytes)) {
+        if (delivered)
+          notShown.push(safeFilename(artifact.path.split("/").at(-1)!));
+        continue;
+      }
       const name = artifact.path.split("/").at(-1)!;
       let file;
       try {
@@ -527,6 +537,9 @@ async function finishRun(run: Run, turn: Turn, text: string) {
         : error || "The response completed without a text answer.")) +
     (notRetained.length
       ? `\n\n_Not saved because your file storage is full: ${notRetained.join(", ")}. Delete files or a conversation to free space._`
+      : "") +
+    (notShown.length
+      ? `\n\n_Not shown because the website could not accept ${notShown.length > 1 ? "them" : "it"}: ${notShown.join(", ")}. Files must be PNG, CSV, Markdown, PDF, Python or a valid chart, up to 20 MiB._`
       : "");
   await saveAnswer(run, answer, files);
   await updateRun(run.id, {
@@ -630,10 +643,13 @@ export async function markUncertain(id: string) {
     .where("finished_at", "is", null)
     .execute();
 }
-// Retrying cannot fix a request the provider or the app rejected as invalid.
+// Retrying cannot fix a request the provider or the app rejected as invalid,
+// or a dashboard agent whose tools the app refuses.
 const permanent = (error: unknown) =>
   isProviderError(error, 400, 401, 403, 404, 422) ||
-  (error instanceof AppError && [400, 404, 413].includes(error.status));
+  (error instanceof AppError &&
+    ([400, 404, 413].includes(error.status) ||
+      error.code === "agent_tools_rejected"));
 /**
  * Advances a run by one step. Returns true once it has settled. Temporary
  * failures throw a sanitized reference for the caller to retry; permanent

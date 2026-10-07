@@ -36,7 +36,8 @@ CLAUDE.md
 # Private planning docs live in the private runtime repository, not this public one.
 /docs/
 
-# Private/generated local artifacts
-artifacts/
-outputs/
-runs/
+# Private/generated local artifacts at the repository root. Anchored, so app
+# folders with these names (such as agent21's runs API routes) stay tracked.
+/artifacts/
+/outputs/
+/runs/

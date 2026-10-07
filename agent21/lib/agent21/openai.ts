@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { required } from "./config";
+import { AppError } from "./errors";
 import type {
   AgentToolParam,
   PersistedAgentTool,
@@ -53,7 +54,7 @@ export async function turnItems(session: string, turn: string) {
 }
 // The documented container_size field is not yet declared by SDK 7.25.0.
 // Preserve the managed runtime and send the documented field through the SDK.
-// Network access comes from the release's environment template.
+// Network access comes from the dashboard's environment template.
 export function hostedEnvironment(
   template: string,
   files: HostedEnvironmentFileParam[] = [],
@@ -68,11 +69,21 @@ export function hostedEnvironment(
 /** BRK's public MCP server for Bitcoin series and network data; it takes no credential. */
 export const BRK_MCP_URL = "https://mcp.bitview.space/";
 /**
- * GitHub's remote MCP server, repository tools in read-only mode. Its token
+ * GitHub's remote MCP server, at the URL the dashboard agent uses; its
+ * read-only repository path is accepted too. The full server also offers write
+ * tools, so a session passes GitHub through only when the agent allows nothing
+ * beyond these read tools. Its token, which can only read public repositories,
  * lives in the OpenAI vault attached to each session.
  */
-export const GITHUB_MCP_URL =
+export const GITHUB_MCP_URL = "https://api.githubcopilot.com/mcp/";
+const GITHUB_READONLY_MCP_URL =
   "https://api.githubcopilot.com/mcp/x/repos/readonly";
+export const GITHUB_READ_TOOLS: ReadonlySet<string> = new Set([
+  "get_commit",
+  "get_file_contents",
+  "list_commits",
+  "search_code",
+]);
 // Compare origin and path, ignoring a trailing slash the dashboard may add.
 const sameServer = (url: string, expected: string) => {
   try {
@@ -83,6 +94,8 @@ const sameServer = (url: string, expected: string) => {
     return false;
   }
 };
+export const isGitHubServer = (url: string) =>
+  sameServer(url, GITHUB_MCP_URL) || sameServer(url, GITHUB_READONLY_MCP_URL);
 /** The OpenAI vault holding MCP credentials (the GitHub token). */
 export const mcpVaultId = () => process.env.AGENT21_MCP_VAULT_ID || null;
 // The saved agent can be edited in the dashboard, so its tools are re-read
@@ -92,10 +105,15 @@ const savedTools = new Map<
   string,
   { at: number; tools: Promise<PersistedAgentTool[]> }
 >();
+// A tool outside the reviewed list is a dashboard setting, not a passing
+// fault: the answer fails at once with a code the diagnostics keep.
+const rejectedTools = (message: string) =>
+  new AppError(503, message, "agent_tools_rejected");
 /**
  * The saved agent's tools for one session. Only reviewed tools pass: hosted
- * search, programmatic tool calling, BRK's keyless server and GitHub's read-only
- * server, whose credential OpenAI supplies from the session's vault.
+ * search, programmatic tool calling, BRK's keyless server and GitHub's server
+ * limited to read tools, whose credential OpenAI supplies from the session's
+ * vault.
  */
 export async function sessionTools(agentId: string): Promise<AgentToolParam[]> {
   let cached = savedTools.get(agentId);
@@ -129,10 +147,19 @@ export async function sessionTools(agentId: string): Promise<AgentToolParam[]> {
         transport: { type: "http" as const, server_url: url },
       };
       if (sameServer(url, BRK_MCP_URL)) return shared;
-      if (sameServer(url, GITHUB_MCP_URL))
+      if (isGitHubServer(url)) {
+        const allowed = tool.allowed_tools ?? [];
+        if (
+          !allowed.length ||
+          !allowed.every((name) => GITHUB_READ_TOOLS.has(name))
+        )
+          throw rejectedTools(
+            "The agent's GitHub server must allow only read tools",
+          );
         return { ...shared, credential_id: tool.credential_id };
+      }
     }
-    throw new Error("The agent names an unexpected tool or MCP server");
+    throw rejectedTools("The agent names an unexpected tool or MCP server");
   });
 }
 export function environmentId(session: {

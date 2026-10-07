@@ -102,7 +102,6 @@ export interface FilesTable {
   sha256: string | null;
   openai_file_id: string | null;
   artifact_key: string | null;
-  provenance: NullableJson<Record<string, unknown>>;
   upload_token_expires_at: NullableTimestamp;
   created_at: DefaultTimestamp;
 }

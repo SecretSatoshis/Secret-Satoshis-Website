@@ -243,15 +243,17 @@ export async function completeUpload(owner: string, id: string) {
     await del(row.blob_path);
     await db()
       .updateTable("agent21_files")
-      .set({ state: "rejected" })
+      .set({ state: "rejected", upload_token_expires_at: null })
       .where("id", "=", id)
       .execute();
     throw error;
   }
+  // The upload is in place, so its token no longer delays deleting the file.
   await db()
     .updateTable("agent21_files")
     .set({
       state: "ready",
+      upload_token_expires_at: null,
       sha256: createHash("sha256").update(bytes).digest("hex"),
     })
     .where("id", "=", id)

@@ -247,14 +247,23 @@ export async function performFileDeletion(id: string): Promise<boolean> {
       .executeTakeFirst();
     if (conversation?.deleting || (await leased(job.conversation_id)))
       return false;
-    // New turns are blocked while this job is pending. Removing hosted sessions also
-    // removes temporary copies of the deleted file; the next turn restores retained inputs.
-    await removeSessions(job.conversation_id);
-    await db()
-      .updateTable("agent21_conversations")
-      .set({ session_id: null })
-      .where("id", "=", job.conversation_id)
-      .execute();
+    // New turns are blocked while this job is pending. A file already copied into
+    // a sandbox goes with its hosted sessions; the next turn restores the retained
+    // inputs. A file no sandbox received (such as an attachment removed before
+    // sending) leaves the conversation's sandbox in place.
+    const copied = await db()
+      .selectFrom("agent21_session_files")
+      .select("file_id")
+      .where("file_id", "=", file.id)
+      .executeTakeFirst();
+    if (copied) {
+      await removeSessions(job.conversation_id);
+      await db()
+        .updateTable("agent21_conversations")
+        .set({ session_id: null })
+        .where("id", "=", job.conversation_id)
+        .execute();
+    }
     await removeFile(file);
   }
   await db()

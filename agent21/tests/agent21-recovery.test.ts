@@ -5,7 +5,7 @@ import { reserveRun } from "../lib/agent21/db";
 import { reconcileRun, markUncertain } from "../lib/agent21/runner";
 import { requestDeletion, performDeletion } from "../lib/agent21/deletion";
 import { fakeOpenAI, testDatabase } from "./support";
-const GITHUB_MCP_URL = "https://api.githubcopilot.com/mcp/x/repos/readonly";
+const GITHUB_MCP_URL = "https://api.githubcopilot.com/mcp/";
 const VAULT = "vault-test";
 let database: Awaited<ReturnType<typeof testDatabase>>;
 const query = (text: string, values: unknown[] = []) =>
@@ -64,6 +64,12 @@ const fakeFetch: typeof fetch = async (input, options) => {
   const key = new Headers(options?.headers).get("idempotency-key");
   if (url.hostname !== "api.openai.com")
     throw Error(`Unexpected request to ${url.hostname}`);
+  // A dashboard agent with a tool the app has not reviewed.
+  if (url.pathname === "/v1/agents/agent-unreviewed" && method === "GET")
+    return response({
+      id: "agent-unreviewed",
+      tools: [{ type: "computer_use", include_screenshots: true }],
+    });
   if (url.pathname === "/v1/agents/agent-selected" && method === "GET")
     return response({
       id: "agent-selected",
@@ -561,6 +567,27 @@ test("a request the provider rejects fails at once instead of at the hard stop",
   );
   assert.equal(await activeRuns(), 0, "The user can send again");
 });
+test("an agent with an unreviewed tool fails the answer at once with its reason", async () => {
+  const id = randomUUID();
+  await query(
+    "INSERT INTO agent21_conversations(id,owner_id,agent_id,template_id,runtime_version) VALUES($1,$2,'agent-unreviewed','template-selected','runtime-selected')",
+    [id, owner],
+  );
+  const run = await reserveRun(owner, id, randomUUID(), {
+    text: "What are fees now?",
+    files: [],
+  });
+  const created = createCount;
+  assert.equal(await reconcileRun(run.id), true, "Settled, not retried");
+  const [stored] = await query(
+    "SELECT state,last_diagnostic FROM agent21_runs WHERE id=$1",
+    [run.id],
+  );
+  assert.equal(stored.state, "failed");
+  assert.equal(stored.last_diagnostic.code, "agent_tools_rejected");
+  assert.equal(createCount, created, "No sandbox was created");
+  assert.equal(await activeRuns(), 0, "The user can send again");
+});
 test("a run that keeps failing temporarily is abandoned at the hard deadline", async () => {
   const id = await freshConversation();
   const run = await reserveRun(owner, id, randomUUID(), {
@@ -623,6 +650,36 @@ test("an answer is delivered without files that exceed the storage allowance", a
     0,
   );
   await query("DELETE FROM agent21_files WHERE id=$1", [filler]);
+});
+test("an answer names the files the website refused instead of dropping them silently", async () => {
+  const id = await freshConversation();
+  const run = await reserveRun(owner, id, randomUUID(), {
+    text: "Chart Bitcoin fees",
+    files: [],
+  });
+  assert.equal(await reconcileRun(run.id), false);
+  const { session, turn } = await completeTurn(run.id);
+  const output = (id: string, path: string, body: string) => ({
+    id,
+    object: "agent.session.artifact",
+    session_id: session,
+    environment_id: `env-${session}`,
+    turn_id: turn,
+    path,
+    size_bytes: body.length,
+    created_at: Math.floor(Date.now() / 1000),
+    body,
+  });
+  artifacts.set(session, [
+    output("artifact-chart", "/workspace/outputs/fees.chart.json", "{}"),
+    output("artifact-scratch", "/workspace/scratch/notes.txt", "draft"),
+  ]);
+  assert.equal(await reconcileRun(run.id), true);
+  const answer = (await saved(id)).find(
+    (m) => m.external_id === `assistant-${run.id}`,
+  );
+  assert.match(answer.text, /could not accept it: fees\.chart\.json\./);
+  assert.doesNotMatch(answer.text, /notes\.txt/, "Only delivered files count");
 });
 test("files go into a new session with its creation and are never copied twice", async () => {
   const id = await freshConversation();

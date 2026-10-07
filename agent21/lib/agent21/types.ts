@@ -11,7 +11,7 @@ export type FileView = {
   name: string;
   type: string;
   bytes: number;
-  kind: "upload" | "source" | "artifact";
+  kind: "upload" | "artifact";
 };
 export type Conversation = {
   id: string;

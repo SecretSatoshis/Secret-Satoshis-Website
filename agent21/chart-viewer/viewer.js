@@ -53,5 +53,4 @@
     renderer.src = "assets/renderer.js";
     document.body.append(renderer);
   });
-  window.parent.postMessage({ type: "ss-chart-ready" }, origin);
 })();

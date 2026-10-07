@@ -216,18 +216,25 @@ test("sessions pass through only reviewed tools, and only GitHub carries a crede
     server_url: string,
     label: string,
     credential: string | null,
+    allowed_tools: string[] | null = null,
   ) => ({
     type: "mcp",
     server_label: label,
     transport: { type: "http", server_url, headers: {} },
-    allowed_tools: null,
+    allowed_tools,
     connection_origin: "service",
     credential_id: credential,
     request_metadata: null,
     required: false,
   });
   const brk = mcp("https://mcp.bitview.space", "brk", null);
-  const github = mcp(`${GITHUB_MCP_URL}/`, "github", "credential-dashboard");
+  const reads = [
+    "get_file_contents",
+    "search_code",
+    "list_commits",
+    "get_commit",
+  ];
+  const github = mcp(GITHUB_MCP_URL, "github", "credential-dashboard", reads);
   const search = {
     type: "web_search",
     allowed_domains: null,
@@ -261,17 +268,46 @@ test("sessions pass through only reviewed tools, and only GitHub carries a crede
     assert.equal(githubTool.transport.headers, undefined);
     assert.deepEqual(searchTool, search);
     assert.deepEqual(programmaticTool, programmatic);
-    // Any other server, a writable GitHub URL or another tool type is refused.
+    // The read-only repository path is accepted with the same read tools.
+    setOpenAIForTests(
+      release([
+        mcp(
+          "https://api.githubcopilot.com/mcp/x/repos/readonly/",
+          "github",
+          "c",
+          reads,
+        ),
+      ]),
+    );
+    const [readonly] = await sessionTools("agent-readonly");
+    assert(readonly.type === "mcp" && readonly.credential_id === "c");
+    // GitHub with every tool allowed, or with a write tool, is refused.
+    for (const [id, allowed] of [
+      ["agent-github-all", null],
+      ["agent-github-none", []],
+      ["agent-github-write", [...reads, "create_or_update_file"]],
+    ] as const) {
+      setOpenAIForTests(
+        release([mcp(GITHUB_MCP_URL, "github", "c", allowed && [...allowed])]),
+      );
+      await assert.rejects(sessionTools(id), /only read tools/);
+    }
+    // Any other server, another GitHub path or another tool type is refused.
     for (const [id, tool] of [
       ["agent-other", mcp("https://elsewhere.example/mcp", "x", null)],
       [
-        "agent-writable",
-        mcp("https://api.githubcopilot.com/mcp/x/repos", "github", "c"),
+        "agent-other-path",
+        mcp("https://api.githubcopilot.com/mcp/x/repos", "github", "c", reads),
       ],
       ["agent-desktop", { type: "computer_use", include_screenshots: true }],
     ] as const) {
       setOpenAIForTests(release([tool]));
-      await assert.rejects(sessionTools(id), /unexpected/);
+      await assert.rejects(
+        sessionTools(id),
+        (error: Error & { code?: string }) =>
+          /unexpected/.test(error.message) &&
+          error.code === "agent_tools_rejected",
+      );
     }
   } finally {
     Object.assign(process.env, { NODE_ENV: before });

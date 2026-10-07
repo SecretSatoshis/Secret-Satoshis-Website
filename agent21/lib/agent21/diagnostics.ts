@@ -41,6 +41,7 @@ const codes = new Set([
   "invalid_request",
   "request_failed",
   "service_unavailable",
+  "agent_tools_rejected",
 ]);
 const openaiErrors = new Set([
   "APIError",
