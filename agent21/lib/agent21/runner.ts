@@ -287,7 +287,7 @@ async function createSession(run: Run) {
     prior_turn_ids: "[]",
     session_creation_started_at: new Date(),
   });
-  // The data server's credential joins the request here and is never stored.
+  // Session tools are resolved here and never stored; MCP credentials stay in the OpenAI vault.
   const session = await openai().beta.agents.sessions.create(
     {
       ...submission.body,

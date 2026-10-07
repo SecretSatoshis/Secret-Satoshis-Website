@@ -5,8 +5,8 @@ import { reserveRun } from "../lib/agent21/db";
 import { reconcileRun, markUncertain } from "../lib/agent21/runner";
 import { requestDeletion, performDeletion } from "../lib/agent21/deletion";
 import { fakeOpenAI, testDatabase } from "./support";
-const MCP_KEY = "mcp-test-key-0123456789abcdef0123456789";
-const MCP_SERVER_URL = "https://data.example.test/api/mcp";
+const GITHUB_MCP_URL = "https://api.githubcopilot.com/mcp/x/repos/readonly";
+const VAULT = "vault-test";
 let database: Awaited<ReturnType<typeof testDatabase>>;
 const query = (text: string, values: unknown[] = []) =>
   database.sql(text, values);
@@ -70,13 +70,13 @@ const fakeFetch: typeof fetch = async (input, options) => {
       tools: [
         {
           type: "mcp",
-          server_label: "agent21_data",
-          transport: { type: "http", server_url: MCP_SERVER_URL, headers: {} },
-          allowed_tools: ["polymarketGetMarketById"],
+          server_label: "github",
+          transport: { type: "http", server_url: GITHUB_MCP_URL, headers: {} },
+          allowed_tools: ["get_file_contents"],
           connection_origin: "service",
-          credential_id: null,
+          credential_id: "credential-dashboard",
           request_metadata: null,
-          required: true,
+          required: false,
         },
       ],
     });
@@ -93,11 +93,10 @@ const fakeFetch: typeof fetch = async (input, options) => {
     assert(!body.environment.network, "Network access comes from the template");
     assert.equal(body.agent_id, "agent-selected");
     const [mcp] = body.agent.tools;
-    assert.equal(mcp.transport.server_url, MCP_SERVER_URL);
-    assert.deepEqual(mcp.transport.headers, {
-      Authorization: `Bearer ${MCP_KEY}`,
-    });
-    assert(!body.vault_ids, "Without a vault the website sends the key");
+    assert.equal(mcp.transport.server_url, GITHUB_MCP_URL);
+    assert.equal(mcp.transport.headers, undefined);
+    assert.equal(mcp.credential_id, "credential-dashboard");
+    assert.deepEqual(body.vault_ids, [VAULT], "OpenAI supplies the token");
     const id = `session-${++createCount}`;
     const session = {
       id,
@@ -244,8 +243,7 @@ const creationFor = (run: string) =>
 before(async () => {
   database = await testDatabase();
   fakeOpenAI(fakeFetch);
-  process.env.AGENT21_MCP_KEY = MCP_KEY;
-  process.env.AGENT21_MCP_URL = MCP_SERVER_URL;
+  process.env.AGENT21_MCP_VAULT_ID = VAULT;
   await query("INSERT INTO agent21_users(id,beta_enabled) VALUES($1,true)", [
     owner,
   ]);
@@ -281,8 +279,8 @@ test("a lost creation response is recovered: one sandbox, one turn, the message 
   );
   assert(pending.submission, "The creation request is kept for recovery");
   assert(
-    !pending.submission.includes(MCP_KEY),
-    "The data server credential is never stored",
+    !pending.submission.includes("Authorization"),
+    "No credential header is ever stored",
   );
   await markUncertain(first.id);
   assert.equal(await reconcileRun(first.id), false);

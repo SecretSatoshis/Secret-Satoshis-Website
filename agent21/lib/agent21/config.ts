@@ -33,7 +33,7 @@ export const credentialNames = [
   "AGENT21_AGENT_ID",
   "AGENT21_ENVIRONMENT_TEMPLATE_ID",
   "AGENT21_RUNTIME_VERSION",
-  "AGENT21_MCP_URL",
+  "AGENT21_MCP_VAULT_ID",
   "APP_ORIGIN",
   "OPENAI_WEBHOOK_SECRET",
   "CLERK_WEBHOOK_SIGNING_SECRET",
@@ -56,9 +56,6 @@ export function isLoopbackDevelopment() {
 // store (BLOB_STORE_ID); local development can use a read-write token instead.
 const blobConfigured = () =>
   Boolean(process.env.BLOB_STORE_ID || process.env.BLOB_READ_WRITE_TOKEN);
-// The data key reaches OpenAI through a vault, or the website sends it itself.
-const mcpAuthConfigured = () =>
-  Boolean(process.env.AGENT21_MCP_VAULT_ID || process.env.AGENT21_MCP_KEY);
 export function missingCredentials() {
   // Local development polls provider state; public deployments also require
   // signed lifecycle webhooks. This exception never applies to production.
@@ -70,7 +67,6 @@ export function missingCredentials() {
         !(local && webhookCredentials.some((webhook) => webhook === name)),
     ),
     ...(blobConfigured() ? [] : ["BLOB_STORE_ID"]),
-    ...(mcpAuthConfigured() ? [] : ["AGENT21_MCP_VAULT_ID"]),
   ];
 }
 /** Configuration evidence only: no credentials, origins or provider IDs are returned. */
@@ -79,7 +75,6 @@ export function configurationReadiness() {
   const deploymentMissing = [
     ...credentialNames.filter((name) => !process.env[name]),
     ...(process.env.BLOB_STORE_ID ? [] : ["BLOB_STORE_ID"]),
-    ...(mcpAuthConfigured() ? [] : ["AGENT21_MCP_VAULT_ID"]),
   ];
   const local = isLoopbackDevelopment();
   const omittedWebhooks = webhookCredentials.filter(

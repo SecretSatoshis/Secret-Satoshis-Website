@@ -21,8 +21,6 @@ test("webhook credentials are optional only for loopback development; production
     "NODE_ENV",
     "BLOB_STORE_ID",
     "BLOB_READ_WRITE_TOKEN",
-    "AGENT21_MCP_KEY",
-    "AGENT21_MCP_VAULT_ID",
   ];
   const before = Object.fromEntries(
     names.map((name) => [name, process.env[name]]),
@@ -30,8 +28,6 @@ test("webhook credentials are optional only for loopback development; production
   try {
     for (const name of credentialNames) process.env[name] = "configured";
     process.env.BLOB_STORE_ID = "store_configured";
-    process.env.AGENT21_MCP_KEY = "configured";
-    delete process.env.AGENT21_MCP_VAULT_ID;
     delete process.env.OPENAI_WEBHOOK_SECRET;
     delete process.env.CLERK_WEBHOOK_SIGNING_SECRET;
     process.env.APP_ORIGIN = "http://localhost:3000";
@@ -57,8 +53,8 @@ test("webhook credentials are optional only for loopback development; production
       true,
       "Local development may use a read-write token",
     );
-    // The data key comes from an OpenAI vault or from the website's setting.
-    delete process.env.AGENT21_MCP_KEY;
+    // The GitHub MCP token reaches OpenAI only through the session's vault.
+    delete process.env.AGENT21_MCP_VAULT_ID;
     assert.deepEqual(missingCredentials(), ["AGENT21_MCP_VAULT_ID"]);
     process.env.AGENT21_MCP_VAULT_ID = "vault_configured";
     assert.equal(configured(), true);
@@ -210,94 +206,47 @@ test("browser output includes final assistant text only, never private reasoning
   );
   assert.throws(() => environmentId({ environment: { type: "none" } }));
 });
-test("the data server credential is sent only to the expected MCP server", async () => {
+test("sessions pass through only reviewed tools, and only GitHub carries a credential", async () => {
   const { default: OpenAI } = await import("openai");
-  const { sessionTools, setOpenAIForTests } =
+  const { sessionTools, setOpenAIForTests, GITHUB_MCP_URL } =
     await import("../lib/agent21/openai");
-  const MCP_SERVER_URL = "https://data.example.test/api/mcp";
-  const before = {
-    env: process.env.NODE_ENV,
-    key: process.env.AGENT21_MCP_KEY,
-    url: process.env.AGENT21_MCP_URL,
-    vault: process.env.AGENT21_MCP_VAULT_ID,
-  };
-  delete process.env.AGENT21_MCP_VAULT_ID;
+  const before = process.env.NODE_ENV;
   Object.assign(process.env, { NODE_ENV: "test" });
-  process.env.AGENT21_MCP_KEY = "mcp-test-key-0123456789abcdef0123456789";
-  process.env.AGENT21_MCP_URL = MCP_SERVER_URL;
-  const agent = (server_url: string, extra: object[] = []) => ({
-    id: `agent-${server_url.length}`,
-    tools: [
-      {
-        type: "mcp",
-        server_label: "agent21_data",
-        transport: { type: "http", server_url, headers: {} },
-        allowed_tools: null,
-        connection_origin: "service",
-        credential_id: "credential-dashboard",
-        request_metadata: null,
-        required: false,
-      },
-      ...extra,
-    ],
+  const mcp = (
+    server_url: string,
+    label: string,
+    credential: string | null,
+  ) => ({
+    type: "mcp",
+    server_label: label,
+    transport: { type: "http", server_url, headers: {} },
+    allowed_tools: null,
+    connection_origin: "service",
+    credential_id: credential,
+    request_metadata: null,
+    required: false,
   });
-  const release = (server_url: string, extra: object[] = []) =>
+  const brk = mcp("https://mcp.bitview.space", "brk", null);
+  const github = mcp(`${GITHUB_MCP_URL}/`, "github", "credential-dashboard");
+  const search = {
+    type: "web_search",
+    allowed_domains: null,
+    context_size: "medium",
+    location: null,
+    mode: "live",
+  };
+  const programmatic = { type: "programmatic_tool_calling", enabled: true };
+  const release = (tools: object[]) =>
     new OpenAI({
       apiKey: "test-key",
       maxRetries: 0,
-      fetch: async () => Response.json(agent(server_url, extra)),
+      fetch: async () => Response.json({ id: "agent", tools }),
     });
   try {
-    setOpenAIForTests(release(MCP_SERVER_URL));
-    const [tool] = await sessionTools("agent-expected");
-    assert.equal(
-      tool.type === "mcp" &&
-        tool.transport.type === "http" &&
-        tool.transport.headers?.Authorization,
-      `Bearer ${process.env.AGENT21_MCP_KEY}`,
-    );
-    // With a vault, OpenAI supplies the key: the website sends no header and
-    // keeps the dashboard's credential selection.
-    process.env.AGENT21_MCP_VAULT_ID = "vault-test";
-    const [vaulted] = await sessionTools("agent-vaulted");
-    assert(vaulted.type === "mcp" && vaulted.transport.type === "http");
-    assert.equal(vaulted.transport.headers, undefined);
-    assert.equal(vaulted.credential_id, "credential-dashboard");
-    delete process.env.AGENT21_MCP_VAULT_ID;
-    setOpenAIForTests(release("https://elsewhere.example/mcp"));
-    await assert.rejects(sessionTools("agent-unexpected"), /unexpected/);
-    // Hosted search and programmatic tool calling pass through without the key.
-    const search = {
-      type: "web_search",
-      allowed_domains: null,
-      context_size: "medium",
-      location: null,
-      mode: "live",
-    };
-    const programmatic = { type: "programmatic_tool_calling", enabled: true };
-    setOpenAIForTests(release(MCP_SERVER_URL, [search, programmatic]));
-    const [, searchTool, programmaticTool] =
-      await sessionTools("agent-with-search");
-    assert.deepEqual(searchTool, search);
-    assert.deepEqual(programmaticTool, programmatic);
-    assert(!JSON.stringify([searchTool, programmaticTool]).includes("Bearer"));
-    // BRK's public server passes through without the key or a credential.
-    const brk = {
-      type: "mcp",
-      server_label: "brk",
-      transport: {
-        type: "http",
-        server_url: "https://mcp.bitview.space",
-        headers: {},
-      },
-      allowed_tools: null,
-      connection_origin: "service",
-      credential_id: "credential-dashboard",
-      request_metadata: null,
-      required: false,
-    };
-    setOpenAIForTests(release(MCP_SERVER_URL, [brk]));
-    const [, brkTool] = await sessionTools("agent-with-brk");
+    setOpenAIForTests(release([brk, github, search, programmatic]));
+    const [brkTool, githubTool, searchTool, programmaticTool] =
+      await sessionTools("agent-expected");
+    // BRK's public server passes through with no credential.
     assert.deepEqual(brkTool, {
       type: "mcp",
       server_label: "brk",
@@ -306,20 +255,25 @@ test("the data server credential is sent only to the expected MCP server", async
       required: false,
       transport: { type: "http", server_url: "https://mcp.bitview.space" },
     });
-    setOpenAIForTests(
-      release(MCP_SERVER_URL, [
-        { type: "computer_use", include_screenshots: true },
-      ]),
-    );
-    await assert.rejects(sessionTools("agent-with-desktop"), /unexpected/);
+    // GitHub keeps the dashboard's vault credential; no header is ever added.
+    assert(githubTool.type === "mcp" && githubTool.transport.type === "http");
+    assert.equal(githubTool.credential_id, "credential-dashboard");
+    assert.equal(githubTool.transport.headers, undefined);
+    assert.deepEqual(searchTool, search);
+    assert.deepEqual(programmaticTool, programmatic);
+    // Any other server, a writable GitHub URL or another tool type is refused.
+    for (const [id, tool] of [
+      ["agent-other", mcp("https://elsewhere.example/mcp", "x", null)],
+      [
+        "agent-writable",
+        mcp("https://api.githubcopilot.com/mcp/x/repos", "github", "c"),
+      ],
+      ["agent-desktop", { type: "computer_use", include_screenshots: true }],
+    ] as const) {
+      setOpenAIForTests(release([tool]));
+      await assert.rejects(sessionTools(id), /unexpected/);
+    }
   } finally {
-    Object.assign(process.env, { NODE_ENV: before.env });
-    for (const [name, value] of [
-      ["AGENT21_MCP_KEY", before.key],
-      ["AGENT21_MCP_URL", before.url],
-      ["AGENT21_MCP_VAULT_ID", before.vault],
-    ] as const)
-      if (value === undefined) delete process.env[name];
-      else process.env[name] = value;
+    Object.assign(process.env, { NODE_ENV: before });
   }
 });

@@ -16,7 +16,6 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "tsx --test tests/*.test.ts",
-    "contracts": "node scripts/sync-contracts.mjs",
     "migrate": "tsx scripts/migrate.ts",
     "preflight": "tsx scripts/preflight.ts",
     "beta": "tsx scripts/beta.ts",
