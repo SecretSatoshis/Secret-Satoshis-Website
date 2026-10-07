@@ -27,7 +27,7 @@ import {
   safeArtifact,
   safeFilename,
 } from "./files";
-import { LIMITS } from "./config";
+import { isLoopbackDevelopment, LIMITS } from "./config";
 import { logDiagnostic } from "./diagnostics";
 import { AppError } from "./errors";
 import { terminal, type FileView, type Message } from "./types";
@@ -729,8 +729,13 @@ export async function reconcileRun(id: string): Promise<boolean> {
       .execute();
   }
 }
-/** Seconds between checks when no webhook arrives: events wake the loop sooner. */
-export const pollSeconds = () => (process.env.OPENAI_WEBHOOK_SECRET ? 30 : 5);
+/**
+ * Seconds between checks when no webhook arrives: events wake the loop sooner.
+ * OpenAI cannot reach a loopback origin, so local development polls quickly
+ * even when a webhook secret is configured.
+ */
+export const pollSeconds = () =>
+  process.env.OPENAI_WEBHOOK_SECRET && !isLoopbackDevelopment() ? 30 : 5;
 export const runHookToken = (id: string) => `agent21-run:${id}`;
 /** One workflow step: never throws, so a temporary failure cannot exhaust step retries. */
 export async function advanceRun(id: string) {
