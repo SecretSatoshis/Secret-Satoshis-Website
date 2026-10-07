@@ -218,9 +218,12 @@ const earlierHistory = async (run: Run) =>
       (message) => message.id !== run.user_message_id,
     ),
   );
+// The current UTC time travels with each message, so the agent needs no clock
+// step before answering. A retried submission keeps its original time.
 function messageText(run: Run) {
   const selected = run.input!.files.map(inputPath);
-  return `${run.input!.text}\n\nFiles selected for this message: ${selected.join(", ") || "none"}. Retained inputs from this conversation are restored under /workspace/inputs.`;
+  const now = new Date().toISOString().slice(0, 16).replace("T", " ");
+  return `${run.input!.text}\n\nFiles selected for this message: ${selected.join(", ") || "none"}. Retained inputs from this conversation are restored under /workspace/inputs.\nCurrent time: ${now} UTC.`;
 }
 /** The conversation's current session, unless its sandbox has expired or failed. */
 async function reusableSession(run: Run) {

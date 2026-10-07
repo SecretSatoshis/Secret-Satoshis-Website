@@ -293,6 +293,11 @@ test("a lost creation response is recovered: one sandbox, one turn, the message 
   assert.equal(createCount, 1);
   assert.equal(turns.get("session-1")!.length, 1);
   assert.match(creationFor(first.id).input, /^Explain Bitcoin fees/);
+  assert.match(
+    creationFor(first.id).input,
+    /\nCurrent time: \d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC\.$/,
+    "The message carries the current UTC time",
+  );
   const [stored] = await query("SELECT * FROM agent21_runs WHERE id=$1", [
     first.id,
   ]);
