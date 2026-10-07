@@ -52,9 +52,8 @@ export async function turnItems(session: string, turn: string) {
   }
   return items;
 }
-// The documented container_size field is not yet declared by SDK 7.25.0.
-// Preserve the managed runtime and send the documented field through the SDK.
-// Network access comes from the dashboard's environment template.
+// The dashboard's environment template sets the sandbox's size, network access
+// and packages; a session adds only the conversation's files.
 export function hostedEnvironment(
   template: string,
   files: HostedEnvironmentFileParam[] = [],
@@ -62,7 +61,6 @@ export function hostedEnvironment(
   return {
     type: "openai_hosted" as const,
     environment_template_id: template,
-    container_size: "medium",
     ...(files.length ? { files } : {}),
   };
 }
@@ -111,9 +109,8 @@ const rejectedTools = (message: string) =>
   new AppError(503, message, "agent_tools_rejected");
 /**
  * The saved agent's tools for one session. Only reviewed tools pass: hosted
- * search, programmatic tool calling, BRK's keyless server and GitHub's server
- * limited to read tools, whose credential OpenAI supplies from the session's
- * vault.
+ * search, BRK's keyless server and GitHub's server limited to read tools, whose
+ * credential OpenAI supplies from the session's vault.
  */
 export async function sessionTools(agentId: string): Promise<AgentToolParam[]> {
   let cached = savedTools.get(agentId);
@@ -134,8 +131,6 @@ export async function sessionTools(agentId: string): Promise<AgentToolParam[]> {
         location: tool.location,
         mode: tool.mode,
       };
-    if (tool.type === "programmatic_tool_calling")
-      return { type: "programmatic_tool_calling", enabled: tool.enabled };
     if (tool.type === "mcp" && tool.transport.type === "http") {
       const url = tool.transport.server_url;
       const shared = {

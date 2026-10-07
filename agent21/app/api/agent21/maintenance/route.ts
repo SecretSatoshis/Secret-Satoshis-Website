@@ -1,6 +1,5 @@
 import { sql } from "kysely";
 import { getRun, start } from "workflow/api";
-import { required } from "@/lib/agent21/config";
 import { db } from "@/lib/agent21/db";
 import { AppError } from "@/lib/agent21/errors";
 import { removeFile } from "@/lib/agent21/files";
@@ -21,12 +20,12 @@ const minutesAgo = (minutes: number) =>
   sql<Date>`now() - make_interval(mins => ${minutes})`;
 /**
  * Recovery for work whose workflow stopped: unfinished answers, deletions and
- * abandoned uploads. Called by Vercel Cron with CRON_SECRET (Pro plan only).
+ * abandoned uploads. Meant for Vercel Cron, which sends CRON_SECRET; nothing
+ * schedules it yet, and without CRON_SECRET it refuses every call.
  */
 export const GET = handler(async (request) => {
-  if (
-    request.headers.get("authorization") !== `Bearer ${required("CRON_SECRET")}`
-  )
+  const secret = process.env.CRON_SECRET;
+  if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`)
     throw new AppError(401, "Unauthorized.");
   for (const run of await db()
     .selectFrom("agent21_runs")

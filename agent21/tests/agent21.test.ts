@@ -199,10 +199,13 @@ test("browser output includes final assistant text only, never private reasoning
     publicText(items as unknown as Parameters<typeof publicText>[0]),
     "Bitcoin answer",
   );
-  assert.equal(hostedEnvironment("template").container_size, "medium");
+  assert(
+    !("container_size" in hostedEnvironment("template")),
+    "The dashboard template sets the sandbox size",
+  );
   assert(
     !("network" in hostedEnvironment("template")),
-    "Network access comes from the release template",
+    "Network access comes from the dashboard template",
   );
   assert.throws(() => environmentId({ environment: { type: "none" } }));
 });
@@ -242,7 +245,6 @@ test("sessions pass through only reviewed tools, and only GitHub carries a crede
     location: null,
     mode: "live",
   };
-  const programmatic = { type: "programmatic_tool_calling", enabled: true };
   const release = (tools: object[]) =>
     new OpenAI({
       apiKey: "test-key",
@@ -250,8 +252,8 @@ test("sessions pass through only reviewed tools, and only GitHub carries a crede
       fetch: async () => Response.json({ id: "agent", tools }),
     });
   try {
-    setOpenAIForTests(release([brk, github, search, programmatic]));
-    const [brkTool, githubTool, searchTool, programmaticTool] =
+    setOpenAIForTests(release([brk, github, search]));
+    const [brkTool, githubTool, searchTool] =
       await sessionTools("agent-expected");
     // BRK's public server passes through with no credential.
     assert.deepEqual(brkTool, {
@@ -267,7 +269,6 @@ test("sessions pass through only reviewed tools, and only GitHub carries a crede
     assert.equal(githubTool.credential_id, "credential-dashboard");
     assert.equal(githubTool.transport.headers, undefined);
     assert.deepEqual(searchTool, search);
-    assert.deepEqual(programmaticTool, programmatic);
     // The read-only repository path is accepted with the same read tools.
     setOpenAIForTests(
       release([
@@ -300,6 +301,10 @@ test("sessions pass through only reviewed tools, and only GitHub carries a crede
         mcp("https://api.githubcopilot.com/mcp/x/repos", "github", "c", reads),
       ],
       ["agent-desktop", { type: "computer_use", include_screenshots: true }],
+      [
+        "agent-programmatic",
+        { type: "programmatic_tool_calling", enabled: true },
+      ],
     ] as const) {
       setOpenAIForTests(release([tool]));
       await assert.rejects(

@@ -1,33 +1,25 @@
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
+import { hasAccess } from "../lib/agent21/auth";
 import { configured } from "../lib/agent21/config";
-import { db } from "../lib/agent21/db";
 import { SITE } from "../lib/agent21/types";
 import { Chat } from "../components/agent21/chat";
 export const dynamic = "force-dynamic";
 export default async function AgentPage() {
-  let invited = false,
+  let allowed = false,
     signedIn = false;
   if (configured()) {
     const { userId } = await auth();
     signedIn = Boolean(userId);
     if (userId) {
       try {
-        invited = Boolean(
-          await db()
-            .selectFrom("agent21_users")
-            .select("id")
-            .where("id", "=", userId)
-            .where("beta_enabled", "=", true)
-            .where("deleting", "=", false)
-            .executeTakeFirst(),
-        );
+        allowed = await hasAccess(userId);
       } catch {
         /* Public beta landing stays usable during a backend outage. */
       }
     }
   }
-  if (invited) return <Chat />;
+  if (allowed) return <Chat />;
   return (
     <main className="a21-welcome">
       <a className="a21-brand" href={SITE}>
@@ -53,7 +45,7 @@ export default async function AgentPage() {
           <>
             <p>
               {signedIn
-                ? "Your account does not have beta access yet."
+                ? "This account does not have access to Agent 21."
                 : "Agent 21 is currently available to invited users."}
             </p>
             <Link className="a21-button" href="/sign-in">

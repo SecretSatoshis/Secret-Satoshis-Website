@@ -20,8 +20,8 @@ if (missing.length) {
     await api.models.retrieve(agent.model);
     assert.equal(agent.reasoning.effort, "medium");
     assert.equal(agent.multi_agent.enabled, false);
-    // Sessions accept only reviewed tools: hosted search, programmatic tool
-    // calling, BRK's keyless server and GitHub's server limited to read tools.
+    // Sessions accept only reviewed tools: hosted search, BRK's keyless server
+    // and GitHub's server limited to read tools.
     const tools = await sessionTools(agentId);
     const github = tools.find(
       (tool) =>

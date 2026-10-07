@@ -95,7 +95,7 @@ const fakeFetch: typeof fetch = async (input, options) => {
     }
     if (rejectSubmission && body.input)
       return response({ error: { message: "Input too long" } }, 400);
-    assert.equal(body.environment.container_size, "medium");
+    assert.equal(body.environment.container_size, undefined);
     assert(!body.environment.network, "Network access comes from the template");
     assert.equal(body.agent_id, "agent-selected");
     const [mcp] = body.agent.tools;

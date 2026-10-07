@@ -3,9 +3,9 @@ import { closeDatabase, db } from "../lib/agent21/db";
 import { migrator } from "../lib/agent21/migrations";
 import {
   credentialNames,
-  configurationReadiness,
+  isLoopbackDevelopment,
   LIMITS,
-  setting,
+  missingCredentials,
 } from "../lib/agent21/config";
 import { logDiagnostic, storedDiagnostic } from "../lib/agent21/diagnostics";
 
@@ -18,25 +18,28 @@ function configuration() {
     configuration: names.every(present) ? "configured" : "incomplete",
     connectivity: "not_checked",
   });
-  const readiness = configurationReadiness();
   const release = process.env.AGENT21_RUNTIME_VERSION ?? "";
   return {
-    mode: readiness.application.mode,
+    mode: isLoopbackDevelopment() ? "loopback_development" : "deployment",
     environment: ["development", "production", "test"].includes(
       process.env.NODE_ENV ?? "",
     )
       ? process.env.NODE_ENV
       : "unspecified",
     credentials: Object.fromEntries(
-      [...credentialNames, "BLOB_STORE_ID", "BLOB_READ_WRITE_TOKEN"].map(
-        (name) => [name, present(name) ? "present" : "missing"],
-      ),
+      [
+        ...credentialNames,
+        "BLOB_STORE_ID",
+        "BLOB_READ_WRITE_TOKEN",
+        "CRON_SECRET",
+      ].map((name) => [name, present(name) ? "present" : "missing"]),
     ),
     runtimeRelease: /^a21-[a-f0-9]{20}$/.test(release)
       ? release
       : "missing_or_invalid",
     agentEnabledFlag: process.env.AGENT21_ENABLED === "true",
-    readiness,
+    // Settings the app needs before it serves anyone; empty when complete.
+    missingConfiguration: missingCredentials(),
     providers: {
       clerk: group(["CLERK_SECRET_KEY", "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"]),
       openai: group([
@@ -60,7 +63,6 @@ function configuration() {
       errorReports: present("SENTRY_DSN") ? "sentry" : "logs_only",
     },
     limits: {
-      invitedUsers: setting("AGENT21_MAX_USERS", LIMITS.users),
       activePerUser: 1,
       deadlineSeconds: LIMITS.turnMs / 1000,
       hardStopSeconds: LIMITS.abandonMs / 1000,
@@ -229,8 +231,12 @@ function display(report: Awaited<ReturnType<typeof reportData>>) {
     `Mode: ${report.configuration.mode}; runtime: ${report.configuration.runtimeRelease}`,
   );
   console.log(`Flags: agent=${report.configuration.agentEnabledFlag}`);
-  console.log("Configuration readiness (not a health or acceptance check):");
-  console.dir(report.configuration.readiness, { depth: 4 });
+  const missing = report.configuration.missingConfiguration;
+  console.log(
+    missing.length
+      ? `Missing configuration: ${missing.join(", ")}`
+      : "Configuration complete (connectivity not checked).",
+  );
   console.log("Configuration presence (connectivity was not checked):");
   console.table(report.configuration.credentials);
   console.log("Limits:");

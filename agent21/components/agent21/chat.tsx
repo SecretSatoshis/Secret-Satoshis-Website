@@ -552,12 +552,7 @@ export function Chat() {
     }
   };
   const deleteAccount = async () => {
-    if (
-      !confirm(
-        "Delete all your Agent 21 chats and files? This ends your beta access.",
-      )
-    )
-      return;
+    if (!confirm("Delete all your Agent 21 chats and files?")) return;
     try {
       const receipt = await api<{ deletionId: string }>(
         "account-data",

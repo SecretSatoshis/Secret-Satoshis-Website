@@ -7,6 +7,7 @@ import {
   ownedConversation,
   ownedRun,
 } from "../lib/agent21/db";
+import { hasAccess } from "../lib/agent21/auth";
 import { reserveFile } from "../lib/agent21/files";
 import { requestDeletion, requestFileDeletion } from "../lib/agent21/deletion";
 import { messages, recordFeedback, saveMessage } from "../lib/agent21/history";
@@ -37,6 +38,25 @@ before(async () => {
     );
 });
 after(() => database.close());
+test("any signed-in account gets access on its first visit; a revoked or deleting one does not", async () => {
+  const newcomer = "user_newcomer";
+  assert.equal(await hasAccess(newcomer), true);
+  assert.equal(
+    await hasAccess(newcomer),
+    true,
+    "A second visit reuses the row",
+  );
+  const [row] = await query(
+    "SELECT beta_enabled FROM agent21_users WHERE id=$1",
+    [newcomer],
+  );
+  assert.equal(row.beta_enabled, true);
+  // The uninvited fixture stands for an account paused with pnpm beta revoke.
+  assert.equal(await hasAccess(uninvited), false, "Revoked stays revoked");
+  await query("UPDATE agent21_users SET deleting=true WHERE id=$1", [newcomer]);
+  assert.equal(await hasAccess(newcomer), false, "No access while deleting");
+  await query("DELETE FROM agent21_users WHERE id=$1", [newcomer]);
+});
 test("ownership is enforced in SQL for threads and runs; uninvited users cannot reserve", async () => {
   assert.equal((await ownedConversation(owner, conversation)).owner_id, owner);
   await assert.rejects(ownedConversation(other, conversation), /not found/);
