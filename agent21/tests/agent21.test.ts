@@ -256,12 +256,8 @@ test("sessions pass through only reviewed tools, and only GitHub carries a crede
     setOpenAIForTests(release([brk, github, search]));
     const expected = await sessionTools("agent-expected");
     const [brkTool, githubTool, searchTool] = expected;
-    // Programmatic tool calling is on unless a session turns it off.
-    assert.deepEqual(expected.at(-1), {
-      type: "programmatic_tool_calling",
-      enabled: false,
-    });
-    assert.equal(expected.length, 4);
+    // Programmatic tool calling keeps the provider default: nothing is added.
+    assert.equal(expected.length, 3);
     // BRK's public server passes through with no credential.
     assert.deepEqual(brkTool, {
       type: "mcp",
@@ -289,14 +285,16 @@ test("sessions pass through only reviewed tools, and only GitHub carries a crede
     );
     const [readonly] = await sessionTools("agent-readonly");
     assert(readonly.type === "mcp" && readonly.credential_id === "c");
-    // An agent that already turns it off passes, without a duplicate entry.
-    setOpenAIForTests(
-      release([search, { type: "programmatic_tool_calling", enabled: false }]),
-    );
-    assert.deepEqual(
-      (await sessionTools("agent-no-programmatic")).map((tool) => tool.type),
-      ["web_search", "programmatic_tool_calling"],
-    );
+    // The agent's programmatic tool calling setting passes through, on or off.
+    for (const enabled of [true, false]) {
+      setOpenAIForTests(
+        release([search, { type: "programmatic_tool_calling", enabled }]),
+      );
+      assert.deepEqual(
+        (await sessionTools(`agent-programmatic-${enabled}`)).at(-1),
+        { type: "programmatic_tool_calling", enabled },
+      );
+    }
     // GitHub with every tool allowed, or with a write tool, is refused.
     for (const [id, allowed] of [
       ["agent-github-all", null],
@@ -316,10 +314,6 @@ test("sessions pass through only reviewed tools, and only GitHub carries a crede
         mcp("https://api.githubcopilot.com/mcp/x/repos", "github", "c", reads),
       ],
       ["agent-desktop", { type: "computer_use", include_screenshots: true }],
-      [
-        "agent-programmatic",
-        { type: "programmatic_tool_calling", enabled: true },
-      ],
     ] as const) {
       setOpenAIForTests(release([tool]));
       await assert.rejects(
