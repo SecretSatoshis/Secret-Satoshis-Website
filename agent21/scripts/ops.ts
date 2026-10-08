@@ -8,6 +8,7 @@ import {
   missingCredentials,
 } from "../lib/agent21/config";
 import { logDiagnostic, storedDiagnostic } from "../lib/agent21/diagnostics";
+import { sessionReport } from "./ops-session";
 
 const args = process.argv.slice(2);
 const json = args.includes("--json");
@@ -275,10 +276,24 @@ function display(report: Awaited<ReturnType<typeof reportData>>) {
     );
   report.coverage.forEach((line) => console.log(line));
 }
+const conversationId =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 try {
-  if (args[0] !== "report" || args.some((a, i) => i > 0 && a !== "--json")) {
+  if (args[0] === "session" && conversationId.test(args[1] ?? "")) {
+    // Prompts, answers and reasoning summaries go only to a private local
+    // file, never to the terminal or the database.
+    const { timing, file } = await sessionReport(args[1], ".exports");
+    console.log(
+      "Seconds per answer: website before the model, the model's turn (thinking and tools), website after.",
+    );
+    console.table(timing);
+    console.log(`Session items, turns and traces saved to ${file}`);
+  } else if (
+    args[0] !== "report" ||
+    args.some((a, i) => i > 0 && a !== "--json")
+  ) {
     console.error(
-      "Use ops report [--json]. Load the private environment first.",
+      "Use ops report [--json], or ops session <conversation-id>. Load the private environment first.",
     );
     process.exitCode = 1;
   } else {

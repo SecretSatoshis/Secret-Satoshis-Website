@@ -6,3 +6,5 @@ public/
 next-env.d.ts
 /.swc
 /app/.well-known/workflow/
+# Conversation exports from `pnpm ops session`: private, local only.
+/.exports/
