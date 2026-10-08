@@ -254,8 +254,14 @@ test("sessions pass through only reviewed tools, and only GitHub carries a crede
     });
   try {
     setOpenAIForTests(release([brk, github, search]));
-    const [brkTool, githubTool, searchTool] =
-      await sessionTools("agent-expected");
+    const expected = await sessionTools("agent-expected");
+    const [brkTool, githubTool, searchTool] = expected;
+    // Programmatic tool calling is on unless a session turns it off.
+    assert.deepEqual(expected.at(-1), {
+      type: "programmatic_tool_calling",
+      enabled: false,
+    });
+    assert.equal(expected.length, 4);
     // BRK's public server passes through with no credential.
     assert.deepEqual(brkTool, {
       type: "mcp",
@@ -283,6 +289,14 @@ test("sessions pass through only reviewed tools, and only GitHub carries a crede
     );
     const [readonly] = await sessionTools("agent-readonly");
     assert(readonly.type === "mcp" && readonly.credential_id === "c");
+    // An agent that already turns it off passes, without a duplicate entry.
+    setOpenAIForTests(
+      release([search, { type: "programmatic_tool_calling", enabled: false }]),
+    );
+    assert.deepEqual(
+      (await sessionTools("agent-no-programmatic")).map((tool) => tool.type),
+      ["web_search", "programmatic_tool_calling"],
+    );
     // GitHub with every tool allowed, or with a write tool, is refused.
     for (const [id, allowed] of [
       ["agent-github-all", null],

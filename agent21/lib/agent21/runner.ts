@@ -48,6 +48,8 @@ type Run = RunRow & {
 };
 const FAILED =
   "Agent 21 could not finish this response. You can send a new message to try again.";
+const FLEX_BUSY =
+  "Agent 21 is busy right now and could not answer. Send your message again.";
 const age = (run: Run) => Date.now() - new Date(run.created_at).getTime();
 // Session creation includes at most this many files; sessions accept 50.
 const SESSION_FILES = 50;
@@ -532,7 +534,15 @@ async function finishRun(run: Run, turn: Turn, text: string) {
       .where("state", "=", "ready")
       .execute()
   ).map(fileView);
-  const error = state === "failed" ? FAILED : null;
+  // The agent runs on Flex processing, which can lack capacity. The session
+  // moves to standard processing, so sending the message again succeeds.
+  const flexBusy =
+    state === "failed" && turn.error?.code === "flex_unavailable";
+  if (flexBusy)
+    await api.beta.agents.sessions.update(run.session_id!, {
+      agent: { service_tier: "default" },
+    });
+  const error = state === "failed" ? (flexBusy ? FLEX_BUSY : FAILED) : null;
   const answer =
     (text ||
       (state === "cancelled"

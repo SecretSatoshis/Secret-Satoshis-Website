@@ -182,6 +182,7 @@ const fakeFetch: typeof fetch = async (input, options) => {
         turns.delete(id);
         return response({ id, deleted: true });
       }
+      if (method === "POST") session.agentUpdate = body.agent;
       return response(session);
     }
     if (resource === "events" && method === "POST") {
@@ -753,4 +754,30 @@ test("files go into a new session with its creation and are never copied twice",
   assert.equal(environmentFileCopies, copies + 1, "No file is copied twice");
   await completeTurn(third.id);
   assert.equal(await reconcileRun(third.id), true);
+});
+test("a turn Flex could not serve moves the session to standard processing", async () => {
+  const id = await freshConversation();
+  const run = await reserveRun(owner, id, randomUUID(), {
+    text: "What is the price now?",
+    files: [],
+  });
+  assert.equal(await reconcileRun(run.id), false);
+  const session = [...creations.values()].find(
+    (c) => c.body.metadata.run === run.id,
+  )!.session;
+  Object.assign(turns.get(session)![0], {
+    status: "failed",
+    error: { code: "flex_unavailable", message: "Flex is unavailable." },
+  });
+  assert.equal(await reconcileRun(run.id), true);
+  const [stored] = await query(
+    "SELECT state,display FROM agent21_runs WHERE id=$1",
+    [run.id],
+  );
+  assert.equal(stored.state, "failed");
+  assert.match(stored.display.error, /busy right now/);
+  assert.deepEqual(sessions.get(session).agentUpdate, {
+    service_tier: "default",
+  });
+  assert.equal(await activeRuns(), 0, "The user can send again");
 });

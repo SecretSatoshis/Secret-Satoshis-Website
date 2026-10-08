@@ -111,10 +111,17 @@ const savedTools = new Map<
 // fault: the answer fails at once with a code the diagnostics keep.
 const rejectedTools = (message: string) =>
   new AppError(503, message, "agent_tools_rejected");
+// The Agents API enables programmatic tool calling unless a session's tools
+// turn it off; the agent works in its Python sandbox instead.
+const NO_PROGRAMMATIC_CALLS = {
+  type: "programmatic_tool_calling",
+  enabled: false,
+} as const;
 /**
  * The saved agent's tools for one session. Only reviewed tools pass: hosted
  * search, BRK's keyless server and GitHub's server limited to read tools, whose
- * credential OpenAI supplies from the session's vault.
+ * credential OpenAI supplies from the session's vault. Programmatic tool
+ * calling is always turned off.
  */
 export async function sessionTools(agentId: string): Promise<AgentToolParam[]> {
   let cached = savedTools.get(agentId);
@@ -126,15 +133,18 @@ export async function sessionTools(agentId: string): Promise<AgentToolParam[]> {
     savedTools.set(agentId, cached);
     tools.catch(() => savedTools.delete(agentId));
   }
-  return (await cached.tools).map((tool): AgentToolParam => {
+  const tools = (await cached.tools).flatMap((tool): AgentToolParam[] => {
+    if (tool.type === "programmatic_tool_calling" && !tool.enabled) return [];
     if (tool.type === "web_search")
-      return {
-        type: "web_search",
-        allowed_domains: tool.allowed_domains,
-        context_size: tool.context_size,
-        location: tool.location,
-        mode: tool.mode,
-      };
+      return [
+        {
+          type: "web_search",
+          allowed_domains: tool.allowed_domains,
+          context_size: tool.context_size,
+          location: tool.location,
+          mode: tool.mode,
+        },
+      ];
     if (tool.type === "mcp" && tool.transport.type === "http") {
       const url = tool.transport.server_url;
       const shared = {
@@ -145,7 +155,7 @@ export async function sessionTools(agentId: string): Promise<AgentToolParam[]> {
         required: tool.required,
         transport: { type: "http" as const, server_url: url },
       };
-      if (sameServer(url, BRK_MCP_URL)) return shared;
+      if (sameServer(url, BRK_MCP_URL)) return [shared];
       if (isGitHubServer(url)) {
         const allowed = tool.allowed_tools ?? [];
         if (
@@ -155,11 +165,12 @@ export async function sessionTools(agentId: string): Promise<AgentToolParam[]> {
           throw rejectedTools(
             "The agent's GitHub server must allow only read tools",
           );
-        return { ...shared, credential_id: tool.credential_id };
+        return [{ ...shared, credential_id: tool.credential_id }];
       }
     }
     throw rejectedTools("The agent names an unexpected tool or MCP server");
   });
+  return [...tools, NO_PROGRAMMATIC_CALLS];
 }
 export function environmentId(session: {
   environment: { type: string; id?: string };
