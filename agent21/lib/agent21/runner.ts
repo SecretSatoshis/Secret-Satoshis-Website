@@ -110,6 +110,9 @@ async function recordSessionFiles(session: string, files: string[]) {
     .onConflict((oc) => oc.doNothing())
     .execute();
 }
+// Provider timestamps are whole seconds and the two clocks may differ, so the
+// listing is read back to a minute before the creation started.
+const CREATION_LOOKBACK_MS = 60_000;
 async function findCreatedSession(run: Run) {
   for await (const candidate of openai().beta.agents.sessions.list({
     order: "desc",
@@ -123,7 +126,8 @@ async function findCreatedSession(run: Run) {
       return candidate;
     if (
       candidate.created_at * 1000 <
-      new Date(run.session_creation_started_at!).getTime() - 1000
+      new Date(run.session_creation_started_at!).getTime() -
+        CREATION_LOOKBACK_MS
     )
       return undefined;
   }
@@ -515,8 +519,9 @@ async function finishRun(run: Run, turn: Turn, text: string) {
     for await (const artifact of api.beta.agents.sessions.artifacts.list(
       run.session_id!,
     )) {
-      await keepLease(run);
+      // The listing spans the whole session; earlier turns' files are skipped.
       if (artifact.turn_id !== turn.id) continue;
+      await keepLease(run);
       const delivered = /^\/workspace\/outputs\/[^/]+$/.test(artifact.path);
       if (artifact.size_bytes > LIMITS.outputBytes) {
         if (delivered)
