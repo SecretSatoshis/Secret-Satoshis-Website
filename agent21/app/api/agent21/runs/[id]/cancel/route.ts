@@ -2,7 +2,7 @@ import { identity } from "@/lib/agent21/auth";
 import { db, ownedRun } from "@/lib/agent21/db";
 import { handler } from "@/lib/agent21/http";
 import { openai } from "@/lib/agent21/openai";
-import { idSchema } from "@/lib/agent21/service";
+import { idSchema, scheduleRun } from "@/lib/agent21/service";
 
 export const POST = handler<{ id: string }>(async (request, { id }) => {
   const run = await ownedRun(await identity(request), idSchema.parse(id));
@@ -18,5 +18,8 @@ export const POST = handler<{ id: string }>(async (request, { id }) => {
     await openai().beta.agents.sessions.events.create(run.session_id, {
       events: [{ type: "agent.session.input.cancel" }],
     });
+  // A run whose start failed has no workflow to see the request; start one so
+  // the run settles as stopped.
+  await scheduleRun(run);
   return Response.json({ ok: true });
 });

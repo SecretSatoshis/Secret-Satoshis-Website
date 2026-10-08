@@ -10,6 +10,7 @@ import { AppError } from "./errors";
 import { enabled, required, LIMITS } from "./config";
 import { fileView, blobBytes, reserveFile } from "./files";
 import { requestDeletion } from "./deletion";
+import { logDiagnostic } from "./diagnostics";
 import type { Run } from "./schema";
 import type { Conversation, RunView } from "./types";
 export const idSchema = z.uuid();
@@ -139,6 +140,73 @@ export async function sendFeedback(owner: string, id: string, body: unknown) {
     .parse(body);
   return recordFeedback(owner, id, data.messageId, data.type);
 }
+type Launch = (runId: string) => Promise<{ runId: string }>;
+const launchRun: Launch = (runId) => start(agent21Run, [runId]);
+/**
+ * Starts the workflow that drives a run, unless one is already recorded. The
+ * "scheduling" claim keeps concurrent requests from each starting one. A failed
+ * start releases the claim, and a claim left by a request that ended mid-start
+ * is taken over after a minute, so the next request for the run starts it. A
+ * second start is harmless: its workflow finds the first one and exits.
+ */
+export async function scheduleRun(
+  run: Pick<Run, "id" | "workflow_id" | "finished_at">,
+  launch: Launch = launchRun,
+) {
+  if (run.finished_at || (run.workflow_id && run.workflow_id !== "scheduling"))
+    return;
+  const claimed = await db()
+    .updateTable("agent21_runs")
+    .set({ workflow_id: "scheduling" })
+    .where("id", "=", run.id)
+    .where("finished_at", "is", null)
+    .where((eb) =>
+      eb.or([
+        eb("workflow_id", "is", null),
+        eb.and([
+          eb("workflow_id", "=", "scheduling"),
+          eb("created_at", "<", sql<Date>`now() - interval '1 minute'`),
+        ]),
+      ]),
+    )
+    .returning("id")
+    .executeTakeFirst();
+  if (!claimed) return;
+  let job;
+  try {
+    job = await launch(run.id);
+  } catch (error) {
+    await db()
+      .updateTable("agent21_runs")
+      .set({ workflow_id: null })
+      .where("id", "=", run.id)
+      .where("workflow_id", "=", "scheduling")
+      .execute();
+    throw error;
+  }
+  await db()
+    .updateTable("agent21_runs")
+    .set({ workflow_id: job.runId })
+    .where("id", "=", run.id)
+    .execute();
+}
+/**
+ * The unfinished answer holding the user's only slot may never have started
+ * (its request failed mid-start). Starting it lets it finish or stop and free
+ * the slot; nothing else would, because maintenance is not scheduled.
+ */
+async function scheduleActiveRun(owner: string) {
+  const active = await db()
+    .selectFrom("agent21_runs")
+    .select(["id", "workflow_id", "finished_at"])
+    .where("owner_id", "=", owner)
+    .where("finished_at", "is", null)
+    .executeTakeFirst();
+  if (active)
+    await scheduleRun(active).catch((error) =>
+      logDiagnostic(error, "run_failed", { runId: active.id }),
+    );
+}
 export async function submitMessage(owner: string, id: string, body: unknown) {
   if (!enabled())
     throw new AppError(
@@ -167,25 +235,12 @@ export async function submitMessage(owner: string, id: string, body: unknown) {
     text: input.text,
     files: files.map(fileView),
     ...(input.timeZone ? { timeZone: input.timeZone } : {}),
+  }).catch(async (error) => {
+    if (error instanceof AppError && error.status === 409)
+      await scheduleActiveRun(owner);
+    throw error;
   });
-  if (!run.workflow_id && !run.finished_at) {
-    // Claim scheduling; maintenance recovers a crash between this claim and start().
-    const claimed = await db()
-      .updateTable("agent21_runs")
-      .set({ workflow_id: "scheduling" })
-      .where("id", "=", run.id)
-      .where("workflow_id", "is", null)
-      .returning("id")
-      .executeTakeFirst();
-    if (claimed) {
-      const job = await start(agent21Run, [run.id]);
-      await db()
-        .updateTable("agent21_runs")
-        .set({ workflow_id: job.runId })
-        .where("id", "=", run.id)
-        .execute();
-    }
-  }
+  await scheduleRun(run);
   await db()
     .updateTable("agent21_conversations")
     .set({

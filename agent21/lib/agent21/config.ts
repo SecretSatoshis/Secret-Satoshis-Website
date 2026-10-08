@@ -9,6 +9,10 @@ export const LIMITS = {
   uploadBytes: 10 * 1024 ** 2,
   outputBytes: 20 * 1024 ** 2,
   storageBytes: 250 * 1024 ** 2,
+  // A file still pending after this was abandoned (an upload that never
+  // finished): it no longer counts toward the allowances, and maintenance
+  // removes it.
+  pendingFileMs: 30 * 60_000,
   attachments: 5,
 } as const;
 export function required(name: string) {

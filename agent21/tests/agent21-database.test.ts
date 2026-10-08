@@ -11,6 +11,7 @@ import { hasAccess } from "../lib/agent21/auth";
 import { reserveFile } from "../lib/agent21/files";
 import { requestDeletion, requestFileDeletion } from "../lib/agent21/deletion";
 import { messages, recordFeedback, saveMessage } from "../lib/agent21/history";
+import { scheduleRun } from "../lib/agent21/service";
 import { testDatabase } from "./support";
 let database: Awaited<ReturnType<typeof testDatabase>>;
 const query = (text: string, values: unknown[] = []) =>
@@ -281,4 +282,88 @@ test("migrations are recorded once and the database allows one unfinished answer
   );
   await settle(run.id, "completed");
   await reserveRun(user, second, randomUUID(), input());
+});
+
+/** A user with one conversation, for tests that need their own allowances and slot. */
+async function newUser(id: string) {
+  const thread = randomUUID();
+  await query("INSERT INTO agent21_users(id,beta_enabled) VALUES($1,true)", [
+    id,
+  ]);
+  await query(
+    "INSERT INTO agent21_conversations(id,owner_id,agent_id,template_id,runtime_version) VALUES($1,$2,'saved','template','release')",
+    [thread, id],
+  );
+  return thread;
+}
+test("a failed start frees the run's claim, and a claim left mid-start is taken over after a minute", async () => {
+  const user = "user_schedule";
+  const thread = await newUser(user);
+  const workflowOf = async (id: string) =>
+    (await query("SELECT workflow_id FROM agent21_runs WHERE id=$1", [id]))[0]
+      .workflow_id;
+  const started: string[] = [];
+  const launch = async (id: string) => {
+    started.push(id);
+    return { runId: `wrun_${started.length}` };
+  };
+  const run = await reserveRun(user, thread, randomUUID(), input());
+  await assert.rejects(
+    scheduleRun(run, async () => {
+      throw new Error("workflow service unavailable");
+    }),
+    /unavailable/,
+  );
+  assert.equal(await workflowOf(run.id), null, "A failed start is retried");
+  await scheduleRun(run, launch);
+  assert.equal(await workflowOf(run.id), "wrun_1");
+  await scheduleRun({ ...run, workflow_id: "wrun_1" }, launch);
+  assert.equal(started.length, 1, "A recorded workflow is not started again");
+
+  await settle(run.id, "completed");
+  const stuck = await reserveRun(user, thread, randomUUID(), input());
+  await query("UPDATE agent21_runs SET workflow_id='scheduling' WHERE id=$1", [
+    stuck.id,
+  ]);
+  const claimed = { ...stuck, workflow_id: "scheduling" };
+  await scheduleRun(claimed, launch);
+  assert.equal(
+    started.length,
+    1,
+    "A fresh claim belongs to a starting request",
+  );
+  await query(
+    "UPDATE agent21_runs SET created_at=now()-interval '2 minutes' WHERE id=$1",
+    [stuck.id],
+  );
+  await scheduleRun(claimed, launch);
+  assert.deepEqual(started, [run.id, stuck.id]);
+  assert.equal(await workflowOf(stuck.id), "wrun_2");
+});
+test("pending files abandoned past the upload window stop counting toward the allowances", async () => {
+  const user = "user_abandoned";
+  const thread = await newUser(user);
+  for (let i = 0; i < 5; i++)
+    await reserveFile(user, thread, `${i}.csv`, 10, "text/csv", "upload");
+  await assert.rejects(
+    reserveFile(user, thread, "six.csv", 10, "text/csv", "upload"),
+    /allowance/,
+  );
+  await query(
+    "INSERT INTO agent21_files(id,owner_id,conversation_id,kind,name,content_type,bytes,blob_path) VALUES($1,$2,$3,'upload','big.csv','text/csv',$4,$5)",
+    [randomUUID(), user, thread, 245 * 1024 ** 2, `agent21/${user}/big.csv`],
+  );
+  await query(
+    "UPDATE agent21_files SET created_at=now()-interval '31 minutes' WHERE owner_id=$1",
+    [user],
+  );
+  await reserveFile(user, thread, "six.csv", 10, "text/csv", "upload");
+  await reserveFile(
+    user,
+    thread,
+    "answer.md",
+    20 * 1024 ** 2,
+    "text/markdown",
+    "artifact",
+  );
 });

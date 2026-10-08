@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { put, get, del } from "@vercel/blob";
+import { sql } from "kysely";
 import { AppError } from "./errors";
 import { LIMITS } from "./config";
 import { db, userTransaction } from "./db";
@@ -101,24 +102,36 @@ export async function reserveFile(
     }
     const counts = await trx
       .selectFrom("agent21_files")
-      .select((eb) => [
-        eb.fn
-          .coalesce(
-            eb.fn.sum<number>("bytes").filterWhere("state", "<>", "rejected"),
-            eb.lit(0),
-          )
-          .as("bytes"),
-        eb.fn
-          .countAll<number>()
-          .filterWhere((w) =>
-            w.and([
-              w("conversation_id", "=", conversation),
-              w("kind", "=", "upload"),
-              w("state", "<>", "rejected"),
-            ]),
-          )
-          .as("attachments"),
-      ])
+      .select((eb) => {
+        // Rejected files hold nothing, nor do abandoned pending ones: only the
+        // unscheduled maintenance route removes them, and users cannot see them.
+        const held = eb.and([
+          eb("state", "<>", "rejected"),
+          eb.or([
+            eb("state", "<>", "pending"),
+            eb(
+              "created_at",
+              ">",
+              sql<Date>`now() - make_interval(mins => ${LIMITS.pendingFileMs / 60_000})`,
+            ),
+          ]),
+        ]);
+        return [
+          eb.fn
+            .coalesce(eb.fn.sum<number>("bytes").filterWhere(held), eb.lit(0))
+            .as("bytes"),
+          eb.fn
+            .countAll<number>()
+            .filterWhere((w) =>
+              w.and([
+                w("conversation_id", "=", conversation),
+                w("kind", "=", "upload"),
+                held,
+              ]),
+            )
+            .as("attachments"),
+        ];
+      })
       .where("owner_id", "=", owner)
       .executeTakeFirstOrThrow();
     if (

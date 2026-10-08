@@ -1,6 +1,7 @@
 import { sql } from "kysely";
 import { getRun, start } from "workflow/api";
 import { db } from "@/lib/agent21/db";
+import { LIMITS } from "@/lib/agent21/config";
 import { AppError } from "@/lib/agent21/errors";
 import { removeFile } from "@/lib/agent21/files";
 import { handler } from "@/lib/agent21/http";
@@ -72,7 +73,7 @@ export const GET = handler(async (request) => {
     .selectAll()
     .where("kind", "=", "upload")
     .where("state", "=", "pending")
-    .where("created_at", "<", minutesAgo(30))
+    .where("created_at", "<", minutesAgo(LIMITS.pendingFileMs / 60_000))
     .limit(20)
     .execute())
     await removeFile(file);
