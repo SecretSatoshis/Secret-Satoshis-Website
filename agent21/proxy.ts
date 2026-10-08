@@ -1,9 +1,15 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse, type NextRequest } from "next/server";
 
+// Clerk's production instance serves the whole secretsatoshis.com domain, so
+// only session tokens issued for this site's origin are accepted.
+const appOrigin = process.env.APP_ORIGIN
+  ? new URL(process.env.APP_ORIGIN).origin
+  : undefined;
 // Clerk generates the nonce and its own required sources (Frontend API,
 // telemetry, Turnstile, avatars); these directives add only Agent 21's needs.
 const clerk = clerkMiddleware({
+  ...(appOrigin ? { authorizedParties: [appOrigin] } : {}),
   contentSecurityPolicy: {
     strict: true,
     directives: {
