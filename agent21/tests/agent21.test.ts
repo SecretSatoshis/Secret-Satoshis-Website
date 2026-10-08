@@ -199,9 +199,10 @@ test("browser output includes final assistant text only, never private reasoning
     publicText(items as unknown as Parameters<typeof publicText>[0]),
     "Bitcoin answer",
   );
-  assert(
-    !("container_size" in hostedEnvironment("template")),
-    "The dashboard template sets the sandbox size",
+  assert.equal(
+    hostedEnvironment("template").container_size,
+    "small",
+    "Sessions ask for the 1 GB sandbox",
   );
   assert(
     !("network" in hostedEnvironment("template")),

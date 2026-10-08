@@ -52,8 +52,11 @@ export async function turnItems(session: string, turn: string) {
   }
   return items;
 }
-// The dashboard's environment template sets the sandbox's size, network access
-// and packages; a session adds only the conversation's files.
+// The dashboard's environment template sets network access and packages. A
+// template has no sandbox size and a session defaults to medium (2 vCPU, 4 GB),
+// so the session asks for small (1 vCPU, 1 GB): the agent's data and charts fit,
+// and the sandbox is the largest part of a conversation's cost. container_size is
+// documented but not yet declared by SDK 7.25.0.
 export function hostedEnvironment(
   template: string,
   files: HostedEnvironmentFileParam[] = [],
@@ -61,6 +64,7 @@ export function hostedEnvironment(
   return {
     type: "openai_hosted" as const,
     environment_template_id: template,
+    container_size: "small",
     ...(files.length ? { files } : {}),
   };
 }
