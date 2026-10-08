@@ -512,6 +512,7 @@ export function Chat() {
             requestId: request.requestId,
             text,
             fileIds: request.fileIds,
+            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           },
         );
         pendingRequest.current = null;

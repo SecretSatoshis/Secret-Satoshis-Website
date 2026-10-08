@@ -18,6 +18,20 @@ const messageSchema = z
     requestId: z.uuid(),
     text: z.string().trim().min(1).max(16_000),
     fileIds: z.array(z.uuid()).max(5).default([]),
+    // The browser's time zone, so answers can give times in the user's local time.
+    timeZone: z
+      .string()
+      .max(64)
+      .refine((zone) => {
+        try {
+          new Intl.DateTimeFormat("en-US", { timeZone: zone });
+          return true;
+        } catch {
+          return false;
+        }
+      })
+      .optional()
+      .catch(undefined),
   })
   .strict();
 export const runView = (row: Run): RunView => ({
@@ -152,6 +166,7 @@ export async function submitMessage(owner: string, id: string, body: unknown) {
   const run = await reserveRun(owner, id, input.requestId, {
     text: input.text,
     files: files.map(fileView),
+    ...(input.timeZone ? { timeZone: input.timeZone } : {}),
   });
   if (!run.workflow_id && !run.finished_at) {
     // Claim scheduling; maintenance recovers a crash between this claim and start().

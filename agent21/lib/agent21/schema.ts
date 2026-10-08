@@ -19,7 +19,12 @@ type Numeric = ColumnType<string | number, number | string, number | string>;
 type DefaultJson<T> = ColumnType<T, string | undefined, string>;
 type NullableJson<T> = ColumnType<T | null, string | null, string | null>;
 
-export type RunInput = { text: string; files: FileView[] };
+export type RunInput = {
+  text: string;
+  files: FileView[];
+  /** The browser's IANA time zone, such as America/New_York. */
+  timeZone?: string;
+};
 export type RunDisplay = {
   text?: string;
   progress?: string;

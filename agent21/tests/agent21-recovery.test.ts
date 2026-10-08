@@ -781,3 +781,19 @@ test("a turn Flex could not serve moves the session to standard processing", asy
   });
   assert.equal(await activeRuns(), 0, "The user can send again");
 });
+test("a message carries the user's local time and mentions files only when there are any", async () => {
+  const id = await freshConversation();
+  const run = await reserveRun(owner, id, randomUUID(), {
+    text: "When did the price change?",
+    files: [],
+    timeZone: "America/New_York",
+  });
+  await reconcileRun(run.id);
+  const input = creationFor(run.id).input as string;
+  assert(!input.includes("Files selected"), "No files line without files");
+  assert(!input.includes("/workspace/inputs"), "No inputs line without files");
+  assert.match(
+    input,
+    /\nCurrent time: \d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC \(the user's local time: \d{4}-\d{2}-\d{2} \d{2}:\d{2} E[DS]T, America\/New_York\)\.$/,
+  );
+});

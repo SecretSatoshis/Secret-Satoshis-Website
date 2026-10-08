@@ -222,10 +222,43 @@ const earlierHistory = async (run: Run) =>
   );
 // The current UTC time travels with each message, so the agent needs no clock
 // step before answering. A retried submission keeps its original time.
-function messageText(run: Run) {
-  const selected = run.input!.files.map(inputPath);
-  const now = new Date().toISOString().slice(0, 16).replace("T", " ");
-  return `${run.input!.text}\n\nFiles selected for this message: ${selected.join(", ") || "none"}. Retained inputs from this conversation are restored under /workspace/inputs.\nCurrent time: ${now} UTC.`;
+/**
+ * The user's message with the context the agent needs: the files it names and
+ * where the conversation's files are, only when there are any, then the time in
+ * UTC and in the user's time zone.
+ */
+function messageText(run: Run, retainedFiles: number) {
+  const { text, files, timeZone } = run.input!;
+  const notes = [];
+  if (files.length)
+    notes.push(
+      `Files selected for this message: ${files.map(inputPath).join(", ")}.`,
+    );
+  if (retainedFiles)
+    notes.push(
+      "Files from this conversation are restored under /workspace/inputs.",
+    );
+  const date = new Date();
+  const utc = date.toISOString().slice(0, 16).replace("T", " ");
+  let local = "";
+  if (timeZone) {
+    const parts = Object.fromEntries(
+      new Intl.DateTimeFormat("en-US", {
+        timeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+        timeZoneName: "short",
+      })
+        .formatToParts(date)
+        .map((part) => [part.type, part.value]),
+    );
+    local = ` (the user's local time: ${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute} ${parts.timeZoneName}, ${timeZone})`;
+  }
+  return `${text}\n\n${notes.length ? notes.join(" ") + "\n" : ""}Current time: ${utc} UTC${local}.`;
 }
 /** The conversation's current session, unless its sandbox has expired or failed. */
 async function reusableSession(run: Run) {
@@ -279,7 +312,7 @@ async function createSession(run: Run) {
         agent_id: run.agent_id,
         ...(mcpVaultId() ? { vault_ids: [mcpVaultId()!] } : {}),
         environment: hostedEnvironment(run.template_id, environmentFiles),
-        input: (await earlierHistory(run)) + messageText(run),
+        input: (await earlierHistory(run)) + messageText(run, files.length),
         metadata: {
           conversation: run.conversation_id,
           run: run.id,
@@ -366,7 +399,8 @@ async function submitMessage(run: Run) {
           .execute()
       ).map((row) => row.file_id),
     );
-    for (const file of await readyFiles(run.conversation_id)) {
+    const retained = await readyFiles(run.conversation_id);
+    for (const file of retained) {
       if (attached.has(file.id)) continue;
       await keepLease(run);
       await attachOnce(session, file);
@@ -388,7 +422,10 @@ async function submitMessage(run: Run) {
             {
               role: "user",
               content: [
-                { type: "input_text", text: context + messageText(run) },
+                {
+                  type: "input_text",
+                  text: context + messageText(run, retained.length),
+                },
               ],
             },
           ],
