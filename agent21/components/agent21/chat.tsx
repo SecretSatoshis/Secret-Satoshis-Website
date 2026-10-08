@@ -495,8 +495,13 @@ export function Chat() {
         const fileIds = (input.attachments ?? []).map((a) => a.id);
         const id = selection.current || (await create());
         const previous = pendingRequest.current;
+        // A resend of an unconfirmed message keeps its request ID, so the
+        // server answers it once; changed attachments make it a new message.
         const request =
-          previous && previous.text === text && previous.conversation === id
+          previous &&
+          previous.text === text &&
+          previous.conversation === id &&
+          previous.fileIds.join() === fileIds.join()
             ? previous
             : {
                 text,
