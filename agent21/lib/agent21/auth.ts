@@ -9,8 +9,9 @@ export function verifyOrigin(request: Request) {
 }
 /**
  * Access follows Clerk: sign-up is invite-only, so every signed-in account may
- * use Agent 21 and gets its row on first use. `pnpm beta revoke` pauses one
- * account; an account being deleted has no access until the deletion finishes.
+ * use Agent 21 and gets its row on first use. `pnpm beta revoke` bans the
+ * account in Clerk, so it cannot sign in even after its row is deleted with its
+ * data; an account being deleted has no access until the deletion finishes.
  */
 export async function hasAccess(userId: string) {
   const find = () =>
