@@ -29,7 +29,7 @@
     "@vercel/blob": "2.8.0",
     "@vercel/functions": "3.9.11",
     "kysely": "0.29.6",
-    "next": "16.3.6",
+    "next": "16.3.8",
     "openai": "7.25.0",
     "pdf-lib": "1.17.1",
     "pg": "8.23.1",
@@ -45,7 +45,7 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "eslint": "9.39.5",
-    "eslint-config-next": "16.3.6",
+    "eslint-config-next": "16.3.8",
     "prettier": "3.9.9",
     "tsx": "4.22.1",
     "typescript": "6.0.3"

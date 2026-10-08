@@ -29,3 +29,9 @@ minimumReleaseAgeExclude:
   - "@workflow/world-vercel@5.0.0"
   - "@workflow/world@5.0.0"
   - workflow@5.0.0
+# Vercel Workflow 5.x pins versions with published advisories; these are the
+# patched releases of the same major versions.
+overrides:
+  "devalue@<5.9.3": "5.9.4"
+  "nanoid@>=5 <5.1.16": "5.1.16"
+  "http-cache-semantics@<4.3.0": "4.3.0"
