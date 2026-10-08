@@ -190,7 +190,7 @@ const fakeFetch: typeof fetch = async (input, options) => {
         if (event.type === "agent.session.input.message") {
           if (rejectSubmission)
             return response({ error: { message: "Input too long" } }, 400);
-          assert(key!.startsWith("message-"));
+          assert(/^(message|retry)-/.test(key!));
           const serialized = JSON.stringify(body);
           if (inputs.has(key!)) {
             assert.equal(
@@ -755,30 +755,60 @@ test("files go into a new session with its creation and are never copied twice",
   await completeTurn(third.id);
   assert.equal(await reconcileRun(third.id), true);
 });
-test("a turn Flex could not serve moves the session to standard processing", async () => {
+function failTurn(session: string, code: string) {
+  Object.assign(turns.get(session)![0], {
+    status: "failed",
+    completed_at: Math.floor(Date.now() / 1000) - 60,
+    error: { code, message: "The model is temporarily busy." },
+  });
+  sessions.get(session).status = "idle";
+}
+const sessionOf = (run: string) =>
+  [...creations.values()].find((c) => c.body.metadata.run === run)!.session;
+test("a turn Flex could not serve is retried once on standard processing", async () => {
   const id = await freshConversation();
   const run = await reserveRun(owner, id, randomUUID(), {
     text: "What is the price now?",
     files: [],
   });
   assert.equal(await reconcileRun(run.id), false);
-  const session = [...creations.values()].find(
-    (c) => c.body.metadata.run === run.id,
-  )!.session;
-  Object.assign(turns.get(session)![0], {
-    status: "failed",
-    error: { code: "flex_unavailable", message: "Flex is unavailable." },
+  const session = sessionOf(run.id);
+  failTurn(session, "flex_unavailable");
+  assert.equal(await reconcileRun(run.id), false, "Retried, not settled");
+  assert.deepEqual(sessions.get(session).agentUpdate, {
+    service_tier: "default",
   });
+  assert(inputs.has(`retry-${run.id}`), "The retry was sent once");
+  assert.equal(turns.get(session)!.length, 2);
+  turns.get(session)![0].status = "completed";
   assert.equal(await reconcileRun(run.id), true);
   const [stored] = await query(
     "SELECT state,display FROM agent21_runs WHERE id=$1",
     [run.id],
   );
-  assert.equal(stored.state, "failed");
-  assert.match(stored.display.error, /busy right now/);
-  assert.deepEqual(sessions.get(session).agentUpdate, {
-    service_tier: "default",
+  assert.equal(stored.state, "completed");
+  assert.equal(stored.display.text, "Bitcoin answer from verified data.");
+});
+test("a busy model gets one retry; a second failure ends the answer", async () => {
+  const id = await freshConversation();
+  const run = await reserveRun(owner, id, randomUUID(), {
+    text: "What were fees yesterday?",
+    files: [],
   });
+  assert.equal(await reconcileRun(run.id), false);
+  const session = sessionOf(run.id);
+  failTurn(session, "server_overloaded");
+  assert.equal(await reconcileRun(run.id), false);
+  assert.equal(turns.get(session)!.length, 2, "One retry turn");
+  failTurn(session, "server_overloaded");
+  assert.equal(await reconcileRun(run.id), true);
+  assert.equal(turns.get(session)!.length, 2, "No second retry");
+  const [stored] = await query(
+    "SELECT state,display FROM agent21_runs WHERE id=$1",
+    [run.id],
+  );
+  assert.equal(stored.state, "failed");
+  assert.match(stored.display.error, /could not finish/);
   assert.equal(await activeRuns(), 0, "The user can send again");
 });
 test("a message carries the user's local time and mentions files only when there are any", async () => {

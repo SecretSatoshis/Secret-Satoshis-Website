@@ -440,13 +440,7 @@ async function submitMessage(run: Run) {
   }
   // An ambiguous network response is retried with exactly the persisted
   // payload and Idempotency-Key, so the provider accepts the message once.
-  const { kind, ...params } = submission;
-  await api.beta.agents.sessions.events.create(
-    run.session_id!,
-    canonicalData(params) as Parameters<
-      typeof api.beta.agents.sessions.events.create
-    >[1],
-  );
+  await sendSubmission(run.session_id!, submission);
   await accept(run);
 }
 /** Delivers the run's message to the provider: a reused session or a new one. */
@@ -627,6 +621,76 @@ async function abandonRun(run: Run) {
   });
   await settle(run.id, "failed");
 }
+// A turn that failed because the model service was busy is tried once more
+// after a short wait, as the provider recommends: a hidden follow-up message
+// asks the agent to answer the user's message again.
+const RETRYABLE = new Set([
+  "server_overloaded",
+  "rate_limit_exceeded",
+  "flex_unavailable",
+]);
+const RETRY_DELAY_MS = 10_000;
+const RETRY_TEXT =
+  "Your previous turn stopped because the model service was temporarily busy. Answer my last message again.";
+const retried = (run: Run) =>
+  run.submission?.kind === "message" &&
+  run.submission["Idempotency-Key"] === `retry-${run.id}`;
+const sendSubmission = (session: string, submission: MessageSubmission) => {
+  const { kind, ...params } = submission;
+  return openai().beta.agents.sessions.events.create(
+    session,
+    canonicalData(params) as Parameters<
+      ReturnType<
+        typeof openai
+      >["beta"]["agents"]["sessions"]["events"]["create"]
+    >[1],
+  );
+};
+/** True while a retry is waiting or was sent, so the run stays open. */
+async function retryTurn(run: Run, session: AgentSession, turn: Turn) {
+  const code = turn.error?.code;
+  if (!code || !RETRYABLE.has(code)) return false;
+  if (run.cancel_requested || run.deleting || retried(run)) return false;
+  if (age(run) > LIMITS.turnMs - 2 * 60_000) return false;
+  const ended = (turn.completed_at ?? turn.created_at) * 1000;
+  if (Date.now() - ended < RETRY_DELAY_MS || session.status !== "idle")
+    return true;
+  const api = openai();
+  // Flex lacked capacity, so the session moves to standard processing first.
+  if (code === "flex_unavailable")
+    await api.beta.agents.sessions.update(session.id, {
+      agent: { service_tier: "default" },
+    });
+  const prior = (
+    await api.beta.agents.sessions.turns.list(session.id, {
+      order: "desc",
+      limit: 20,
+    })
+  ).data.map((t) => t.id);
+  const submission = {
+    kind: "message",
+    "Idempotency-Key": `retry-${run.id}`,
+    events: [
+      {
+        type: "agent.session.input.message",
+        input: [
+          { role: "user", content: [{ type: "input_text", text: RETRY_TEXT }] },
+        ],
+      },
+    ],
+  } satisfies MessageSubmission;
+  await updateRun(run.id, {
+    submission: JSON.stringify(submission),
+    prior_turn_ids: JSON.stringify(prior),
+    turn_id: null,
+    display: JSON.stringify({
+      text: "",
+      progress: "Agent 21 was busy and is trying again…",
+    }),
+  });
+  await sendSubmission(session.id, submission);
+  return true;
+}
 /** Follows an accepted run: tool calls, live text, Stop and the final answer. */
 async function monitor(run: Run) {
   const api = openai();
@@ -650,6 +714,10 @@ async function monitor(run: Run) {
       await abandonRun(run);
       return true;
     }
+    // A retry recorded before its send was confirmed is sent again; its
+    // Idempotency-Key makes the provider accept it once.
+    if (retried(run) && session.status === "idle")
+      await sendSubmission(session.id, run.submission as MessageSubmission);
     return false;
   }
   const text = publicText(await turnItems(session.id, turn.id));
@@ -661,6 +729,8 @@ async function monitor(run: Run) {
     }),
   });
   if (!terminal(turn.status)) return false;
+  if (turn.status === "failed" && (await retryTurn(run, session, turn)))
+    return false;
   await finishRun(await load(run.id), turn, text);
   return true;
 }
