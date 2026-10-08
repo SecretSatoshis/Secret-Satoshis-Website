@@ -33,7 +33,9 @@ export async function validateUpload(bytes: Buffer, type: string) {
     /<(?:html|script|!doctype)/i.test(text)
   )
     throw new AppError(400, "This file is not a readable CSV.");
-  // Validate RFC-4180 quoting and consistent row widths without changing user data.
+  // Validate quoting and consistent row widths without changing user data. As in
+  // Python's csv module and pandas, a quote that does not open a field (after a
+  // space, say) is an ordinary character, and spaces may follow a closing quote.
   let quoted = false,
     afterQuote = false,
     fieldStart = true,
@@ -78,12 +80,13 @@ export async function validateUpload(bytes: Buffer, type: string) {
       endRow();
       continue;
     }
-    if (afterQuote)
+    if (afterQuote) {
+      if (c === " " || c === "\t") continue;
       throw new AppError(400, "CSV contains invalid quoted fields.");
-    if (c === '"') {
-      if (!fieldStart)
-        throw new AppError(400, "CSV contains invalid quoted fields.");
+    }
+    if (c === '"' && fieldStart) {
       quoted = true;
+      fieldStart = false;
       blank = false;
     } else {
       fieldStart = false;

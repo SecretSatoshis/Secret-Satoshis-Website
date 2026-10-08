@@ -90,6 +90,11 @@ test("CSV validation preserves quoted delimiters/newlines and rejects corrupt fi
     "a,b\n1,2\n\n",
     "a,b\r\n\r\n1,2\r\n",
     "a,b\n  \n1,2",
+    // Read by Python's csv module and pandas: spaces around a quoted field, and
+    // a quote that does not open one.
+    'a,b\n1, "2"\n',
+    'a,b\n"1" ,2\n',
+    'a,b\n1,x"y\n',
   ])
     await validateUpload(Buffer.from(text), "text/csv");
   for (const text of [
