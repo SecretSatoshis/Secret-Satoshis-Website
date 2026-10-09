@@ -10,9 +10,9 @@ const AGENT21 = "https://agent21.secretsatoshis.com/";
 const NAV: [label: string, href: string, external: boolean][] = [
   ["Start Here", `${NEWSLETTER}/p/start-here`, true],
   ["Agent 21", AGENT21, false],
-  ["Newsletter", `${NEWSLETTER}/`, true],
   ["Charts", "https://charts.secretsatoshis.com/", false],
   ["Dashboard", "https://dashboard.secretsatoshis.com/", false],
+  ["Newsletter", `${NEWSLETTER}/`, true],
 ];
 
 const newTab = { target: "_blank", rel: "noopener noreferrer" };
