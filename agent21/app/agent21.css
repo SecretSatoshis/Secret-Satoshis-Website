@@ -85,18 +85,6 @@ button:disabled {
   line-height: 1.9;
   color: var(--a21-dim);
 }
-.a21-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin: 30px 0;
-}
-.a21-chips span {
-  border: 1px solid var(--a21-border);
-  padding: 10px 14px;
-  border-radius: 8px;
-  font-size: 12px;
-}
 .a21-button {
   display: inline-block;
   background: var(--a21-orange);
@@ -109,20 +97,6 @@ button:disabled {
 .a21-button:hover {
   color: #08080c;
   background: #ffac44;
-}
-.a21-secondary {
-  display: block;
-  color: var(--a21-dim);
-  margin: 20px 0;
-  font-size: 12px;
-}
-.a21-welcome footer {
-  display: flex;
-  justify-content: space-between;
-  gap: 20px;
-  color: var(--a21-dim);
-  font-size: 11px;
-  line-height: 1.8;
 }
 .a21-auth {
   min-height: 100dvh;
@@ -499,9 +473,6 @@ button:disabled {
   }
   .a21-message {
     font-size: 12px;
-  }
-  .a21-welcome footer {
-    flex-direction: column;
   }
 }
 @media (max-width: 520px) {
