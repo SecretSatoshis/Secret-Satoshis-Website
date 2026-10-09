@@ -93,8 +93,8 @@ const FOOTER: [title: string, links: [string, string, boolean][]][] = [
 
 export function SiteFooter() {
   return (
-    <footer className="ss-footer">
-      <div className="ss-footer-inner">
+    <footer className="ss-footer section-divider">
+      <div>
         <div className="ss-footer-top">
           <div>
             <a

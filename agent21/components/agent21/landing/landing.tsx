@@ -1,27 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { AgentAvatar, type AgentState } from "../agent-avatar";
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+import { AgentAvatar, STATE_LABEL, type AgentState } from "../agent-avatar";
+import type { ExampleFacts } from "./example-facts";
 import { AccessLink, Beta, type Access } from "./parts";
 import { SiteFooter, SiteHeader } from "./site-chrome";
-import { UseCases } from "./use-cases";
+import { UseCases, type LiveExamples } from "./use-cases";
 import { WhatItDoes } from "./what-it-does";
 
-const STATUS: Record<AgentState, string> = {
-  idle: "Ready",
-  listening: "Listening",
-  thinking: "Thinking",
-  answering: "Answering",
-  done: "Hello",
-  asleep: "Resting",
-};
+// In the hero, "done" is the agent greeting the visitor.
+const STATUS: Record<AgentState, string> = { ...STATE_LABEL, done: "Hello" };
 
-function subscribeWidth(onChange: () => void) {
-  window.addEventListener("resize", onChange);
-  return () => window.removeEventListener("resize", onChange);
-}
-
-// Agent 21 floats in a soft orange glow and reacts to the visitor.
+// Agent 21 floats in a soft orange glow and reacts to the visitor. Its size
+// is set in CSS (.r9-agent), so the server renders it at its final size.
 function AgentStage({
   state,
   onHover,
@@ -31,13 +23,6 @@ function AgentStage({
   onHover: (over: boolean) => void;
   onPress: () => void;
 }) {
-  const width = useSyncExternalStore(
-    subscribeWidth,
-    () => window.innerWidth,
-    () => 1280,
-  );
-  const size =
-    width <= 580 ? 200 : Math.round(Math.min(400, Math.max(230, width * 0.28)));
   return (
     <div className="r9-agent-stage">
       <div className="r9-agent-figure">
@@ -49,24 +34,34 @@ function AgentStage({
           onPointerLeave={() => onHover(false)}
           onClick={onPress}
         >
-          <AgentAvatar state={state} size={size} followPointer float />
+          <AgentAvatar state={state} followPointer float />
         </button>
-        <span className="r9-agent-floor" aria-hidden="true" />
-        <p className="r9-agent-status" aria-live="polite">
-          <i aria-hidden="true" />
-          Agent 21 / {STATUS[state]}
-        </p>
+        <div className="r9-agent-meta">
+          <span className="r9-agent-floor" aria-hidden="true" />
+          <p className="r9-agent-status" aria-live="polite">
+            <i aria-hidden="true" />
+            Agent 21 / {STATUS[state]}
+          </p>
+        </div>
       </div>
     </div>
   );
 }
 
 // The Agent 21 landing page, shown to everyone without beta access.
-export function Landing({ access }: { access: Access }) {
+export function Landing({
+  access,
+  facts,
+  live,
+}: {
+  access: Access;
+  /** Figures for the examples that follow the daily release. */
+  facts: ExampleFacts;
+  /** The live block height and Polymarket ladder. */
+  live: LiveExamples;
+}) {
   // The hero agent reacts to what the visitor points at.
-  const [focus, setFocus] = useState<"agent" | "access" | "explore" | null>(
-    null,
-  );
+  const [focus, setFocus] = useState<"agent" | "access" | null>(null);
   const [cheering, setCheering] = useState(false);
   const cheerTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(cheerTimer.current), []);
@@ -76,56 +71,77 @@ export function Landing({ access }: { access: Access }) {
       ? "listening"
       : focus === "access"
         ? "done"
-        : focus === "explore"
-          ? "thinking"
-          : "idle";
+        : "idle";
   const cheer = () => {
     clearTimeout(cheerTimer.current);
     setCheering(true);
     cheerTimer.current = setTimeout(() => setCheering(false), 1800);
   };
-  const watch = (target: "access" | "explore") => ({
-    onPointerEnter: () => setFocus(target),
+  const watch = {
+    onPointerEnter: () => setFocus("access"),
     onPointerLeave: () => setFocus(null),
-    onFocus: () => setFocus(target),
+    onFocus: () => setFocus("access"),
     onBlur: () => setFocus(null),
-  });
+  };
+  // Section breaks draw their line once, as they scroll into view, the same
+  // way the homepage does.
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (!e.isIntersecting) continue;
+          e.target.classList.add("divider-visible");
+          io.unobserve(e.target);
+        }
+      },
+      { rootMargin: "0px 0px -80px 0px" },
+    );
+    rootRef.current
+      ?.querySelectorAll(".section-divider")
+      .forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, []);
   return (
-    <div className="lp rx r9">
+    <div className="lp rx r9" ref={rootRef}>
       <SiteHeader />
       <main>
         <section className="r9-hero">
-          <div className="r9-hero-art r9-agent-art">
+          {/* Head, agent, body: side by side on wide screens (agent on the
+              right), stacked in this order on narrow ones. */}
+          <div className="r9-hero-head">
+            <span className="nx-status">
+              INTRODUCING AGENT 21 · PRIVATE BETA
+            </span>
+            <h1>
+              The <em>Bitcoin-native</em> <br />
+              AI agent.
+            </h1>
+          </div>
+          <div className="r9-hero-art">
             <AgentStage
               state={agentState}
               onHover={(over) => setFocus(over ? "agent" : null)}
               onPress={cheer}
             />
           </div>
-          <div className="r9-hero-copy">
-            <span className="nx-status">
-              INTRODUCING AGENT 21 · PRIVATE BETA
-            </span>
-            <h1>
-              An AI agent for
-              <br />
-              <em>Bitcoin investing.</em>
-            </h1>
+          <div className="r9-hero-body">
             <p className="r9-lead">
-              Bitcoin intelligence you can verify, now through conversation.
-            </p>
-            <p className="r9-intro">
-              Agent 21 by Secret Satoshis brings original analysis, open data,
-              and market frameworks into a conversation you can take further.
+              Built by Secret Satoshis, Agent 21 understands Bitcoin from first
+              principles, reads the blockchain directly, and works through your
+              questions the way we would.
             </p>
             {access === "open" && (
               <>
-                <span className="r9-watch" {...watch("access")}>
+                <span className="r9-watch" {...watch}>
                   <AccessLink />
                 </span>
                 <p className="rx-small">
                   Free during beta · Invite-only access
                 </p>
+                <Link className="nx-text-link r9-signin" href="/sign-in">
+                  Already invited? Sign in →
+                </Link>
               </>
             )}
             {access === "denied" && (
@@ -142,16 +158,10 @@ export function Landing({ access }: { access: Access }) {
               </p>
             )}
           </div>
-          <div className="r9-hero-bottom">
-            <span>Don&apos;t trust. Verify.</span>
-            <a href="#use-cases" {...watch("explore")}>
-              Explore the experience <span aria-hidden="true">↓</span>
-            </a>
-          </div>
         </section>
-        <UseCases />
+        <UseCases facts={facts} live={live} />
         <WhatItDoes />
-        <div className="nx c5 r9-story">
+        <div className="r9-beta section-divider">
           <div className="nx-wrap">
             <Beta access={access} />
           </div>

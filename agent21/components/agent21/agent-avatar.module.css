@@ -1,4 +1,5 @@
-/* Agent 21: a soft dark block with a recessed screen. Sizes scale from --s through em units. */
+/* Agent 21: a soft dark block around a recessed screen in the logo's orange.
+   Sizes scale from --s through em units. */
 .root {
   --glow: 0.3;
   position: relative;
@@ -35,18 +36,23 @@
   inset: 9%;
   overflow: hidden;
   border-radius: 25%;
-  background: radial-gradient(110% 100% at 50% 38%, #0f0f17 0%, #050508 80%);
+  background: radial-gradient(
+    110% 100% at 50% 38%,
+    #fba433 0%,
+    #f7931a 62%,
+    #ec8709 100%
+  );
   box-shadow:
-    inset 0 0.14em 0.4em rgba(0, 0, 0, 0.95),
-    inset 0 0 0 0.03em rgba(255, 255, 255, 0.05),
-    0 0.05em 0 rgba(255, 255, 255, 0.07);
+    inset 0 0.12em 0.35em rgba(122, 58, 0, 0.5),
+    inset 0 0 0 0.03em rgba(255, 255, 255, 0.14),
+    0 0 0 0.05em rgba(0, 0, 0, 0.55);
 }
 
 .screen canvas {
   display: block;
   width: 100%;
   height: 100%;
-  filter: drop-shadow(0 0 0.22em rgba(247, 147, 26, 0.55));
+  filter: drop-shadow(0 0.04em 0.05em rgba(110, 50, 0, 0.35));
 }
 
 .screen::after {
@@ -55,8 +61,8 @@
   border-radius: inherit;
   background: linear-gradient(
     168deg,
-    rgba(255, 255, 255, 0.08) 0%,
-    rgba(255, 255, 255, 0.02) 34%,
+    rgba(255, 255, 255, 0.2) 0%,
+    rgba(255, 255, 255, 0.05) 34%,
     transparent 46%
   );
   content: "";

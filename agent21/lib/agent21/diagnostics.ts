@@ -20,6 +20,7 @@ const events = [
   "beta_failed",
   "deletion_failed",
   "webhook_failed",
+  "landing_fallback",
 ] as const;
 type Event = (typeof events)[number];
 const codes = new Set([
@@ -42,6 +43,9 @@ const codes = new Set([
   "request_failed",
   "service_unavailable",
   "agent_tools_rejected",
+  "example_facts_unavailable",
+  "block_height_unavailable",
+  "price_odds_unavailable",
 ]);
 const openaiErrors = new Set([
   "APIError",
@@ -130,6 +134,18 @@ export function logDiagnostic(
 ) {
   const record = diagnostic(error, event, context);
   console.error("Agent21 diagnostic", record);
+  reporter?.(record);
+  return record;
+}
+/** The same record for a degraded path that still works, such as a snapshot
+ * standing in for an unavailable source: logged as a warning, not an error. */
+export function warnDiagnostic(
+  error: unknown,
+  event: Event,
+  context: DiagnosticContext = {},
+) {
+  const record = diagnostic(error, event, context);
+  console.warn("Agent21 diagnostic", record);
   reporter?.(record);
   return record;
 }

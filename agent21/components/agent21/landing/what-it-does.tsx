@@ -1,50 +1,46 @@
-import { Eyebrow } from "./parts";
+import { SectionLabel } from "./parts";
 
-// Concept 9: the sources Agent 21 reads, in concept 1's card grid.
-const SOURCES: [string, string][] = [
-  [
-    "Secret Satoshis research",
-    "The weekly recap, quarterly strategy reports and the annual price outlook. Agent 21 links the piece it draws on.",
-  ],
-  [
-    "Daily data release",
-    "Market, on-chain, ETF and valuation series from the Report Library, published for every completed UTC day.",
-  ],
-  [
-    "Chart Library",
-    "The published interactive charts, trimmed to your window, plus new charts built for your question.",
-  ],
-  [
-    "On-chain data",
-    "Blocks, transactions, addresses, fees and on-chain series straight from BRK's Bitcoin node.",
-  ],
-  [
-    "Prediction markets",
-    "Polymarket odds for Bitcoin and the macro, with the volume and liquidity behind each price.",
-  ],
-  [
-    "Latest news",
-    "Web search for dated news on what changed this week, cited with its source.",
-  ],
+// What Agent 21 works from: the Secret Satoshis layer other agents lack, and
+// the live sources it checks that against.
+type Card = { title: string; text: string };
+
+const CARDS: Card[] = [
+  {
+    title: "Secret Satoshis newsletter",
+    text: "Secret Satoshis newsletter content: our weekly, quarterly and annual view of the Bitcoin market. Agent 21 can talk you through any issue.",
+  },
+  {
+    title: "Secret Satoshis data sets",
+    text: "Our open-source daily data release: 300+ Bitcoin metrics back to 2010, the same numbers behind our charts, dashboard and newsletter.",
+  },
+  {
+    title: "On-chain data",
+    text: "Blocks, transactions, addresses, fees and the mempool, plus thousands of market and on-chain series, straight from the blockchain.",
+  },
+  {
+    title: "Prediction markets",
+    text: "Polymarket odds on Bitcoin's price and the events that move it, with the volume and liquidity behind each.",
+  },
+  {
+    title: "Latest news",
+    text: "Web search for what changed today, from primary and reputable sources, each one linked and dated.",
+  },
 ];
 
 export function WhatItDoes() {
   return (
-    <div className="nx r9-story wd" id="what-it-does">
+    <div className="wd section-divider" id="what-it-does">
       <div className="nx-wrap">
-        <Eyebrow>02 / What it does</Eyebrow>
-        <h2>
-          Every source.
-          <br />
-          One conversation.
-        </h2>
-        <p className="nx-description">
-          Agent 21 brings Secret Satoshis research and data together with the
-          live Bitcoin network, prediction markets and the latest news, so one
-          question gets a current, sourced answer.
-        </p>
+        <div className="wd-head">
+          <SectionLabel>What Agent 21 knows</SectionLabel>
+          <h2>Bitcoin intelligence</h2>
+          <p className="wd-sub">
+            Secret Satoshis market frameworks. Open-source code. Live market
+            data.
+          </p>
+        </div>
         <div className="wd-grid">
-          {SOURCES.map(([title, text]) => (
+          {CARDS.map(({ title, text }) => (
             <div className="lp-card" key={title}>
               <h3>
                 <span className="acc">{"// "}</span>
@@ -53,17 +49,6 @@ export function WhatItDoes() {
               <p>{text}</p>
             </div>
           ))}
-          <div className="lp-card wd-agent">
-            <h3>
-              <span className="acc">{"// "}</span>
-              Agent 21
-            </h3>
-            <p>
-              Reads all six, runs the numbers in its own sandbox and answers
-              with every source and date in view. Real-time Bitcoin intelligence
-              you can verify.
-            </p>
-          </div>
         </div>
       </div>
     </div>

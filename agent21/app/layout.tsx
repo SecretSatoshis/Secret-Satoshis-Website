@@ -3,6 +3,9 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { headers } from "next/headers";
 import "./agent21.css";
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.APP_ORIGIN ?? "https://agent21.secretsatoshis.com",
+  ),
   title: "Agent 21 | Secret Satoshis",
   description: "Explore Bitcoin research and data with Agent 21.",
   robots: { index: false, follow: false },
@@ -14,7 +17,7 @@ export default async function Layout({
 }) {
   const nonce = (await headers()).get("x-nonce") || undefined;
   const content = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? (
-    <ClerkProvider nonce={nonce} dynamic>
+    <ClerkProvider nonce={nonce} dynamic waitlistUrl="/waitlist">
       {children}
     </ClerkProvider>
   ) : (

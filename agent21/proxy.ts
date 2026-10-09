@@ -54,6 +54,7 @@ export const config = {
     "/deletion/:path*",
     "/sign-in/:path*",
     "/sign-up/:path*",
+    "/waitlist/:path*",
     "/api/agent21/:path*",
   ],
 };

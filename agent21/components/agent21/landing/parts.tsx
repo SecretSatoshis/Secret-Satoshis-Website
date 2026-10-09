@@ -12,8 +12,19 @@ export function Eyebrow({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** A section label in the homepage style: "// Label", centered above the
+ * section title. */
+export function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="ss-label">
+      <span className="acc">{"//"}</span> {children}
+    </p>
+  );
+}
+
+/** The page's one call-to-action button: the waitlist by default. */
 export function AccessLink({
-  href = "/sign-up",
+  href = "/waitlist",
   children = "Join the private beta",
 }: {
   href?: string;
@@ -31,23 +42,17 @@ export function Beta({ access }: { access: Access }) {
   return (
     <section className="nx-beta" id="beta">
       <div>
-        <Eyebrow>Private beta · Now taking shape</Eyebrow>
-        <h2>
-          Your next Bitcoin question
-          <br />
-          starts here.
-        </h2>
+        <Eyebrow>Private beta</Eyebrow>
+        <h2>Ask Agent 21 your next Bitcoin question.</h2>
         <p>
-          Explore the research. Test a scenario. Follow the sources.
-          <br className="nx-desktop" /> Get to know Agent 21 by Secret Satoshis.
+          From the fundamentals to this week&apos;s market move, with our
+          frameworks and sources behind every answer.
         </p>
       </div>
       <div className="nx-beta-action">
         {access === "open" && (
           <>
-            <Link className="nx-button" href="/sign-up">
-              Join the beta <span aria-hidden="true">↗</span>
-            </Link>
+            <AccessLink />
             <p>Free during beta · Invite-only access</p>
             <Link className="nx-text-link" href="/sign-in">
               Already invited? Sign in →
@@ -56,9 +61,7 @@ export function Beta({ access }: { access: Access }) {
         )}
         {access === "denied" && (
           <>
-            <Link className="nx-button" href="/sign-in">
-              Manage sign-in <span aria-hidden="true">↗</span>
-            </Link>
+            <AccessLink href="/sign-in">Manage sign-in</AccessLink>
             <p role="status">This account does not have access to Agent 21.</p>
           </>
         )}

@@ -1,13 +1,23 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import styles from "./agent-avatar.module.css";
 
 export type AgentState =
-  "idle" | "listening" | "thinking" | "answering" | "done" | "asleep";
+  "idle" | "listening" | "thinking" | "answering" | "done";
+
+/** A word for each state, for status lines beside the avatar. */
+export const STATE_LABEL: Record<AgentState, string> = {
+  idle: "Ready",
+  listening: "Listening",
+  thinking: "Thinking",
+  answering: "Answering",
+  done: "Answered",
+};
 
 // Face geometry in the 840 px space of the Secret Satoshis mark (hero-logo-840.jpg).
 // The ₿ lies on its side: its counters are the eyes and its tick marks are antenna lights.
+// It is drawn in the mark's own colors, black on Bitcoin orange, inside the dark block.
 const BODY =
   "M272 276L568 276L568 303L632 303L632 336L570 336L570 374L632 374L632 408L568 408C567 470 540 512 493 512C465 512 445 494 437 477C432 505 405 533 363 533C318 533 272 490 272 415L272 408L206 408L206 374L271 374L271 336L206 336L206 303L272 303Z";
 const TICK_LEFT = "M272 221L318 229L318 262Q318 278 334 278L334 284L272 284Z";
@@ -40,7 +50,6 @@ type Pose = {
   glint: number;
   offsetX: number;
   offsetY: number;
-  bob: number;
 };
 
 // Pose keys that must react faster than the default easing.
@@ -67,17 +76,19 @@ const ease = (a: number, b: number, x: number) => {
   return t * t * (3 - 2 * t);
 };
 
-const DIM = [46, 28, 12];
 const ORANGE = [247, 147, 26];
-const HOT = [255, 212, 150];
+const INK = [10, 10, 14];
+const LIFT = [56, 42, 30];
 function mix(a: number[], b: number[], t: number) {
   const c = a.map((v, i) => Math.round(v + (b[i] - v) * t));
   return `rgb(${c[0]},${c[1]},${c[2]})`;
 }
-function glow(v: number) {
-  return v <= 1
-    ? mix(DIM, ORANGE, v)
-    : mix(ORANGE, HOT, clamp((v - 1) / 0.4, 0, 1));
+// A dim feature fades toward the orange screen; the soft top light lifts the
+// black slightly.
+function ink(v: number) {
+  return v <= 0.85
+    ? mix(ORANGE, INK, v / 0.85)
+    : mix(INK, LIFT, clamp((v - 0.85) / 0.6, 0, 1));
 }
 
 function talk(t: number) {
@@ -110,7 +121,6 @@ function targetPose(
     glint: 0,
     offsetX: x * 0.5,
     offsetY: y * 0.4,
-    bob: 1,
   };
   switch (state) {
     case "listening": {
@@ -164,21 +174,6 @@ function targetPose(
         brightness: 1.08,
         lookX: x * 4,
         lookY: y * 3,
-      };
-    case "asleep":
-      return {
-        ...pose,
-        eyeOpen: 0.04,
-        lookX: 0,
-        lookY: 10,
-        smileDepth: 0.35,
-        smileWidth: 0.7,
-        antennaLeft: 0.12,
-        antennaRight: 0.12,
-        brightness: 0.42 + 0.08 * Math.sin(t * 1.1),
-        bob: 0.35,
-        offsetX: 0,
-        offsetY: 0.3,
       };
     default:
       return pose;
@@ -244,7 +239,7 @@ function draw(
     const progress = (t * 0.42) % 1;
     ctx.lineWidth = px * 0.016;
     for (const q of [progress, (progress + 0.5) % 1]) {
-      ctx.strokeStyle = `rgba(247,147,26,${(0.5 * p.ripple * (1 - q)).toFixed(3)})`;
+      ctx.strokeStyle = `rgba(10,10,14,${(0.5 * p.ripple * (1 - q)).toFixed(3)})`;
       ctx.beginPath();
       ctx.arc(px / 2, px / 2, px * (0.14 + 0.42 * q), 0, TAU);
       ctx.stroke();
@@ -264,13 +259,13 @@ function draw(
   const b = p.brightness;
   // A soft top light: brighter at the antennae, deeper at the smile.
   const fill = ctx.createLinearGradient(0, 221, 0, 630);
-  fill.addColorStop(0, glow(b * 1.14));
-  fill.addColorStop(0.5, glow(b));
-  fill.addColorStop(1, glow(b * 0.86));
+  fill.addColorStop(0, ink(b * 1.14));
+  fill.addColorStop(0.5, ink(b));
+  fill.addColorStop(1, ink(b * 0.86));
 
-  ctx.fillStyle = glow(b * 1.14 * p.antennaLeft);
+  ctx.fillStyle = ink(b * 1.14 * p.antennaLeft);
   ctx.fill(left);
-  ctx.fillStyle = glow(b * 1.14 * p.antennaRight);
+  ctx.fillStyle = ink(b * 1.14 * p.antennaRight);
   ctx.fill(right);
   ctx.fillStyle = fill;
   ctx.strokeStyle = fill;
@@ -319,7 +314,7 @@ function draw(
     const pos = ((t * 0.55) % 1.6) - 0.3;
     const glint = ctx.createLinearGradient(199, 206, 639, 646);
     const stop = (o: number, a: number) =>
-      glint.addColorStop(clamp(o, 0, 1), `rgba(255,226,180,${a.toFixed(3)})`);
+      glint.addColorStop(clamp(o, 0, 1), `rgba(255,190,110,${a.toFixed(3)})`);
     stop(pos - 0.09, 0);
     stop(pos, 0.6 * p.glint);
     stop(pos + 0.09, 0);
@@ -332,24 +327,22 @@ function draw(
 
 export function AgentAvatar({
   state = "idle",
-  size = 40,
+  size,
   followPointer = false,
   float = false,
-  label,
-  className,
 }: {
   state?: AgentState;
-  /** Width and height in CSS pixels. */
+  /** Width and height in CSS pixels. Without it the avatar takes its size
+   * from a `--s` set in CSS, so the server renders it at its final size. */
   size?: number;
   /** Eyes (and, with `float`, the block) turn toward the cursor. */
   followPointer?: boolean;
   /** Gentle bob and tilt, for hero placements. */
   float?: boolean;
-  /** Accessible name. Without one the avatar is decorative. */
-  label?: string;
-  className?: string;
 }) {
   const rootRef = useRef<HTMLSpanElement>(null);
+  const [measured, setMeasured] = useState(0);
+  const s = size ?? measured;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stateRef = useRef(state);
   const changedAtRef = useRef(0);
@@ -361,20 +354,28 @@ export function AgentAvatar({
     redrawRef.current?.();
   }, [state]);
 
+  // A CSS-sized avatar is measured before its first paint, then redrawn at
+  // whatever size its layout gives it.
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (size !== undefined || !root) return;
+    setMeasured(root.offsetWidth);
+    const observer = new ResizeObserver(() => setMeasured(root.offsetWidth));
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, [size]);
+
   useEffect(() => {
     const root = rootRef.current;
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
-    if (!root || !canvas || !ctx) return;
+    if (!root || !canvas || !ctx || !s) return;
 
     const reduced = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const px = Math.max(
-      8,
-      Math.round(size * (size >= SMALL ? 0.82 : 0.86) * dpr),
-    );
+    const px = Math.max(8, Math.round(s * (s >= SMALL ? 0.82 : 0.86) * dpr));
     canvas.width = canvas.height = px;
 
     const phase = Math.random() * 100;
@@ -387,7 +388,6 @@ export function AgentAvatar({
     let visible = true;
 
     const blinkFactor = (t: number) => {
-      if (stateRef.current === "asleep") return 1;
       if (t > nextBlink) {
         blinks = Math.random() < 0.22 ? [t, t + 0.26] : [t];
         nextBlink = t + 2.6 + Math.random() * 3.4;
@@ -437,7 +437,7 @@ export function AgentAvatar({
       draw(
         ctx,
         px,
-        size,
+        s,
         { ...pose, eyeOpen: pose.eyeOpen * blinkFactor(t) },
         t,
         dpr,
@@ -448,13 +448,10 @@ export function AgentAvatar({
         const since = t - changedAtRef.current;
         const hop =
           stateRef.current === "done"
-            ? -0.05 *
-              size *
-              Math.abs(Math.sin(since * 7)) *
-              Math.exp(-since * 2.6)
+            ? -0.05 * s * Math.abs(Math.sin(since * 7)) * Math.exp(-since * 2.6)
             : 0;
-        const lift = hop + Math.sin(t * 1.6) * size * 0.013 * pose.bob;
-        root.style.transform = `perspective(${size * 3}px) rotateY(${(look.x * 12).toFixed(2)}deg) rotateX(${(-look.y * 9).toFixed(2)}deg) translateY(${lift.toFixed(2)}px)`;
+        const lift = hop + Math.sin(t * 1.6) * s * 0.013;
+        root.style.transform = `perspective(${s * 3}px) rotateY(${(look.x * 12).toFixed(2)}deg) rotateX(${(-look.y * 9).toFixed(2)}deg) translateY(${lift.toFixed(2)}px)`;
       }
       frame = visible ? requestAnimationFrame(tick) : 0;
     };
@@ -464,7 +461,7 @@ export function AgentAvatar({
       redrawRef.current = () => {
         const target = targetPose(stateRef.current, 0, look);
         if (stateRef.current === "answering") target.mouthOpen = 0.3;
-        draw(ctx, px, size, target, 0, dpr);
+        draw(ctx, px, s, target, 0, dpr);
         root.style.setProperty("--glow", (0.3 * target.brightness).toFixed(3));
       };
       redrawRef.current();
@@ -491,18 +488,20 @@ export function AgentAvatar({
       io.disconnect();
       window.removeEventListener("pointermove", onPointer);
     };
-  }, [size, followPointer, float]);
+  }, [s, followPointer, float]);
 
   return (
     <span
       ref={rootRef}
-      className={[styles.root, size < SMALL && styles.small, className]
-        .filter(Boolean)
-        .join(" ")}
-      style={{ "--s": `${size}px` } as React.CSSProperties}
-      role={label ? "img" : undefined}
-      aria-label={label}
-      aria-hidden={label ? undefined : true}
+      className={
+        s && s < SMALL ? `${styles.root} ${styles.small}` : styles.root
+      }
+      style={
+        size === undefined
+          ? undefined
+          : ({ "--s": `${size}px` } as React.CSSProperties)
+      }
+      aria-hidden="true"
     >
       <span className={styles.shell} />
       <span className={styles.screen}>
