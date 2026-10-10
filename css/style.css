@@ -666,12 +666,13 @@ section {
 }
 
 .resources-sub {
-  max-width: 640px;
+  max-width: 720px;
   margin: 0 auto;
   color: var(--text-dim);
   font-size: 14px;
   line-height: 1.75;
   text-align: center;
+  text-wrap: balance;
 }
 
 
