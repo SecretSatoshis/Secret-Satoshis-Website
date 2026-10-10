@@ -1370,20 +1370,7 @@ footer {
 }
 
 .rung-top {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
   margin-bottom: 8px;
-}
-
-.rung-cad {
-  font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--accent);
 }
 
 .rung-name {
