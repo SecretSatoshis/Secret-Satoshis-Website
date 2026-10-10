@@ -579,8 +579,10 @@ section {
   white-space: nowrap;
 }
 
-/* The ask bar closes the chat like a message box: one link to Agent 21,
-   lit once Agent 21 asks what's next. */
+/* The ask bar closes the chat like a message box: one link to Agent 21.
+   While the conversation plays it keeps its place but stays hidden, then
+   shows, lit, once Agent 21 asks what's next. Without the script it shows
+   from the start. */
 .chat-ask {
   display: flex;
   align-items: center;
@@ -593,7 +595,12 @@ section {
   background: var(--bg);
   color: var(--text-mute);
   font-size: 13px;
-  transition: border-color 0.4s ease, color 0.2s ease;
+  transition: opacity 0.4s ease, visibility 0.4s, border-color 0.4s ease, color 0.2s ease;
+}
+
+.chat.is-playing:not(.is-done) .chat-ask {
+  visibility: hidden;
+  opacity: 0;
 }
 
 .chat.is-done .chat-ask { border-color: rgba(247,147,26,0.5); }

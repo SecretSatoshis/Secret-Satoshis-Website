@@ -6,7 +6,8 @@
 // loadSinceYouLeft() reads the Report Library's published candles and
 // loadChain() the chain tip from BRK, each checked, with SATOSHI_LEFT_ON. The
 // whole conversation is laid out at once, hidden, so nothing moves as it
-// plays; each message plays as it scrolls into view.
+// plays; it plays through once its first message scrolls into view, and the
+// ask bar below it shows when it ends.
 // The face's ?v= matches js/agent21-hero.js, so both load one copy.
 import { mountAgent, SMALL, STATE_LABEL } from "./agent21-face.js?v=2";
 
@@ -229,8 +230,9 @@ function reached(node) {
   });
 }
 
-// Plays the messages in turn as they come into view: a reply thinks (with
-// its step showing), writes its answer word by word, then shows its source.
+// Plays the messages in turn once the first comes into view: a reply thinks
+// (with its step showing), writes its answer word by word, then shows its
+// source.
 // finish() shows everything at once in its final state. Either way `done`
 // runs once the last message is in.
 function player(messages, done) {
@@ -242,8 +244,8 @@ function player(messages, done) {
     message.node.dataset.phase = phase;
   };
   async function play() {
+    await reached(messages[0].node);
     for (const message of messages) {
-      await reached(message.node);
       if (stopped) return;
       if (!message.face) {
         message.node.dataset.phase = "done";
@@ -536,6 +538,8 @@ const chat = document.getElementById("agentChat");
 const log = document.getElementById("agentChatLog");
 const date = document.getElementById("agentChatDate");
 if (chat && log && date) {
+  // The ask bar waits for the conversation (see .chat-ask in css/style.css).
+  chat.classList.add("is-playing");
   // Load the data a screen before the chat comes into view.
   const near = new IntersectionObserver(
     ([entry]) => {
