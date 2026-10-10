@@ -1,8 +1,12 @@
 import Link from "next/link";
 
 /** Who is looking at the landing page: anyone signed out, a signed-in
- * account without beta access, or anyone before sign-in is configured. */
-export type Access = "open" | "denied" | "soon";
+ * account without beta access, a signed-in account whose access could not be
+ * checked (a database outage), or anyone before sign-in is configured. */
+export type Access = "open" | "denied" | "unavailable" | "soon";
+
+export const UNAVAILABLE =
+  "Agent 21 is briefly unavailable. Please try again in a few minutes.";
 
 export function Eyebrow({ children }: { children: React.ReactNode }) {
   return (
@@ -31,7 +35,7 @@ export function AccessLink({
   children?: React.ReactNode;
 }) {
   return (
-    <Link className="rx-access" href={href}>
+    <Link className="a21-button" href={href}>
       {children}
       <span aria-hidden="true">↗</span>
     </Link>
@@ -53,10 +57,12 @@ export function Beta({ access }: { access: Access }) {
         {access === "open" && (
           <>
             <AccessLink />
-            <p>Free during beta · Invite-only access</p>
-            <Link className="nx-text-link" href="/sign-in">
-              Already invited? Sign in →
-            </Link>
+            <p>
+              Free during beta · Invite-only ·{" "}
+              <Link className="r9-signin" href="/sign-in">
+                Already invited? Sign in →
+              </Link>
+            </p>
           </>
         )}
         {access === "denied" && (
@@ -65,6 +71,7 @@ export function Beta({ access }: { access: Access }) {
             <p role="status">This account does not have access to Agent 21.</p>
           </>
         )}
+        {access === "unavailable" && <p role="status">{UNAVAILABLE}</p>}
         {access === "soon" && (
           <p role="status">The website beta is coming soon.</p>
         )}

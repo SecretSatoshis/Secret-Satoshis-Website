@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { AgentAvatar, STATE_LABEL, type AgentState } from "../agent-avatar";
 import type { ExampleFacts } from "./example-facts";
-import { AccessLink, Beta, type Access } from "./parts";
+import { AccessLink, Beta, UNAVAILABLE, type Access } from "./parts";
 import { SiteFooter, SiteHeader } from "./site-chrome";
 import { UseCases, type LiveExamples } from "./use-cases";
 import { WhatItDoes } from "./what-it-does";
@@ -24,8 +24,8 @@ function AgentStage({
   onPress: () => void;
 }) {
   return (
-    <div className="r9-agent-stage">
-      <div className="r9-agent-figure">
+    <div className="a21-stage a21-hero-stage">
+      <div className="a21-stage-figure">
         <button
           type="button"
           className="r9-agent"
@@ -36,9 +36,9 @@ function AgentStage({
         >
           <AgentAvatar state={state} followPointer float />
         </button>
-        <div className="r9-agent-meta">
-          <span className="r9-agent-floor" aria-hidden="true" />
-          <p className="r9-agent-status" aria-live="polite">
+        <div className="a21-stage-meta">
+          <span className="a21-stage-floor" aria-hidden="true" />
+          <p className="a21-stage-status" aria-live="polite">
             <i aria-hidden="true" />
             Agent 21 / {STATUS[state]}
           </p>
@@ -103,60 +103,75 @@ export function Landing({
     return () => io.disconnect();
   }, []);
   return (
-    <div className="lp rx r9" ref={rootRef}>
+    <div className="lp rx" ref={rootRef}>
       <SiteHeader />
       <main>
-        <section className="r9-hero">
-          {/* Head, agent, body: side by side on wide screens (agent on the
-              right), stacked in this order on narrow ones. */}
-          <div className="r9-hero-head">
-            <span className="nx-status">
-              INTRODUCING AGENT 21 · PRIVATE BETA
-            </span>
-            <h1>
-              The <em>Bitcoin-native</em> <br />
-              AI agent.
-            </h1>
+        {/* The homepage's hero too (css/agent21-face.css): the copy on the
+            left, Agent 21 on the right; narrow screens stack head, agent,
+            then body. */}
+        <section className="r9-hero a21-hero a21-hero-grid">
+          <div className="a21-hero-copy">
+            <div className="a21-hero-head">
+              <p className="a21-hero-label">
+                Introducing Agent 21 · Private beta
+              </p>
+              <h1 className="a21-hero-title">
+                The <span className="a21-nowrap">Bitcoin-native</span>{" "}
+                <br className="a21-wide-only" />
+                AI agent<span className="a21-accent">.</span>
+              </h1>
+            </div>
+            <div className="a21-hero-body">
+              <p className="a21-hero-lead">
+                Built by Secret Satoshis, Agent 21 understands Bitcoin from
+                first principles, reads the blockchain directly, and works
+                through your questions the way we would.
+              </p>
+              {access === "open" && (
+                <>
+                  <span className="r9-watch" {...watch}>
+                    <AccessLink />
+                  </span>
+                  <div className="r9-hero-note a21-hero-rule">
+                    <p className="rx-small">
+                      Free during beta · Invite-only ·{" "}
+                      <Link className="r9-signin" href="/sign-in">
+                        Already invited? Sign in →
+                      </Link>
+                    </p>
+                  </div>
+                </>
+              )}
+              {access === "denied" && (
+                <>
+                  <AccessLink href="/sign-in">Manage sign-in</AccessLink>
+                  <div className="r9-hero-note a21-hero-rule">
+                    <p className="rx-small" role="status">
+                      This account does not have access to Agent 21.
+                    </p>
+                  </div>
+                </>
+              )}
+              {access === "unavailable" && (
+                <div className="r9-hero-note a21-hero-rule">
+                  <p className="rx-small" role="status">
+                    {UNAVAILABLE}
+                  </p>
+                </div>
+              )}
+              {access === "soon" && (
+                <p className="rx-small" role="status">
+                  The website beta is coming soon.
+                </p>
+              )}
+            </div>
           </div>
-          <div className="r9-hero-art">
+          <div className="r9-hero-art a21-hero-art">
             <AgentStage
               state={agentState}
               onHover={(over) => setFocus(over ? "agent" : null)}
               onPress={cheer}
             />
-          </div>
-          <div className="r9-hero-body">
-            <p className="r9-lead">
-              Built by Secret Satoshis, Agent 21 understands Bitcoin from first
-              principles, reads the blockchain directly, and works through your
-              questions the way we would.
-            </p>
-            {access === "open" && (
-              <>
-                <span className="r9-watch" {...watch}>
-                  <AccessLink />
-                </span>
-                <p className="rx-small">
-                  Free during beta · Invite-only access
-                </p>
-                <Link className="nx-text-link r9-signin" href="/sign-in">
-                  Already invited? Sign in →
-                </Link>
-              </>
-            )}
-            {access === "denied" && (
-              <>
-                <AccessLink href="/sign-in">Manage sign-in</AccessLink>
-                <p className="rx-small" role="status">
-                  This account does not have access to Agent 21.
-                </p>
-              </>
-            )}
-            {access === "soon" && (
-              <p className="rx-small" role="status">
-                The website beta is coming soon.
-              </p>
-            )}
           </div>
         </section>
         <UseCases facts={facts} live={live} />

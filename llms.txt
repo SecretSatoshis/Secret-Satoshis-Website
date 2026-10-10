@@ -23,7 +23,7 @@ by Trey Brunson (https://treybrunson.com/).
 - [Market Dashboard](https://dashboard.secretsatoshis.com/): current Bitcoin market data, valuation models, on-chain conditions and cycle context, updated daily.
 - [Chart Library](https://charts.secretsatoshis.com/): 54 interactive charts covering price, ETF flows, on-chain activity, supply, mining and valuation. Each chart is a standalone page with its own definition.
 - [Newsletter](https://newsletter.secretsatoshis.com/): written analysis, the annual price outlook, and the weekly, quarterly and year-end reports that track it.
-- [Agent 21](https://chatgpt.com/g/g-BZXtVdU6M-agent-21): a custom GPT interface to the published research and live Bitcoin network data.
+- [Agent 21](https://agent21.secretsatoshis.com/): the Bitcoin-native AI agent built by Secret Satoshis, in invite-only beta. It works from the published research, open data and live Bitcoin network and market data.
 
 ## Data and code
 
@@ -33,7 +33,7 @@ by Trey Brunson (https://treybrunson.com/).
 - [Daily price summary](https://secretsatoshis.github.io/Bitcoin-Report-Library/csv/report_ohlc_summary.csv): the latest daily Bitcoin open, high, low and close, with week-to-date figures.
 - [Chart catalog](https://charts.secretsatoshis.com/catalog.json): machine-readable index of every chart, with title, description, category and tags.
 - [Chart sitemap](https://charts.secretsatoshis.com/sitemap.xml): every chart URL.
-- [Report Library](https://github.com/SecretSatoshis/Bitcoin-Report-Library): publishes the daily CSV release used by the Market Dashboard, Chart Library, Bitcoin Investment Strategy notebooks, homepage outlook tracker, and newsletter. Agent 21 and Trey Brunson's personal site also use separate data sources.
+- [Report Library](https://github.com/SecretSatoshis/Bitcoin-Report-Library): publishes the daily CSV release used by the Market Dashboard, Chart Library, Bitcoin Investment Strategy notebooks, homepage outlook tracker and Agent 21 example, and newsletter. Agent 21 and Trey Brunson's personal site also use separate data sources.
 - [Chart Library source](https://github.com/SecretSatoshis/Bitcoin-Chart-Library): chart definitions and the catalog generator.
 - [Bitcoin Investment Strategy](https://github.com/SecretSatoshis/Bitcoin-Investment-Strategy): three notebooks built on the Report Library release: a savings plan run against real price history, companion to the *Should I buy bitcoin?* framework, and two studies of Bitcoin's supply and demand.
 

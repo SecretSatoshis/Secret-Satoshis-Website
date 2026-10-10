@@ -1,7 +1,14 @@
+import path from "node:path";
 import { withWorkflow } from "workflow/next";
 import type { NextConfig } from "next";
+// The website repo: Agent 21's face (js/agent21-face.js and its stylesheet) is
+// shared with the homepage from its root. Vercel builds from agent21 with files
+// outside the root directory included. Next uses this root for file tracing
+// too (outputFileTracingRoot).
+const repo = path.resolve(import.meta.dirname, "..");
 const config: NextConfig = {
   poweredByHeader: false,
+  turbopack: { root: repo },
   async headers() {
     return [
       {
@@ -10,9 +17,12 @@ const config: NextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "X-Frame-Options", value: "DENY" },
-          // The invited beta app is private; only the homepage is indexed.
-          { key: "X-Robots-Tag", value: "noindex, nofollow" },
         ],
+      },
+      {
+        // The beta app is private; only the landing page at / is indexed.
+        source: "/:path+",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
       },
       {
         // The chart viewer is framed only by the conversation page and runs

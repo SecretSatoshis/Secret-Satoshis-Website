@@ -7,3 +7,4 @@ exclude:
   - README.md
   - SECURITY.md
   - LICENSE
+  - js/agent21-face.d.ts

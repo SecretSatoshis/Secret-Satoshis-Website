@@ -310,12 +310,21 @@ export async function completeUpload(owner: string, id: string) {
     const { validateUpload } = await import("./validation");
     await validateUpload(bytes, row.content_type);
   } catch (error) {
-    await del(row.blob_path);
-    await db()
-      .updateTable("agent21_files")
-      .set({ state: "rejected", upload_token_expires_at: null })
-      .where("id", "=", id)
-      .execute();
+    // The user always learns why the file was refused. If its upload cannot
+    // be removed, the file stays pending and maintenance removes it later.
+    const removed = await del(row.blob_path).then(
+      () => true,
+      (failure) => {
+        logDiagnostic(failure, "request_failed", { provider: "blob" });
+        return false;
+      },
+    );
+    if (removed)
+      await db()
+        .updateTable("agent21_files")
+        .set({ state: "rejected", upload_token_expires_at: null })
+        .where("id", "=", id)
+        .execute();
     throw error;
   }
   // The upload is in place, so its token no longer delays deleting the file.

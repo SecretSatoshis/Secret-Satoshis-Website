@@ -250,9 +250,8 @@ button:disabled {
   padding-top: 9vh;
   text-align: center;
 }
-.a21-empty > span {
-  font-size: 40px;
-  color: var(--a21-orange);
+.a21-empty > .a21-agent {
+  margin-bottom: 18px;
 }
 .a21-empty h1 {
   font:
@@ -297,10 +296,6 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 10px;
-}
-.a21-speaker span {
-  color: var(--a21-orange);
-  font-size: 20px;
 }
 .a21-markdown h1,
 .a21-markdown h2,

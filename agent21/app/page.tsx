@@ -5,6 +5,7 @@ import { configured } from "../lib/agent21/config";
 import { Chat } from "../components/agent21/chat";
 import { loadExampleFacts } from "../components/agent21/landing/example-facts";
 import { Landing } from "../components/agent21/landing/landing";
+import type { Access } from "../components/agent21/landing/parts";
 import {
   loadChainHeight,
   loadPriceOdds,
@@ -45,20 +46,18 @@ export const metadata: Metadata = {
 };
 
 export default async function AgentPage() {
-  let allowed = false,
-    signedIn = false;
+  let access: Access = "soon";
   if (configured()) {
+    access = "open";
     const { userId } = await auth();
-    signedIn = Boolean(userId);
     if (userId) {
-      try {
-        allowed = await hasAccess(userId);
-      } catch {
-        /* Public beta landing stays usable during a backend outage. */
-      }
+      // The landing stays up during a database outage, and says so rather
+      // than telling an invited account it has no access.
+      const allowed = await hasAccess(userId).catch(() => null);
+      if (allowed) return <Chat />;
+      access = allowed === null ? "unavailable" : "denied";
     }
   }
-  if (allowed) return <Chat />;
   // All three sources load together; the Polymarket ladder waits only for the
   // close it is drawn around.
   const factsLoad = loadExampleFacts();
@@ -72,11 +71,5 @@ export default async function AgentPage() {
       })),
     ),
   ]);
-  return (
-    <Landing
-      access={!configured() ? "soon" : signedIn ? "denied" : "open"}
-      facts={facts}
-      live={{ chain, odds }}
-    />
-  );
+  return <Landing access={access} facts={facts} live={{ chain, odds }} />;
 }

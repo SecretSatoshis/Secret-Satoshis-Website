@@ -21,7 +21,7 @@
   --display:   'Syne', sans-serif;
   --nav-safe-top: env(safe-area-inset-top, 0px);
   --nav-h:     calc(64px + var(--nav-safe-top));
-  --max-w:     1120px;
+  --max-w:     1360px;
   --gutter:    clamp(20px, 5vw, 60px);
 }
 
@@ -63,8 +63,7 @@ body::after {
   z-index: 9999;
 }
 
-::selection,
-.chat-msg.from-agent .chat-msg-avatar {
+::selection {
   background: var(--accent);
   color: var(--bg);
 }
@@ -210,52 +209,47 @@ section {
 
 /* ─── HERO ────────────────────────────────────────── */
 
+/* The hero is the Agent 21 site's (css/agent21-face.css, .a21-hero): its box,
+   grid, agent, type and button live there. Here: the fixed nav it sits
+   under, the side gutters, the trust line's type and the no-script logo. */
 .hero {
-  min-height: 100vh;
+  --a21-hero-header: var(--nav-h);
+  --a21-hero-under: var(--nav-h);
   display: flex;
-  align-items: center;
-  padding: 80px var(--gutter);
-  padding-top: calc(var(--nav-h) + 16px);
-  position: relative;
-  overflow: hidden;
-}
-
-.hero::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 800px;
-  height: 800px;
-  background: radial-gradient(
-    ellipse at center,
-    rgba(247,147,26,0.03) 0%,
-    transparent 70%
-  );
-  pointer-events: none;
+  align-items: stretch;
+  padding-inline: var(--gutter);
 }
 
 .hero-inner {
-  display: grid;
-  grid-template-columns: 1.1fr 1fr;
-  gap: 48px;
-  align-items: center;
   max-width: var(--max-w);
   margin: 0 auto;
   width: 100%;
 }
 
-/* Hero mark */
-.hero-mark {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.hero-agent {
+  display: block;
+  border-radius: 31%;
+}
+
+.hero-agent:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 10px;
+}
+
+/* Without scripts the logo shows instead of the agent, at the agent's size.
+   The noscript is unwrapped only here: with scripts on, its contents are raw
+   text that display: contents would lay out in the hero. */
+@media (scripting: none) {
+  .hero-stage { display: none; }
+  .hero-mark noscript { display: contents; }
 }
 
 .hero-logo-container {
-  width: clamp(280px, 38vw, 420px);
-  height: clamp(280px, 38vw, 420px);
+  grid-row: 2;
+  align-self: center;
+  justify-self: center;
+  width: var(--a21-s);
+  height: var(--a21-s);
 }
 
 .hero-logo-img {
@@ -271,55 +265,10 @@ section {
   50% { filter: drop-shadow(0 0 25px rgba(247,147,26,0.15)); }
 }
 
-.hero-content {
-  position: relative;
-}
-
-.hero-title-label {
-  font-family: var(--mono);
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  color: var(--text-mute);
-  text-transform: uppercase;
-  margin-bottom: 24px;
-}
-
-.hero-title-label .accent { color: var(--accent); }
-
-.hero-headline {
-  font-family: var(--display);
-  font-weight: 700;
-  font-size: clamp(22px, 3vw, 32px);
-  line-height: 1.2;
-  color: var(--white);
-  letter-spacing: -0.01em;
-  margin-bottom: 16px;
-}
-
-.hero-headline .accent { color: var(--accent); }
-
-.hero-sub {
-  font-size: 13px;
-  color: var(--text-dim);
-  line-height: 1.75;
-  max-width: 420px;
-}
-
-.hero-actions {
-  display: flex;
-  margin-top: 24px;
-}
-
-.hero-cta {
-  padding-inline: 24px;
-}
-
+/* The trust line closes the copy, above the shared dashed rule. */
 .hero-trust {
-  margin-top: 24px;
-  padding-top: 24px;
-  border-top: 1px dashed var(--border);
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   font-size: 12px;
   font-weight: 700;
@@ -384,411 +333,324 @@ section {
   line-height: 1.75;
 }
 
-/* Chat window */
-.chat-window {
-  background: #060610;
+/* The example chat: the Agent 21 site's example cards
+   (agent21/app/landing.css, .uc-chat) on this page's tokens, built and played
+   by js/agent21-chat.js. Each message waits hidden in its place, so nothing
+   moves as the conversation plays. */
+.chat {
+  display: grid;
+  gap: 18px;
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 24px;
   border: 1px solid var(--border);
   border-radius: 12px;
-  overflow: hidden;
-  margin-bottom: 32px;
-  max-width: 720px;
-  margin-left: auto;
-  margin-right: auto;
+  background: var(--surface);
 }
 
 .chat-bar {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 20px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-}
-
-.chat-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--accent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--bg);
-  flex-shrink: 0;
-}
-
-.chat-bar-info { display: flex; flex-direction: column; gap: 1px; }
-
-.chat-bar-name {
-  font-family: var(--mono);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--white);
-}
-
-.chat-bar-status {
-  font-size: 11px;
-  color: var(--text-mute);
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.chat-bar-status::before {
-  content: '';
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--text-mute);
-  transition: background 0.25s ease, box-shadow 0.25s ease;
-}
-
-.chat-bar-status.is-live {
-  color: var(--accent);
-}
-
-.chat-bar-status.is-live::before {
-  background: var(--accent);
-  box-shadow: 0 0 8px rgba(247,147,26,0.35);
-}
-
-.chat-body:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-}
-
-.chat-body {
-  padding: 24px 20px;
-  min-height: 420px;
-  max-height: 560px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.chat-startup {
-  padding: 14px 16px;
-  background: rgba(247,147,26,0.025);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  color: var(--text-mute);
-}
-
-.chat-system-line {
-  opacity: 0;
-  transform: translateY(4px);
-  transition: opacity 0.25s ease, transform 0.25s ease;
-}
-
-.chat-system-line + .chat-system-line {
-  margin-top: 5px;
-}
-
-.chat-system-line.show {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.chat-system-line.is-live {
-  color: var(--accent);
-}
-
-/* Chat bubbles */
-.chat-msg {
-  display: flex;
-  gap: 10px;
-  max-width: 85%;
-  opacity: 0;
-  transform: translateY(8px);
-  transition: all 0.4s ease;
-}
-
-.chat-msg.show {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.chat-msg.from-agent { align-self: flex-start; }
-.chat-msg.from-trey { align-self: flex-end; flex-direction: row-reverse; }
-
-.chat-msg-avatar {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  font-weight: 700;
-  margin-top: 2px;
-}
-
-.chat-msg.from-trey .chat-msg-avatar {
-  background: var(--border-hi);
-  color: var(--text-dim);
-  font-size: 11px;
-}
-
-.chat-bubble {
-  padding: 12px 16px;
-  border-radius: 18px;
-  font-size: 14px;
-  line-height: 1.6;
-}
-
-.chat-speaker {
-  display: block;
-  margin-bottom: 4px;
-  font-family: var(--mono);
+  justify-content: space-between;
+  gap: 12px;
   font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-mute);
 }
 
-.chat-msg.from-agent .chat-speaker {
+.chat-log {
+  display: grid;
+  gap: 22px;
+}
+
+.chat-user {
+  justify-self: end;
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+  max-width: 85%;
+}
+
+.chat-user-name,
+.chat-name {
+  font-weight: 500;
+  color: var(--text);
+}
+
+.chat-user p {
+  padding: 10px 14px;
+  border: 1px solid var(--border-hi);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.chat-msg {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.chat-msg-body {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.chat-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.chat-chip {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   color: var(--accent);
 }
 
-.chat-message-text {
-  display: block;
+.chat-step {
+  padding: 8px 12px;
+  border-left: 2px solid rgba(247,147,26,0.35);
+  background: rgba(247,147,26,0.08);
+  font-size: 11px;
+  color: var(--text-dim);
 }
 
-.chat-msg.from-agent .chat-bubble {
-  background: var(--surface-2);
+.chat-answer {
+  display: grid;
+  gap: 12px;
+  color: var(--text-dim);
+}
+
+.chat-answer strong {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.chat-source {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 11px;
+  color: var(--text-mute);
+}
+
+.chat-source a { color: var(--text); }
+.chat-source a:hover { color: var(--accent); }
+
+/* Playing: a message fades in when its turn comes; a reply's step shows while
+   it thinks, its words (then its chart) fade in in order 28ms apart, and its
+   source shows when it is done. */
+.chat-user,
+.chat-msg,
+.chat-source {
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.chat-log [data-phase="waiting"] {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.chat-msg:not([data-phase="answering"], [data-phase="done"]) :is(.chat-w, .chat-block),
+.chat-msg:not([data-phase="done"]) .chat-source {
+  opacity: 0;
+}
+
+.chat-msg[data-phase="answering"] :is(.chat-w, .chat-block) {
+  opacity: 0;
+  animation: chat-reveal 0.3s ease forwards;
+  animation-delay: calc(var(--i) * 28ms);
+}
+
+@keyframes chat-reveal {
+  to { opacity: 1; }
+}
+
+.chat-chart {
+  margin-top: 4px;
+  padding: 14px;
   border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #060610;
+}
+
+.chat-chart-t {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  font-size: 10px;
+  color: var(--text-mute);
+}
+
+.chat-chart-t span:first-child { color: var(--text); }
+
+/* Hover readout: a crosshair or the week's column, and its values; .chat-sr
+   speaks keyboard choices to screen readers. */
+.chat-plot { position: relative; }
+
+.chat-plot svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: 10px;
+  font-family: var(--mono);
+  cursor: crosshair;
+  touch-action: pan-y;
+}
+
+.chat-plot svg:focus { outline: none; }
+
+.chat-plot svg:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 4px;
+}
+
+.chat-cross line {
+  stroke: var(--text-mute);
+  stroke-dasharray: 3 3;
+}
+
+.chat-cross circle {
+  stroke: #060610;
+  stroke-width: 1.5;
+}
+
+.chat-week { fill: #ffffff0f; }
+
+.chat-tip {
+  position: absolute;
+  top: 10px;
+  z-index: 2;
+  display: grid;
+  gap: 3px;
+  min-width: 176px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-hi);
+  border-radius: 6px;
+  background: #0b0b12f0;
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--text-dim);
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateX(12px);
+}
+
+.chat-tip[hidden] { display: none; }
+.chat-tip[data-side="left"] { transform: translateX(calc(-100% - 12px)); }
+
+.chat-tip b {
+  margin-bottom: 2px;
+  font-weight: 600;
   color: var(--text);
-  border-bottom-left-radius: 4px;
 }
 
-.chat-msg.from-trey .chat-bubble {
-  background: rgba(247,147,26,0.1);
-  border: 1px solid rgba(247,147,26,0.18);
-  color: var(--text);
-  border-bottom-right-radius: 4px;
-  font-size: 13px;
-}
-
-/* Typing indicator */
-.chat-typing {
-  display: inline-flex;
-  gap: 4px;
-  padding: 4px 0;
-}
-
-.chat-typing span {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--text-mute);
-  animation: typingDot 1.4s ease-in-out infinite;
-}
-.chat-typing span:nth-child(2) { animation-delay: 0.2s; }
-.chat-typing span:nth-child(3) { animation-delay: 0.4s; }
-
-@keyframes typingDot {
-  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
-  30% { opacity: 1; transform: translateY(-4px); }
-}
-
-/* Continue conversation link */
-.chat-continue {
+.chat-tip div {
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 12px 20px;
-  background: rgba(247,147,26,0.06);
-  border-top: 1px solid var(--border);
-  font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--accent);
-  text-decoration: none;
-  border-radius: 0 0 12px 12px;
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transition: opacity 0.4s ease, visibility 0s linear 0.4s, background 0.2s ease;
+  gap: 6px;
 }
 
-.chat-continue.show {
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
-  transition: opacity 0.4s ease, visibility 0s, background 0.2s ease;
+.chat-tip i {
+  width: 8px;
+  height: 2px;
 }
 
-.chat-continue:hover {
-  background: rgba(247,147,26,0.12);
+.chat-tip span {
+  margin-left: auto;
+  padding-left: 14px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
 
-.agent-cta {
-  display: inline-flex;
+.chat-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The ask bar closes the chat like a message box: one link to Agent 21,
+   lit once Agent 21 asks what's next. */
+.chat-ask {
+  display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 14px 28px;
-  background: var(--accent);
-  color: var(--bg);
-  font-family: var(--mono);
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 6px;
+  padding: 8px 8px 8px 18px;
+  border: 1px solid var(--border-hi);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--text-mute);
   font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  border: none;
+  transition: border-color 0.4s ease, color 0.2s ease;
+}
+
+.chat.is-done .chat-ask { border-color: rgba(247,147,26,0.5); }
+.chat-ask:hover { border-color: var(--accent); color: var(--text); }
+
+.chat-ask:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+.chat-ask-go {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 18px;
+  padding: 10px 14px;
   border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.25s;
-  text-decoration: none;
-}
-.agent-cta:hover {
-  background: var(--white);
-  color: var(--bg);
-  transform: translateY(-1px);
-  box-shadow: 0 8px 30px rgba(247,147,26,0.15);
+  background: var(--accent);
+  color: #08080c;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background 0.2s ease;
 }
 
-/* ─── PLATFORM ────────────────────────────────────── */
+.chat-ask:hover .chat-ask-go { background: #ffc170; }
 
-.platform .section-label {
+/* Without scripts there is no conversation; the ask bar stays. */
+@media (scripting: none) {
+  .chat-bar,
+  .chat-log { display: none; }
+  .chat-ask { margin-top: 0; }
+}
+
+@media (max-width: 580px) {
+  .chat { padding: 18px 16px; }
+  .chat-msg { grid-template-columns: minmax(0, 1fr); }
+
+  /* Narrow charts show the readout under the plot instead of over it. */
+  .chat-tip[data-side] {
+    position: static;
+    margin-top: 8px;
+    transform: none;
+  }
+}
+
+/* ─── RESOURCES ───────────────────────────────────── */
+
+.resources .section-label {
   text-align: center;
 }
 
-.platform-intro,
 .resources-title {
   font-family: var(--display);
   font-weight: 700;
   font-size: clamp(20px, 2.5vw, 28px);
   color: var(--white);
   margin-bottom: 8px;
-  text-align: center;
-}
-
-.platform-sub {
-  color: var(--text-dim);
-  font-size: 14px;
-  margin-bottom: 48px;
-  text-align: center;
-}
-
-.platform-layers {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  position: relative;
-  padding-left: 24px;
-}
-
-/* Orange progress track on the left */
-.platform-track {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: var(--border);
-  border-radius: 2px;
-}
-
-.platform-track-fill {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 0%;
-  background: var(--accent);
-  border-radius: 2px;
-  transition: height 0.15s linear;
-}
-
-/* Card style layers */
-.platform-layer {
-  display: block;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 28px 32px;
-  position: relative;
-  overflow: hidden;
-  transition: border-color 0.5s ease, box-shadow 0.5s ease;
-  cursor: pointer;
-  color: inherit;
-  text-decoration: none;
-}
-
-.platform-layer:hover {
-  border-color: var(--accent);
-  box-shadow: 0 0 20px rgba(247,147,26,0.06), inset 0 0 30px rgba(247,147,26,0.02);
-}
-
-.layer-card-top {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 10px;
-}
-
-.layer-tag {
-  font-family: var(--mono);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-mute);
-  padding: 5px 12px;
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  transition: all 0.4s ease;
-  white-space: nowrap;
-}
-
-.platform-layer:hover .layer-tag {
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
-.layer-title {
-  font-family: var(--display);
-  font-weight: 700;
-  font-size: 18px;
-  color: var(--white);
-}
-
-.layer-desc {
-  color: var(--text-dim);
-  font-size: 13px;
-  line-height: 1.7;
-  max-width: 600px;
-  margin-top: 8px;
-}
-
-.layer-cta {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 14px;
-  font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--accent);
-  text-decoration: none;
-  transition: color 0.2s;
-}
-
-.layer-cta:hover {
-  color: var(--white);
-}
-
-/* ─── RESOURCES ───────────────────────────────────── */
-
-.resources .section-label {
   text-align: center;
 }
 
@@ -1170,11 +1032,6 @@ footer {
     transition-duration: 0.01ms !important;
   }
 
-  .chat-msg {
-    opacity: 1;
-    transform: none;
-  }
-
   .section-divider::before {
     transform: scaleX(1);
   }
@@ -1188,41 +1045,6 @@ footer {
   /* Reduce section padding on mobile */
   section {
     padding: 48px var(--gutter);
-  }
-
-  .hero {
-    min-height: auto;
-    padding: 48px var(--gutter);
-    padding-top: calc(var(--nav-h) + 16px);
-  }
-
-  .hero-inner {
-    grid-template-columns: 1fr;
-    gap: 32px;
-  }
-
-  .hero-logo-container {
-    width: clamp(240px, 60vw, 320px);
-    height: clamp(240px, 60vw, 320px);
-  }
-
-  .hero-content {
-    text-align: center;
-    align-items: center;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .hero-actions {
-    justify-content: center;
-  }
-
-  .hero-trust {
-    flex-wrap: wrap;
-    gap: 6px;
-    font-size: 12px;
-    letter-spacing: 0;
-    justify-content: center;
   }
 
   .agent-header {
@@ -1239,17 +1061,8 @@ footer {
     line-height: 1.3;
   }
 
-  .chat-window {
-    margin-bottom: 24px;
-  }
-
-  .chat-body {
-    max-height: 520px;
-  }
-
   /* Prevent horizontal overflow */
   .container,
-  .chat-window,
   .subscribe-box {
     max-width: 100%;
     overflow-x: hidden;
@@ -1283,23 +1096,6 @@ footer {
 
   .nav-toggle {
     display: flex;
-  }
-
-  .platform-sub {
-    margin-bottom: 32px;
-  }
-
-  .platform-layer {
-    padding: 20px;
-  }
-
-  .layer-title {
-    font-size: 15px;
-  }
-
-  .layer-desc {
-    font-size: 12px;
-    line-height: 1.65;
   }
 
   .resources-sub {
@@ -1357,10 +1153,13 @@ footer {
 
 }
 
+/* iOS zooms the page into a focused field set under 16px, so touch screens get 16px. */
+@media (pointer: coarse) {
+  .subscribe-input { font-size: 16px; }
+}
+
 /* ═══════════════════════════════════════════════════════════════
    NEWSLETTER — outlook tracker + cadence ladder
-   The rail reuses .platform-track / .platform-track-fill from the
-   platform section so both sections share one device.
    ═══════════════════════════════════════════════════════════════ */
 
 .newsletter-inner .outlook,
@@ -1627,7 +1426,30 @@ footer {
    ladder's 24px inset, so shifting it left by 21px centres it on the nodes, which
    sit above it so the fill reads as passing behind them. Each node lights as
    the fill reaches it. */
-.ladder .platform-track { z-index: 0; left: -21px; }
+/* The rail: a track down the left of the ladder, filled in orange from the
+   top as the ladder scrolls by (js/main.js). */
+.ladder-track {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 0;
+  left: -21px;
+  width: 3px;
+  background: var(--border);
+  border-radius: 2px;
+}
+
+.ladder-track-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 0%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: height 0.15s linear;
+}
+
 .ladder .rung { z-index: 1; }
 
 .rung.is-lit::before {
@@ -1642,3 +1464,12 @@ footer {
   border-color: var(--accent);
   box-shadow: 0 0 24px rgba(247, 147, 26, 0.07), inset 0 0 40px rgba(247, 147, 26, 0.02);
 }
+
+/* Phones: the trust line closes up so it fits on one line. */
+@media (max-width: 580px) {
+  .hero-trust {
+    gap: 6px;
+    letter-spacing: 0;
+  }
+}
+

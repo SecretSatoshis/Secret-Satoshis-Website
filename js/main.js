@@ -1,236 +1,3 @@
-/* ═══ CHAT ANIMATION ═══ */
-document.addEventListener('DOMContentLoaded', initChat);
-
-function initChat() {
-  const chatBody = document.getElementById('chatBody');
-  const chatWindow = document.getElementById('chatWindow');
-  const chatContinue = document.getElementById('chatContinue');
-  const chatBarStatus = document.getElementById('chatBarStatus');
-  if (!chatBody || !chatWindow) return;
-
-  let conversationStarted = false;
-
-  async function runConversation() {
-    if (conversationStarted) return;
-    conversationStarted = true;
-    chatBody.setAttribute('aria-busy', 'true');
-
-    const startup = document.createElement('div');
-    startup.className = 'chat-startup';
-    startup.setAttribute('aria-label', 'Agent 21 startup status');
-    chatBody.appendChild(startup);
-
-    await addStartupLine(startup, '// AGENT 21 STARTUP');
-    await addStartupLine(startup, 'BITCOIN NODE STATUS // SYNCED');
-    await addStartupLine(startup, `LATEST DATA // ${getSessionDateLabel()}`);
-    await addStartupLine(startup, 'STATUS // ● LIVE', 'live');
-
-    if (chatBarStatus) {
-      chatBarStatus.textContent = 'Live';
-      chatBarStatus.classList.add('is-live');
-    }
-
-    await pacedDelay(250);
-    await addParticipantReply(
-      chatBody,
-      'agent',
-      'Hey—Agent 21 here. Online and ready to go.',
-      true
-    );
-    await pacedDelay(200);
-    await addParticipantReply(chatBody, 'trey', 'Hey, Agent 21.', false);
-    await pacedDelay(200);
-    await addParticipantReply(
-      chatBody,
-      'agent',
-      'Hey, Trey. What are we discussing today?',
-      true
-    );
-    await pacedDelay(200);
-    await addParticipantReply(
-      chatBody,
-      'trey',
-      'Let’s talk through what happened last week in Bitcoin markets so I get back up to speed.',
-      false
-    );
-    await pacedDelay(200);
-    await addParticipantReply(
-      chatBody,
-      'agent',
-      'Sounds good. I’ve got the latest market data, news flow, and on-chain data ready. Starting my review now.',
-      true
-    );
-
-    if (chatContinue) chatContinue.classList.add('show');
-    chatBody.setAttribute('aria-busy', 'false');
-  }
-
-  let chatIsVisible = false;
-  let userHasEngaged = false;
-  let dwellTimer = null;
-
-  function maybeStartConversation() {
-    if (!chatIsVisible || !userHasEngaged || conversationStarted) return;
-    chatObs.disconnect();
-    clearTimeout(dwellTimer);
-    CHAT_ENGAGEMENT_EVENTS.forEach(type => window.removeEventListener(type, registerEngagement));
-    runConversation();
-  }
-
-  function registerEngagement() {
-    userHasEngaged = true;
-    maybeStartConversation();
-  }
-
-  const chatObs = new IntersectionObserver((entries) => {
-    chatIsVisible = entries[0].isIntersecting;
-    // A reader who lands on the chat (a #agent link, a tall screen) never scrolls
-    // to it. Staying on it for a moment counts as engagement.
-    clearTimeout(dwellTimer);
-    if (chatIsVisible) dwellTimer = setTimeout(registerEngagement, CHAT_DWELL_MS);
-    maybeStartConversation();
-  }, { threshold: 0.3 });
-
-  chatObs.observe(chatWindow);
-
-  // Wait until initial browser scroll restoration has settled, so a restored
-  // position does not count as the reader scrolling to the chat.
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      CHAT_ENGAGEMENT_EVENTS.forEach(type =>
-        window.addEventListener(type, registerEngagement, { passive: true }));
-    });
-  });
-}
-
-const CHAT_ENGAGEMENT_EVENTS = ['scroll', 'pointerdown', 'keydown'];
-const CHAT_DWELL_MS = 1200;
-
-const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-
-const pacedDelay = ms => prefersReducedMotion.matches ? Promise.resolve() : delay(ms);
-
-function getSessionDateLabel() {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  }).format(new Date()).toUpperCase();
-}
-
-async function addStartupLine(container, text, tone = '') {
-  const line = document.createElement('div');
-  line.className = `chat-system-line${tone ? ` is-${tone}` : ''}`;
-  line.textContent = text;
-  container.appendChild(line);
-  requestAnimationFrame(() => line.classList.add('show'));
-  await pacedDelay(200);
-}
-
-async function addParticipantReply(chatBody, from, text, typewrite) {
-  if (!prefersReducedMotion.matches) {
-    const typingEl = addTyping(chatBody, from);
-    const typingDuration = 350;
-    await delay(typingDuration);
-    typingEl.remove();
-  }
-  return addMessage(chatBody, from, text, typewrite);
-}
-
-function addMessage(chatBody, from, text, typewrite) {
-  return new Promise(resolve => {
-    const msg = document.createElement('div');
-    msg.className = `chat-msg from-${from}`;
-    const speakerName = from === 'agent' ? 'Agent 21' : 'Trey Brunson';
-
-    const avatar = document.createElement('div');
-    avatar.className = 'chat-msg-avatar';
-    avatar.textContent = from === 'agent' ? '₿' : 'TB';
-    avatar.setAttribute('aria-hidden', 'true');
-
-    const bubble = document.createElement('div');
-    bubble.className = 'chat-bubble';
-
-    const speaker = document.createElement('span');
-    speaker.className = 'chat-speaker';
-    speaker.textContent = speakerName;
-
-    const messageText = document.createElement('span');
-    messageText.className = 'chat-message-text';
-
-    msg.appendChild(avatar);
-    msg.appendChild(bubble);
-    bubble.appendChild(speaker);
-    bubble.appendChild(messageText);
-    chatBody.appendChild(msg);
-
-    // Animate in
-    requestAnimationFrame(() => {
-      msg.classList.add('show');
-    });
-
-    if (typewrite && from === 'agent' && !prefersReducedMotion.matches) {
-      messageText.setAttribute('aria-hidden', 'true');
-
-      let i = 0;
-      const type = () => {
-        if (i < text.length) {
-          messageText.textContent += text[i];
-          i++;
-          // Follow the text as it grows past the transcript's max-height.
-          chatBody.scrollTop = chatBody.scrollHeight;
-          setTimeout(type, 10);
-        } else {
-          const announcement = document.createElement('span');
-          announcement.className = 'visually-hidden';
-          announcement.textContent = `${speakerName}: ${text}`;
-          bubble.insertBefore(announcement, messageText);
-          resolve(msg);
-        }
-      };
-      type();
-    } else {
-      messageText.textContent = text;
-      resolve(msg);
-    }
-
-    // Scroll
-    chatBody.scrollTop = chatBody.scrollHeight;
-  });
-}
-
-function addTyping(chatBody, from = 'agent') {
-  const msg = document.createElement('div');
-  msg.className = `chat-msg from-${from} show`;
-  msg.setAttribute('aria-hidden', 'true');
-
-  const avatar = document.createElement('div');
-  avatar.className = 'chat-msg-avatar';
-  avatar.textContent = from === 'agent' ? '₿' : 'TB';
-
-  const bubble = document.createElement('div');
-  bubble.className = 'chat-bubble';
-
-  const speaker = document.createElement('span');
-  speaker.className = 'chat-speaker';
-  speaker.textContent = from === 'agent' ? 'Agent 21' : 'Trey Brunson';
-
-  const typing = document.createElement('div');
-  typing.className = 'chat-typing';
-  for (let i = 0; i < 3; i++) {
-    typing.appendChild(document.createElement('span'));
-  }
-  bubble.appendChild(speaker);
-  bubble.appendChild(typing);
-
-  msg.appendChild(avatar);
-  msg.appendChild(bubble);
-  chatBody.appendChild(msg);
-  chatBody.scrollTop = chatBody.scrollHeight;
-  return msg;
-}
-
 /* ═══ NAV TOGGLE ═══ */
 const navToggleBtn = document.getElementById('navToggle');
 const navLinks = document.getElementById('navLinks');
@@ -286,79 +53,67 @@ const dividerObs = new IntersectionObserver((entries) => {
 
 dividers.forEach(el => dividerObs.observe(el));
 
-/* ═══ SCROLL-FILLED RAILS ═══ */
-/* Shared by the platform layers and the newsletter ladder. */
-function initScrollRail(containerId, fillId, onProgress) {
-  const container = document.getElementById(containerId);
-  const trackFill = document.getElementById(fillId);
-  if (!container || !trackFill) return;
-
-  function updateTrack() {
-    const rect = container.getBoundingClientRect();
-    const viewH = window.innerHeight;
-    const scrollStart = viewH * 0.6;
-    const progress = Math.min(1, Math.max(0, (scrollStart - rect.top) / rect.height));
-    // The newsletter's visible rail starts at Weekly, below its outlook introduction.
-    const railRect = trackFill.parentElement.getBoundingClientRect();
-    const railProgress = Math.min(1, Math.max(0, (scrollStart - railRect.top) / railRect.height));
-    trackFill.style.height = (railProgress * 100) + '%';
-    if (onProgress) onProgress(progress, rect.height * progress);
-  }
-
-  let ticking = false;
-  function requestTrackUpdate() {
-    if (ticking) return;
-    ticking = true;
-    requestAnimationFrame(() => {
-      updateTrack();
-      ticking = false;
-    });
-  }
-
-  window.addEventListener('scroll', requestTrackUpdate, { passive: true });
-  window.addEventListener('resize', requestTrackUpdate);
-  // The newsletter rail changes height when the live outlook finishes loading.
-  if (typeof ResizeObserver !== 'undefined') {
-    new ResizeObserver(requestTrackUpdate).observe(container);
-  }
-  updateTrack();
-}
-
-initScrollRail('platformLayers', 'trackFill');
-
-/* Begin at the content heading's slashes, follow its short connector into the
-   yearly node and tracker, then resume the rail at Weekly and finish at Subscribe. */
+/* ═══ NEWSLETTER LADDER RAIL ═══ */
+/* The rail fills as the ladder scrolls by. It begins at the content heading's slashes,
+   follows its short connector into the yearly node and tracker, then resumes at Weekly
+   and finishes at Subscribe; each node lights as the fill reaches it. */
 const ladder = document.getElementById('newsletterLadder');
-if (ladder) {
+const ladderFill = document.getElementById('ladderFill');
+if (ladder && ladderFill) {
   const heading = ladder.querySelector('.ladder-heading');
   const introTrack = ladder.querySelector('.ladder-intro-track');
   const introFill = ladder.querySelector('.ladder-intro-fill');
   const rungs = ladder.querySelectorAll('.rung');
   const tracker = document.getElementById('outlookTracker');
   const box = document.querySelector('#newsletter .subscribe-box');
+  const share = (value) => Math.min(1, Math.max(0, value));
 
-  initScrollRail('newsletterLadder', 'ladderFill', (progress, filledPx) => {
-    const ladderTop = ladder.getBoundingClientRect().top;
+  function updateLadder() {
+    const rect = ladder.getBoundingClientRect();
+    const scrollStart = window.innerHeight * 0.6;
+    const progress = share((scrollStart - rect.top) / rect.height);
+    const filledPx = rect.height * progress;
+    // The visible rail starts at Weekly, below the outlook introduction.
+    const railRect = ladderFill.parentElement.getBoundingClientRect();
+    ladderFill.style.height = (share((scrollStart - railRect.top) / railRect.height) * 100) + '%';
+
     if (heading && introTrack && introFill) {
       heading.classList.toggle('is-lit', filledPx > 4);
       const introRect = introTrack.getBoundingClientRect();
-      const introTop = introRect.top - ladderTop;
-      const introProgress = Math.min(1, Math.max(0, (filledPx - introTop) / introRect.height));
-      introFill.style.height = (introProgress * 100) + '%';
+      const introTop = introRect.top - rect.top;
+      introFill.style.height = (share((filledPx - introTop) / introRect.height) * 100) + '%';
     }
 
     rungs.forEach((rung) => {
-      const rungTop = rung.getBoundingClientRect().top - ladderTop;
+      const rungTop = rung.getBoundingClientRect().top - rect.top;
       rung.classList.toggle('is-lit', filledPx >= rungTop + 10.5);
     });
 
     if (tracker && !tracker.hidden) {
-      const trackerTop = tracker.getBoundingClientRect().top - ladderTop;
+      const trackerTop = tracker.getBoundingClientRect().top - rect.top;
       tracker.classList.toggle('is-lit', filledPx >= trackerTop + 16);
     }
 
     if (box) box.classList.toggle('is-lit', progress >= 0.995);
-  });
+  }
+
+  let ticking = false;
+  function requestLadderUpdate() {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      updateLadder();
+      ticking = false;
+    });
+  }
+
+  window.addEventListener('scroll', requestLadderUpdate, { passive: true });
+  window.addEventListener('resize', requestLadderUpdate);
+  // The ladder changes height when the live outlook finishes loading.
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(requestLadderUpdate).observe(ladder);
+  }
+  updateLadder();
 }
 
 /* ═══ OUTLOOK TRACKER ═══ */
@@ -735,4 +490,195 @@ function formatAsOf(isoDate) {
   return new Intl.DateTimeFormat('en-US', {
     day: 'numeric', month: 'short', year: 'numeric'
   }).format(d);
+}
+
+/* ═══ AGENT 21 EXAMPLE DATA ═══ */
+/*
+ * The figures in the homepage's Agent 21 example (js/agent21-chat.js, which calls
+ * loadSinceYouLeft() and loadChain()): Bitcoin's price since Satoshi left, from the
+ * Report Library's published candles, and its supply, live from BRK. Like the tracker
+ * each fails closed: if a source cannot be fetched or read, or the candles do not
+ * match the release manifest, the example answers without those figures.
+ */
+const CANDLES_FILE = 'bitcoin_candles.csv.gz';
+/* Satoshi's last known email, to Mike Hearn: "I've moved on to other things." */
+const SATOSHI_LEFT_ON = '2011-04-23';
+
+async function loadSinceYouLeft() {
+  const [candleBytes, manifestBytes] = await Promise.all([
+    fetchBytes(CSV_BASE + '/' + CANDLES_FILE),
+    fetchBytes(RELEASE_MANIFEST_URL),
+  ]);
+  const text = candleBytes && await gunzipText(candleBytes);
+  const candles = text && parseCandles(text);
+  const facts = candles && sinceYouLeft(candles, SATOSHI_LEFT_ON);
+  if (!facts) {
+    console.warn('Agent 21 example without figures: ' + CANDLES_FILE + ' could not be read.');
+    return null;
+  }
+  const consistent = await matchesReleaseManifest(manifestBytes, facts.reportDate, {
+    [CANDLES_FILE]: candleBytes,
+  });
+  if (!consistent) {
+    console.warn('Agent 21 example without figures: ' + CANDLES_FILE + ' does not match the release manifest.');
+    return null;
+  }
+  return facts;
+}
+
+/* Null where the browser cannot unzip (no DecompressionStream) or the bytes are not gzip. */
+async function gunzipText(bytes) {
+  if (typeof DecompressionStream === 'undefined') return null;
+  try {
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+    return await new Response(stream).text();
+  } catch (err) {
+    return null;
+  }
+}
+
+/*
+ * The daily and weekly candles, oldest first. Any malformed or out-of-order row fails
+ * the whole file: a chart drawn from a misread row would show a price that never traded.
+ */
+function parseCandles(text) {
+  const records = parseCsv(text);
+  if (!records) return null;
+
+  const series = { daily: [], weekly: [] };
+  for (const row of records) {
+    const list = series[row.interval];
+    if (!list) continue;  // monthly
+    const candle = {
+      start: row.period_start,
+      open: Number(row.Open),
+      high: Number(row.High),
+      low: Number(row.Low),
+      close: Number(row.Close),
+      complete: row.complete === 'True',
+    };
+    const { open, high, low, close } = candle;
+    if (!isValidReportDate(candle.start)
+        || (row.complete !== 'True' && row.complete !== 'False')
+        || ![open, high, low, close].every((v) => Number.isFinite(v) && v > 0)
+        || high < Math.max(open, close) || low > Math.min(open, close)) return null;
+    const previous = list[list.length - 1];
+    if (previous && previous.start >= candle.start) return null;
+    list.push(candle);
+  }
+  if (series.daily.length < 2 || series.weekly.length < 2) return null;
+  return series;
+}
+
+/*
+ * What Agent 21 tells Satoshi: the close on the day he left and on the latest completed
+ * day (the release's report date), and every weekly close for the history chart, the
+ * current week to date.
+ */
+function sinceYouLeft({ daily, weekly }, leftOn) {
+  const completed = daily.filter((c) => c.complete);
+  const latest = completed[completed.length - 1];
+  const left = completed.find((c) => c.start === leftOn);
+  if (!latest || !left || latest.start <= leftOn) return null;
+
+  return {
+    leftOn,
+    leftClose: left.close,
+    reportDate: latest.start,
+    close: latest.close,
+    history: weekly.map(({ start, close }) => ({ start, close })),
+  };
+}
+
+/*
+ * The supply answer, live from BRK (the node the Report Library and the Agent 21 site
+ * read): the chain tip's height and the bitcoin mined through it, and the bitcoin mined
+ * by the end of the day Satoshi left. A reply that is malformed, or a mined total that
+ * strays from the issuance schedule, leaves the answer out.
+ */
+const BRK_SERIES = 'https://bitview.space/api/series';
+/* BRK numbers its daily series from this day. */
+const BRK_DAY_ZERO = '2009-01-01';
+const HALVING_INTERVAL = 210000;
+const MAX_SUPPLY = 20999999.9769;
+
+async function loadChain() {
+  const day = Math.round((Date.parse(SATOSHI_LEFT_ON) - Date.parse(BRK_DAY_ZERO)) / 86400000);
+  const [tipBytes, thenBytes] = await Promise.all([
+    fetchBytes(BRK_SERIES + '/subsidy_cumulative/height?start=-1'),
+    fetchBytes(BRK_SERIES + '/subsidy_cumulative/day1?start=' + day + '&end=' + (day + 1)),
+  ]);
+  const chain = parseChain(readJson(tipBytes), readJson(thenBytes), day);
+  if (!chain) console.warn('Agent 21 example without supply: BRK could not be read.');
+  return chain;
+}
+
+function readJson(bytes) {
+  if (!bytes) return null;
+  try {
+    return JSON.parse(decodeText(bytes));
+  } catch (err) {
+    return null;
+  }
+}
+
+/* The one value of a BRK series reply, which must be for the index and position asked. */
+function seriesValue(reply, index, start) {
+  if (!reply || reply.index !== index || reply.start !== start
+      || !Array.isArray(reply.data) || reply.data.length !== 1) return null;
+  const value = reply.data[0];
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+function parseChain(tip, then, day) {
+  const height = tip && tip.start;
+  if (!Number.isInteger(height) || height <= 0) return null;
+  const mined = seriesValue(tip, 'height', height);
+  const minedWhenLeft = seriesValue(then, 'day1', day);
+  // Miners have left a few coins unclaimed, so the mined total sits just under the schedule.
+  const scheduled = scheduledSupply(height);
+  if (mined === null || minedWhenLeft === null || mined > scheduled
+      || scheduled - mined > 1000 || minedWhenLeft >= mined) return null;
+  return {
+    height,
+    mined,
+    minedWhenLeft,
+    left: MAX_SUPPLY - mined,
+    share: mined / MAX_SUPPLY,
+    subsidy: blockSubsidy(height),
+    nextHalving: (Math.floor(height / HALVING_INTERVAL) + 1) * HALVING_INTERVAL,
+    eras: supplyEras(height),
+    retrievedAt: typeof tip.stamp === 'string' ? tip.stamp : null,
+  };
+}
+
+/* The reward for mining block `height`: 50 bitcoin, halved every 210,000 blocks. */
+function blockSubsidy(height) {
+  return 50 / 2 ** Math.floor(height / HALVING_INTERVAL);
+}
+
+/* Bitcoin issued through block `height`, block 0 included, on that schedule. */
+function scheduledSupply(height) {
+  let total = 0;
+  for (let first = 0; first <= height; first += HALVING_INTERVAL) {
+    total += (Math.min(height + 1, first + HALVING_INTERVAL) - first) * blockSubsidy(first);
+  }
+  return total;
+}
+
+/*
+ * The 21 million in halving eras, through the current one, then everything after it as
+ * one: each with its first block, reward, bitcoin issued and the running total at its end.
+ */
+function supplyEras(height) {
+  const eras = [];
+  let end = 0;
+  for (let first = 0; first <= height; first += HALVING_INTERVAL) {
+    const subsidy = blockSubsidy(first);
+    end += HALVING_INTERVAL * subsidy;
+    eras.push({ first, last: first + HALVING_INTERVAL - 1, subsidy, issued: HALVING_INTERVAL * subsidy, end });
+  }
+  const first = eras.length * HALVING_INTERVAL;
+  eras.push({ first, last: null, subsidy: blockSubsidy(first), issued: MAX_SUPPLY - end, end: MAX_SUPPLY });
+  return eras;
 }

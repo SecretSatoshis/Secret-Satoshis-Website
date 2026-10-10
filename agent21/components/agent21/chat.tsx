@@ -30,6 +30,7 @@ import type {
   FileView,
 } from "../../lib/agent21/types";
 import { SITE, isChartFile, terminal } from "../../lib/agent21/types";
+import { AgentAvatar } from "./agent-avatar";
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 async function api<T>(
@@ -43,13 +44,14 @@ async function api<T>(
     body: body ? JSON.stringify(body) : undefined,
     cache: "no-store",
   });
-  const data = await response.json();
-  if (!response.ok) {
+  // A platform error page (a gateway timeout, say) is not JSON.
+  const data = await response.json().catch(() => null);
+  if (!response.ok || data === null) {
     const reference =
-      typeof data.requestId === "string" && uuid.test(data.requestId)
+      typeof data?.requestId === "string" && uuid.test(data.requestId)
         ? ` Reference: ${data.requestId}`
         : "";
-    throw new Error((data.error || "Agent 21 is unavailable.") + reference);
+    throw new Error((data?.error || "Agent 21 is unavailable.") + reference);
   }
   return data;
 }
@@ -161,7 +163,7 @@ function AssistantMessage() {
   return (
     <MessagePrimitive.Root className="a21-message a21-assistant">
       <div className="a21-speaker">
-        <span>₿</span> Agent 21
+        <AgentAvatar size={24} /> Agent 21
       </div>
       <MessagePrimitive.Parts components={{ Text: Markdown }} />
       {files && <Files files={files} />}
@@ -647,7 +649,7 @@ export function Chat() {
             <ThreadPrimitive.Viewport className="a21-viewport">
               <ThreadPrimitive.Empty>
                 <div className="a21-empty">
-                  <span>₿</span>
+                  <AgentAvatar size={88} followPointer float />
                   <h1>What would you like to understand?</h1>
                   <p>
                     Explore Bitcoin with research, current data, and your own

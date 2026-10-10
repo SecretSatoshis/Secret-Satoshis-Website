@@ -41,3 +41,6 @@ CLAUDE.md
 /artifacts/
 /outputs/
 /runs/
+
+# SWC plugin cache from the Agent 21 build, which compiles from the repo root
+.swc/

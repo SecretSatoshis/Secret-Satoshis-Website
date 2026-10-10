@@ -1,0 +1,416 @@
+/* Agent 21's block, shared by the homepage hero and the Agent 21 app with
+   js/agent21-face.js: a soft dark block around a recessed screen in the
+   logo's orange. Set the size as --s; everything inside scales with it. */
+.a21-agent {
+  --glow: 0.3;
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: var(--s);
+  height: var(--s);
+  font-size: calc(var(--s) / 16);
+  vertical-align: middle;
+}
+
+.a21-agent-shell {
+  display: block;
+  position: absolute;
+  inset: 0;
+  border-radius: 31%;
+  background: radial-gradient(120% 95% at 30% 10%, #2b2b3c 0%, #191925 40%, #0e0e15 78%);
+  box-shadow:
+    inset 0 0.09em 0 rgba(255, 255, 255, 0.11),
+    inset 0 -0.55em 1.1em rgba(0, 0, 0, 0.55),
+    inset 0 0 0 0.04em rgba(255, 255, 255, 0.05),
+    0 1.2em 2.2em -0.9em rgba(0, 0, 0, 0.9),
+    0 0 2.8em -0.7em rgba(247, 147, 26, var(--glow));
+}
+
+.a21-agent-screen {
+  display: block;
+  position: absolute;
+  inset: 9%;
+  overflow: hidden;
+  border-radius: 25%;
+  background: radial-gradient(110% 100% at 50% 38%, #fba433 0%, #f7931a 62%, #ec8709 100%);
+  box-shadow:
+    inset 0 0.12em 0.35em rgba(122, 58, 0, 0.5),
+    inset 0 0 0 0.03em rgba(255, 255, 255, 0.14),
+    0 0 0 0.05em rgba(0, 0, 0, 0.55);
+}
+
+.a21-agent-screen canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 0.04em 0.05em rgba(110, 50, 0, 0.35));
+}
+
+.a21-agent-screen::after {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(168deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.05) 34%, transparent 46%);
+  content: "";
+  pointer-events: none;
+}
+
+.a21-agent.is-small .a21-agent-shell {
+  border-radius: 28%;
+}
+
+.a21-agent.is-small .a21-agent-screen {
+  inset: 7%;
+  border-radius: 24%;
+}
+
+.a21-agent.is-small .a21-agent-screen canvas {
+  filter: none;
+}
+
+/* The stage: a soft orange glow behind the agent, with a floor shadow and a
+   status line under it. The figure (agent, floor and status) sizes itself
+   from these parts; in a hero row taller than it, the status drops to the
+   row's bottom while the floor stays under the agent. */
+.a21-stage {
+  --a21-floor-gap: 22px;
+  --a21-floor-h: 26px;
+  --a21-status-gap: 18px;
+  --a21-status-h: 17px;
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.a21-stage::before {
+  position: absolute;
+  inset: -10% -30%;
+  background: radial-gradient(closest-side, rgba(247, 147, 26, 0.2), rgba(247, 147, 26, 0));
+  content: "";
+  pointer-events: none;
+}
+
+.a21-stage-figure {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.a21-stage-meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.a21-stage-floor {
+  display: block;
+  flex: none;
+  width: 70%;
+  height: var(--a21-floor-h);
+  margin: var(--a21-floor-gap) 0 var(--a21-status-gap);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.9), transparent);
+}
+
+.a21-stage .a21-stage-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: auto 0 0;
+  font-size: 10px;
+  line-height: var(--a21-status-h);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #9090a8;
+}
+
+.a21-stage-status i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #f7931a;
+  box-shadow: 0 0 10px #f7931a;
+}
+
+/* The hero, identical on the homepage (.hero) and the Agent 21 site
+   (.r9-hero); only the copy differs. Each site sets two lengths on it:
+   --a21-hero-header, the header above the hero, and --a21-hero-under, how
+   much of that header sits over the hero (the homepage's fixed nav).
+
+   The box is at least 640px and at most 1000px tall below the header, with
+   56px above and below the content. The grid puts the copy on the left and
+   Agent 21 on the right in one middle row, centered: the copy starts level
+   with the top of the agent, and its last line (.a21-hero-rule) sits level
+   with the agent's status, whichever of the two is taller (the agent's
+   column is a subgrid of the same rows). Narrow and portrait screens stack
+   head, agent, then body, centered.
+
+   The agent's status and the copy's last line share one line height
+   (--a21-line), so with their bottoms level their text reads as one line. */
+.a21-hero {
+  --a21-s: min(400px, max(230px, 28vw), max(180px, 100vh - 360px));
+  --a21-line: 20px;
+  position: relative;
+  overflow: hidden;
+  min-height: calc(var(--a21-hero-under, 0px) + clamp(640px, 100vh - var(--a21-hero-header, 0px), 1000px));
+  min-height: calc(var(--a21-hero-under, 0px) + clamp(640px, 100svh - var(--a21-hero-header, 0px), 1000px));
+  padding-block: calc(var(--a21-hero-under, 0px) + 56px) 56px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.a21-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  grid-template-rows: 1fr auto 1fr;
+  grid-template-areas:
+    ".    art"
+    "copy art"
+    ".    art";
+  column-gap: clamp(32px, 5vw, 96px);
+}
+
+.a21-hero-art {
+  grid-area: art;
+  display: grid;
+  grid-template-rows: subgrid;
+}
+
+.a21-hero-stage {
+  --a21-status-h: var(--a21-line);
+  grid-row: 1 / -1;
+  grid-template-rows: subgrid;
+  place-items: normal;
+  justify-items: center;
+}
+
+.a21-hero-stage .a21-agent {
+  --s: var(--a21-s);
+}
+
+.a21-hero-stage .a21-stage-figure {
+  grid-row: 2;
+}
+
+.a21-hero-copy {
+  grid-area: copy;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Above the stage's glow, which reaches into the copy's column. The head is
+   wide enough for a headline line of about 9 times its size. */
+.a21-hero-head,
+.a21-hero-body {
+  position: relative;
+  z-index: 1;
+  max-width: 640px;
+}
+
+.a21-hero-head {
+  max-width: 700px;
+}
+
+.a21-hero-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* The copy: a small orange label (optional), a large tight headline, a 16px
+   lead, the call to action and a dashed rule above the last line. */
+.a21-hero .a21-hero-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  margin: 0 0 24px;
+  font-family: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  font-size: 9px;
+  font-weight: 400;
+  line-height: 1.7;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #f7931a;
+}
+
+.a21-hero .a21-hero-label::before {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #f7931a;
+  box-shadow: 0 0 12px #f7931a55;
+  content: "";
+}
+
+.a21-hero .a21-hero-title {
+  margin: 0;
+  font-family: "Syne", "Helvetica Neue", Arial, sans-serif;
+  font-size: clamp(44px, 5.2vw, 78px);
+  font-weight: 600;
+  line-height: 0.99;
+  letter-spacing: -0.065em;
+  color: #e4e4ef;
+}
+
+.a21-hero .a21-accent {
+  color: #f7931a;
+}
+
+.a21-hero .a21-nowrap {
+  white-space: nowrap;
+}
+
+.a21-hero .a21-hero-lead {
+  max-width: 54ch;
+  margin: 28px 0 40px;
+  font-family: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  font-size: 16px;
+  line-height: 1.7;
+  color: #e4e4ef;
+}
+
+.a21-hero .a21-button {
+  margin-bottom: 24px;
+}
+
+.a21-hero .a21-hero-rule {
+  align-self: stretch;
+  margin-top: auto;
+  padding-top: 24px;
+  border-top: 1px dashed #1c1c2e;
+  line-height: var(--a21-line);
+}
+
+/* The call to action, also used outside the hero. The hover sets the
+   colour too, over each site's a:hover. */
+.a21-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 38px;
+  min-height: 52px;
+  padding: 17px 23px;
+  border: 1px solid #f7931a;
+  border-radius: 2px;
+  background: #f7931a;
+  color: #08080c;
+  font-family: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: normal;
+  text-decoration: none;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
+}
+
+.a21-button:hover {
+  background: #ffc170;
+  border-color: #ffc170;
+  color: #08080c;
+}
+
+.a21-button:focus-visible {
+  outline: 2px solid #f7931a;
+  outline-offset: 5px;
+}
+
+/* The one stacking breakpoint for both heroes. */
+@media (max-width: 820px), (max-width: 1100px) and (orientation: portrait) {
+  .a21-hero {
+    --a21-s: clamp(240px, 30vw, 320px);
+    min-height: 0;
+    padding-block: calc(var(--a21-hero-under, 0px) + 48px) 64px;
+  }
+
+  .a21-hero-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-template-areas:
+      "head"
+      "art"
+      "body";
+    row-gap: 32px;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .a21-hero-art {
+    grid-template-rows: none;
+  }
+
+  .a21-hero-stage,
+  .a21-hero-stage .a21-stage-figure {
+    grid-row: auto;
+    grid-template-rows: none;
+  }
+
+  .a21-hero-copy {
+    display: contents;
+  }
+
+  .a21-hero-head {
+    grid-area: head;
+  }
+
+  .a21-hero-body {
+    grid-area: body;
+    align-items: center;
+  }
+
+  .a21-hero .a21-hero-label {
+    margin-inline: auto;
+  }
+
+  .a21-hero .a21-wide-only {
+    display: none;
+  }
+
+  .a21-hero .a21-hero-lead {
+    max-width: 46ch;
+    margin: 0 auto 40px;
+  }
+
+  .a21-hero .a21-hero-rule {
+    justify-content: center;
+    text-align: center;
+  }
+}
+
+@media (max-width: 580px) {
+  .a21-hero {
+    --a21-s: 200px;
+    padding-top: calc(var(--a21-hero-under, 0px) + 40px);
+  }
+
+  .a21-stage {
+    --a21-floor-gap: 14px;
+  }
+
+  .a21-hero .a21-hero-label {
+    font-size: 8px;
+  }
+
+  /* Sized so the homepage's "Market Intelligence." (8.7 times the font
+     size wide) fits inside the side gutters. */
+  .a21-hero .a21-hero-title {
+    font-size: min(56px, calc((100vw - 48px) / 8.8));
+  }
+
+  .a21-hero .a21-hero-lead {
+    margin-bottom: 32px;
+    font-size: 14px;
+  }
+
+  .a21-button {
+    gap: 28px;
+    padding: 16px 19px;
+    font-size: 11px;
+  }
+}

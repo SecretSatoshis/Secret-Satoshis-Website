@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self' https://secretsatoshis.github.io; form-action https://newsletter.secretsatoshis.com; base-uri 'self'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self' https://secretsatoshis.github.io https://bitview.space; form-action https://newsletter.secretsatoshis.com; base-uri 'self'; object-src 'none'">
 <title>Secret Satoshis | AI-Native Bitcoin Market Intelligence</title>
 <meta name="description" content="Bitcoin intelligence you can verify. Market analysis and open data, built on a decade inside Bitcoin markets.">
 <meta name="author" content="Trey Brunson">
@@ -34,7 +34,8 @@
 <link rel="preload" href="assets/fonts/JetBrainsMono-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/Syne-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="css/fonts.css?v=2">
-<link rel="stylesheet" href="css/style.css?v=27">
+<link rel="stylesheet" href="css/style.css?v=46">
+<link rel="stylesheet" href="css/agent21-face.css?v=8">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -94,32 +95,53 @@
 
 <main id="main-content">
 <!-- ═══ HERO ═══ -->
-<section class="hero">
-  <div class="hero-inner">
-    <div class="hero-mark">
-      <div class="hero-logo-container">
-        <img src="assets/images/hero-logo-840.jpg"
-             srcset="assets/images/hero-logo-420.jpg 420w, assets/images/hero-logo-840.jpg 840w"
-             sizes="(max-width: 768px) 60vw, 38vw"
-             alt="Secret Satoshis" class="hero-logo-img" width="840" height="840" fetchpriority="high">
+<section class="hero a21-hero">
+  <!-- The Agent 21 site's hero (css/agent21-face.css): the copy on the left,
+       Agent 21 on the right; narrow screens stack head, agent, then body. -->
+  <div class="hero-inner a21-hero-grid">
+    <div class="a21-hero-copy">
+      <div class="a21-hero-head">
+        <h1 class="a21-hero-title">
+          <span class="a21-nowrap">AI-Native Bitcoin</span> <br><span class="a21-nowrap">Market Intelligence<span class="a21-accent">.</span></span>
+        </h1>
+      </div>
+      <div class="a21-hero-body">
+        <p class="a21-hero-lead">
+          Market analysis and open data, built on a decade inside Bitcoin markets.
+        </p>
+        <a href="#newsletter" class="a21-button">Follow Our Bitcoin Price Outlook<span aria-hidden="true">↗</span></a>
+        <div class="hero-trust a21-hero-rule">
+          <span>Independent</span>
+          <span>Open Source</span>
+          <span>Long-Term Horizon</span>
+        </div>
       </div>
     </div>
-    <div class="hero-content">
-      <p class="hero-title-label"><span class="accent">//</span> AI-Native Bitcoin Market Intelligence</p>
-      <h1 class="hero-headline">
-        Bitcoin intelligence you can verify<span class="accent">.</span>
-      </h1>
-      <p class="hero-sub">
-        Market analysis and open data, built on a decade inside Bitcoin markets.
-      </p>
-      <div class="hero-actions">
-        <a href="#newsletter" class="agent-cta hero-cta">Follow Our Bitcoin Price Outlook</a>
+    <div class="hero-mark a21-hero-art">
+      <!-- Agent 21, drawn by js/agent21-hero.js; without scripts the logo
+           shows instead. -->
+      <div class="a21-stage a21-hero-stage hero-stage">
+        <div class="a21-stage-figure">
+          <a class="hero-agent" href="https://agent21.secretsatoshis.com/" aria-label="Meet Agent 21, the Bitcoin-native AI agent">
+            <span class="a21-agent" aria-hidden="true">
+              <span class="a21-agent-shell"></span>
+              <span class="a21-agent-screen"><canvas></canvas></span>
+            </span>
+          </a>
+          <div class="a21-stage-meta" aria-hidden="true">
+            <span class="a21-stage-floor"></span>
+            <p class="a21-stage-status"><i></i>Agent 21 / <span class="hero-agent-state">Ready</span></p>
+          </div>
+        </div>
       </div>
-      <div class="hero-trust">
-        <span>Independent</span>
-        <span>Open Source</span>
-        <span>Long-Term Horizon</span>
-      </div>
+      <noscript>
+        <div class="hero-logo-container">
+          <img src="assets/images/hero-logo-840.jpg"
+               srcset="assets/images/hero-logo-420.jpg 420w, assets/images/hero-logo-840.jpg 840w"
+               sizes="(max-width: 768px) 60vw, 38vw"
+               alt="Secret Satoshis" class="hero-logo-img" width="840" height="840">
+        </div>
+      </noscript>
     </div>
   </div>
 </section>
@@ -167,7 +189,7 @@
       </div>
 
       <div class="cadence-rail">
-        <div class="platform-track" aria-hidden="true"><div class="platform-track-fill" id="ladderFill"></div></div>
+        <div class="ladder-track" aria-hidden="true"><div class="ladder-track-fill" id="ladderFill"></div></div>
 
         <div class="rung">
           <div class="rung-top">
@@ -211,54 +233,6 @@
   </div>
 </section>
 
-<!-- ═══ PLATFORM ═══ -->
-<section class="platform section-divider" id="platform">
-  <div class="container">
-    <p class="section-label"><span class="accent">//</span> The Platform</p>
-    <h2 class="platform-intro">See how the pieces connect.</h2>
-    <p class="platform-sub">Trey Brunson’s market experience informs the research. Open data and models let you examine the evidence, while Agent 21 helps you explore it through conversation.</p>
-
-    <div class="platform-layers" id="platformLayers">
-      <div class="platform-track" aria-hidden="true"><div class="platform-track-fill" id="trackFill"></div></div>
-      <a href="https://treybrunson.com/" target="_blank" rel="noopener noreferrer" class="platform-layer" data-layer="0">
-        <div class="layer-card-top">
-          <span class="layer-tag">Foundation</span>
-          <h3 class="layer-title">Market Experience</h3>
-        </div>
-        <p class="layer-desc">Trey Brunson’s experience spans more than a decade investing in Bitcoin and working across its markets and infrastructure.</p>
-        <span class="layer-cta">→ TreyBrunson.com</span>
-      </a>
-
-      <a href="https://newsletter.secretsatoshis.com/" target="_blank" rel="noopener noreferrer" class="platform-layer" data-layer="1">
-        <div class="layer-card-top">
-          <span class="layer-tag">Intelligence</span>
-          <h3 class="layer-title">Bitcoin Research</h3>
-        </div>
-        <p class="layer-desc">Original research published since 2018, covering Bitcoin fundamentals, market structure, and long-term investment frameworks.</p>
-        <span class="layer-cta">→ Secret Satoshis on Substack</span>
-      </a>
-
-      <a href="https://github.com/SecretSatoshis" target="_blank" rel="noopener noreferrer" class="platform-layer" data-layer="2">
-        <div class="layer-card-top">
-          <span class="layer-tag">Evidence</span>
-          <h3 class="layer-title">Open Data and Models</h3>
-        </div>
-        <p class="layer-desc">Explore the data, models, notebooks, and open-source code behind Secret Satoshis research.</p>
-        <span class="layer-cta">→ Secret Satoshis on GitHub</span>
-      </a>
-
-      <a href="https://chatgpt.com/g/g-BZXtVdU6M-agent-21" target="_blank" rel="noopener noreferrer" class="platform-layer" data-layer="3">
-        <div class="layer-card-top">
-          <span class="layer-tag">Interface</span>
-          <h3 class="layer-title">Agent 21</h3>
-        </div>
-        <p class="layer-desc">An AI agent for exploring Secret Satoshis research, data, and market frameworks through conversation.</p>
-        <span class="layer-cta">→ Agent 21 on ChatGPT</span>
-      </a>
-    </div>
-  </div>
-</section>
-
 <!-- ═══ AGENT 21 ═══ -->
 <section class="agent section-divider" id="agent">
   <div class="container">
@@ -268,21 +242,18 @@
       <p class="agent-sub">Agent 21 is an AI agent for exploring Secret Satoshis research, data, and market frameworks. Ask it to explain a metric, compare scenarios, or examine the evidence behind an investment thesis.</p>
     </div>
 
-    <div class="chat-window" id="chatWindow">
+    <!-- An example conversation, built and played by js/agent21-chat.js from
+         the Report Library's published candles and the chain tip from BRK,
+         then an ask bar that opens Agent 21. -->
+    <div class="chat" id="agentChat" aria-busy="true">
       <div class="chat-bar">
-        <div class="chat-avatar" aria-hidden="true">₿</div>
-        <div class="chat-bar-info">
-          <span class="chat-bar-name">Agent 21</span>
-          <span class="chat-bar-status" id="chatBarStatus">Initializing</span>
-        </div>
+        <span>Agent 21 · Example</span>
+        <span id="agentChatDate"></span>
       </div>
-      <div class="chat-body" id="chatBody"
-           role="log" aria-live="polite" aria-atomic="false"
-           tabindex="0" aria-label="Conversation with Agent 21">
-        <!-- Messages get injected here by JS -->
-      </div>
-      <a href="https://chatgpt.com/g/g-BZXtVdU6M-agent-21" target="_blank" rel="noopener noreferrer" class="chat-continue" id="chatContinue">
-        Try Agent 21 on ChatGPT →
+      <div class="chat-log" id="agentChatLog" role="group" aria-label="Example conversation between Satoshi and Agent 21"></div>
+      <a class="chat-ask" href="https://agent21.secretsatoshis.com/">
+        <span class="chat-ask-prompt">Ask Agent 21 your next question</span>
+        <span class="chat-ask-go" aria-hidden="true">Ask<span>↗</span></span>
       </a>
     </div>
   </div>
@@ -298,24 +269,13 @@
     <div class="resource-grid">
       <a href="https://newsletter.secretsatoshis.com/p/start-here" target="_blank" rel="noopener noreferrer" class="resource-card">
         <div class="resource-card-top">
-          <span class="resource-kicker">Platform Guide</span>
+          <span class="resource-kicker">Newsletter Guide</span>
         </div>
         <div class="resource-card-content">
           <h3 class="resource-title">Start Here</h3>
           <p class="resource-desc">A three-minute guide to Secret Satoshis, how the products connect, and where to begin.</p>
         </div>
         <span class="resource-link"><span class="resource-arrow" aria-hidden="true">→</span> Read the guide</span>
-      </a>
-
-      <a href="https://dashboard.secretsatoshis.com/" class="resource-card">
-        <div class="resource-card-top">
-          <span class="resource-kicker">Daily Market Data</span>
-        </div>
-        <div class="resource-card-content">
-          <h3 class="resource-title">Market Dashboard</h3>
-          <p class="resource-desc">Review current Bitcoin market conditions, valuation models, and network activity in one place—updated daily.</p>
-        </div>
-        <span class="resource-link"><span class="resource-arrow" aria-hidden="true">→</span> Open the dashboard</span>
       </a>
 
       <a href="https://charts.secretsatoshis.com/" class="resource-card">
@@ -329,15 +289,26 @@
         <span class="resource-link"><span class="resource-arrow" aria-hidden="true">→</span> Explore the charts</span>
       </a>
 
-      <a href="https://newsletter.secretsatoshis.com/p/should-i-buy-bitcoin" target="_blank" rel="noopener noreferrer" class="resource-card">
+      <a href="https://dashboard.secretsatoshis.com/" class="resource-card">
         <div class="resource-card-top">
-          <span class="resource-kicker">Investment Framework</span>
+          <span class="resource-kicker">Daily Market Data</span>
         </div>
         <div class="resource-card-content">
-          <h3 class="resource-title">Should I Buy Bitcoin?</h3>
-          <p class="resource-desc">Explore a framework for thinking through Bitcoin’s role in your savings plan, with your time horizon and risk tolerance in mind.</p>
+          <h3 class="resource-title">Market Dashboard</h3>
+          <p class="resource-desc">Review current Bitcoin market conditions, valuation models, and network activity in one place—updated daily.</p>
         </div>
-        <span class="resource-link"><span class="resource-arrow" aria-hidden="true">→</span> Read the framework</span>
+        <span class="resource-link"><span class="resource-arrow" aria-hidden="true">→</span> Open the dashboard</span>
+      </a>
+
+      <a href="https://github.com/SecretSatoshis" target="_blank" rel="noopener noreferrer" class="resource-card">
+        <div class="resource-card-top">
+          <span class="resource-kicker">Open-Source Code</span>
+        </div>
+        <div class="resource-card-content">
+          <h3 class="resource-title">Open Data and Models</h3>
+          <p class="resource-desc">Explore the data, models, notebooks, and open-source code behind Secret Satoshis research.</p>
+        </div>
+        <span class="resource-link"><span class="resource-arrow" aria-hidden="true">→</span> Secret Satoshis on GitHub</span>
       </a>
     </div>
   </div>
@@ -393,7 +364,9 @@
   </div>
 </footer>
 
-<script src="js/main.js?v=19"></script>
+<script src="js/main.js?v=25"></script>
+<script type="module" src="js/agent21-hero.js?v=4"></script>
+<script type="module" src="js/agent21-chat.js?v=10"></script>
 
 </body>
 </html>
