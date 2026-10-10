@@ -30,7 +30,7 @@ flowchart LR
     subgraph Browser
         direction LR
         F["Fetch close, outlook,<br/>candles & manifest"] --> V["Verify<br/>hashes & dates"] --> T["Outlook tracker &<br/>Agent 21 example"]
-        C["Fetch the<br/>chain tip"] --> T
+        C["Fetch the price now<br/>& chain tip"] --> T
     end
 
     G["GitHub Pages<br/>secretsatoshis.com"] --> Browser
@@ -41,8 +41,8 @@ flowchart LR
 The site is plain HTML, CSS and JavaScript with no build step and no dependencies. GitHub
 Pages serves the `main` branch at the custom domain in `CNAME`, so every push to `main` goes
 live. Fonts are self-hosted, and the pages load nothing from other services except live data:
-the Report Library's release, for the outlook tracker and the Agent 21 example, and the chain
-tip from [BRK](https://bitview.space/), for the example's supply answer. The home page's
+the Report Library's release, for the outlook tracker and the Agent 21 example, and the price
+now and the chain tip from [BRK](https://bitview.space/), for the tracker and the example. The home page's
 Content-Security-Policy allows those two sources only.
 
 The `agent21/` folder holds the Agent 21 app, which deploys separately to
@@ -51,19 +51,24 @@ hero layout are shared with it: `js/agent21-face.js` and `css/agent21-face.css`.
 
 ## The outlook tracker
 
-The newsletter section shows where Bitcoin's latest daily close sits against the year's
-published bear, base and bull cases. Nothing in it is hardcoded: `js/main.js` reads three files
-from the [Report Library's release](https://secretsatoshis.github.io/Bitcoin-Report-Library/csv/release_manifest.json):
+The newsletter section shows where Bitcoin's price sits today against the year's published
+bear, base and bull cases. Nothing in it is hardcoded: `js/main.js` reads three files from the
+[Report Library's release](https://secretsatoshis.github.io/Bitcoin-Report-Library/csv/release_manifest.json),
+and the price now from BRK:
 
-| File | What the tracker uses |
-|------|-----------------------|
+| Source | What the tracker uses |
+|--------|-----------------------|
 | `report_ohlc_summary.csv` | The latest daily close and its date |
 | `price_outlook.csv` | The case levels (rows typed `case`) and the year they forecast |
 | `release_manifest.json` | The release's report date and the SHA-256 hash of each file |
+| BRK `/api/v1/prices` | The price now, shown as of the visitor's date |
 
 The tracker stays hidden if any file can't be fetched, the case levels are malformed, the
 files' hashes or report date don't match the manifest, or the outlook is for a different year
-than the latest close. A hidden tracker logs the reason to the browser console. If the data
+than the latest close. A hidden tracker logs the reason to the browser console. BRK's price
+is used only when it is from the last six hours, within 1.5 times the latest close and in the
+outlook's year; otherwise the tracker shows the latest close as of its date, and says why in
+the console. If the data
 ever moves, update `connect-src` in `index.html`'s Content-Security-Policy to match.
 
 ## The Agent 21 example
@@ -74,10 +79,11 @@ view. `js/agent21-chat.js` builds it from figures that `js/main.js` loads and ch
 | Source | What the example uses |
 |--------|-----------------------|
 | `bitcoin_candles.csv.gz` | Every weekly close since 2010 and the closes on the day Satoshi left and the latest day, checked against the release manifest |
+| BRK `/api/v1/prices` | The price now, with the same checks as the tracker (one request serves both) |
 | BRK `subsidy_cumulative` | The block height and bitcoin mined now, and on the day Satoshi left, checked against the issuance schedule |
 
 An answer whose source can't be read is shortened or left out, and the reason is logged to the
-browser console.
+browser console. Without BRK's price, the price answer quotes the latest close.
 
 ## Quick start
 

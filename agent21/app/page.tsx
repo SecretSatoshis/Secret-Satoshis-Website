@@ -8,6 +8,7 @@ import { Landing } from "../components/agent21/landing/landing";
 import type { Access } from "../components/agent21/landing/parts";
 import {
   loadChainHeight,
+  loadPrice,
   loadPriceOdds,
 } from "../components/agent21/landing/live-examples";
 import "./landing.css";
@@ -58,18 +59,23 @@ export default async function AgentPage() {
       access = allowed === null ? "unavailable" : "denied";
     }
   }
-  // All three sources load together; the Polymarket ladder waits only for the
-  // close it is drawn around.
+  // Every source loads together. The price now falls back to the release's
+  // latest close, so it waits for the release; the Polymarket ladder waits
+  // only for the price it is drawn around.
   const factsLoad = loadExampleFacts();
-  const [facts, chain, odds] = await Promise.all([
+  const priceLoad = loadPrice(
+    factsLoad.then((f) => ({
+      date: f.report_date,
+      price: f.cost_basis.close,
+    })),
+  );
+  const [facts, chain, price, odds] = await Promise.all([
     factsLoad,
     loadChainHeight(),
-    loadPriceOdds(
-      factsLoad.then((f) => ({
-        date: f.report_date,
-        price: f.cost_basis.close,
-      })),
-    ),
+    priceLoad,
+    loadPriceOdds(priceLoad),
   ]);
-  return <Landing access={access} facts={facts} live={{ chain, odds }} />;
+  return (
+    <Landing access={access} facts={facts} live={{ chain, odds, price }} />
+  );
 }

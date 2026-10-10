@@ -22,12 +22,14 @@ import {
   shortDate,
 } from "./example-answers";
 import type { ExampleFacts } from "./example-facts";
-import type { ChainHeight, PriceOdds } from "./live-examples";
+import type { ChainHeight, Close, PriceOdds } from "./live-examples";
 
 // The landing page's example use cases, each shown as a chat. "Analyze the
 // market" and "Review the outlook" follow the Report Library's daily facts
 // (example-facts.ts); the halving, Polymarket and transaction examples use the
-// live block height and Polymarket ladder (live-examples.ts).
+// live block height and Polymarket ladder (live-examples.ts). The examples
+// that quote Bitcoin's price use the price now from BRK, or the release's
+// latest close when BRK's price is unavailable.
 
 const PIZZA_TX =
   "a1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d";
@@ -182,12 +184,22 @@ type UseCase = {
   chat: React.ReactNode;
 };
 
-/** Live data for the halving, Polymarket and transaction examples. */
-export type LiveExamples = { chain: ChainHeight; odds: PriceOdds };
+/** Live data: the block height, the Polymarket ladder and the price now. */
+export type LiveExamples = {
+  chain: ChainHeight;
+  odds: PriceOdds;
+  price: Close;
+};
+
+/** The step's mention of the price, and the source's, when it is live. */
+const priceStep = (price: Close) =>
+  price.at ? ", and the current price from BRK" : "";
+const priceSource = (price: Close) =>
+  price.at && <span>BRK price · {retrievedLabel(price.at)}</span>;
 
 const buildUseCases = (
   facts: ExampleFacts,
-  { chain, odds }: LiveExamples,
+  { chain, odds, price }: LiveExamples,
 ): UseCase[] => [
   {
     id: "fundamentals",
@@ -218,16 +230,17 @@ const buildUseCases = (
     chat: (
       <Chat
         question="Where is Bitcoin trading against its on-chain cost basis? Show me the last five years."
-        step="Read the published Bitcoin Realized Price chart, trimmed to five years of completed UTC days"
-        date={shortDate(facts.report_date)}
+        step={`Read the published Bitcoin Realized Price chart, trimmed to five years of completed UTC days${priceStep(price)}`}
+        date={shortDate(price.date)}
         source={
           <>
             <a href={CHART_URL}>Chart Library ↗</a>
             <span>Data through {shortDate(facts.report_date)}</span>
+            {priceSource(price)}
           </>
         }
       >
-        {costBasisAnswer(facts)}
+        {costBasisAnswer(facts, price)}
       </Chat>
     ),
   },
@@ -239,16 +252,19 @@ const buildUseCases = (
     chat: (
       <Chat
         question={`How is the Secret Satoshis ${facts.outlook.year} outlook holding up?`}
-        step={`Read the ${facts.outlook.year} price outlook and the last 52 weekly candles from the daily release`}
-        date={shortDate(facts.report_date)}
+        step={`Read the ${facts.outlook.year} price outlook and the last 52 weekly candles from the daily release${priceStep(price)}`}
+        date={shortDate(price.date)}
         source={
-          <span>
-            Secret Satoshis {facts.outlook.year} outlook · Report Library
-            release, {shortDate(facts.report_date)}
-          </span>
+          <>
+            <span>
+              Secret Satoshis {facts.outlook.year} outlook · Report Library
+              release, {shortDate(facts.report_date)}
+            </span>
+            {priceSource(price)}
+          </>
         }
       >
-        {outlookAnswer(facts)}
+        {outlookAnswer(facts, price)}
       </Chat>
     ),
   },
@@ -296,7 +312,7 @@ const buildUseCases = (
           </span>
         }
       >
-        {pizzaAnswer(facts, chain)}
+        {pizzaAnswer(facts, chain, price)}
       </Chat>
     ),
   },

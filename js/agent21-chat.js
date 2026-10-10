@@ -3,8 +3,9 @@
 // example chats (agent21/components/agent21/landing/use-cases.tsx): the
 // agent's face and state, the step it ran, an answer revealed word by word,
 // and a chart. The figures come from js/main.js (loaded first):
-// loadSinceYouLeft() reads the Report Library's published candles and
-// loadChain() the chain tip from BRK, each checked, with SATOSHI_LEFT_ON. The
+// loadSinceYouLeft() reads the Report Library's published candles,
+// loadLivePrice() the price now and loadChain() the chain tip from BRK, each
+// checked, with SATOSHI_LEFT_ON. The
 // whole conversation is laid out at once, hidden, so nothing moves as it
 // plays; it plays through once its first message scrolls into view, and the
 // ask bar below it shows when it ends.
@@ -52,8 +53,9 @@ const times = (n) => `${n >= 100 ? n.toLocaleString("en-US", { maximumSignifican
 const tickLabel = (v) => (v >= 1000 ? `$${v / 1000}k` : `$${v}`);
 const b = (text) => ({ b: text });
 
-// The conversation. Every figure comes from the published candles and the
-// chain tip; an answer whose source is unavailable says so or is left out.
+// The conversation. Every figure comes from the published candles, the price
+// now and the chain tip; an answer whose source is unavailable says so or is
+// left out, and without the price now it quotes the latest close.
 function conversation(f, chain) {
   const days = Math.round((utc(today()) - utc(SATOSHI_LEFT_ON)) / 86400000);
   const messages = [
@@ -64,16 +66,24 @@ function conversation(f, chain) {
     messages.push({
       from: "agent",
       think: true,
-      step: `Read ${count(f.history.length)} weekly candles from the Report Library`,
+      step: f.live
+        ? `Read ${count(f.history.length - 1)} weekly candles from the Report Library and the price now from BRK`
+        : `Read ${count(f.history.length)} weekly candles from the Report Library`,
       answer: [
         [
           "Welcome back. It's been ", b(`${count(days)} days`), " since your last email. Bitcoin closed at ",
-          b(usd(f.leftClose)), " that day and ", b(usd(f.close)), ` on ${longDate(f.reportDate)}. You're up about `,
+          b(usd(f.leftClose)), " that day and ", ...(f.live
+            ? ["is at ", b(usd(f.close)), " today. You're up about "]
+            : [b(usd(f.close)), ` on ${longDate(f.reportDate)}. You're up about `]),
           b(times(f.close / f.leftClose)), ". Looks like you were on to something.",
         ],
         () => historyChart(f),
       ],
-      source: { label: "Report Library", href: REPORT_LIBRARY, note: `Data through ${shortDate(f.reportDate)}` },
+      source: [
+        { label: "Report Library", href: REPORT_LIBRARY },
+        `Weekly closes through ${shortDate(f.reportDate)}`,
+        ...(f.live ? [{ label: "BRK", href: BRK }, `Price · ${retrieved(new Date(f.live.at).toISOString())}`] : []),
+      ],
     });
   } else {
     messages.push({
@@ -104,11 +114,10 @@ function conversation(f, chain) {
           ],
           () => supplyChart(chain),
         ],
-        source: {
-          label: "BRK",
-          href: BRK,
-          note: [`Block ${count(chain.height)}`, chain.retrievedAt && retrieved(chain.retrievedAt)].filter(Boolean).join(" · "),
-        },
+        source: [
+          { label: "BRK", href: BRK },
+          [`Block ${count(chain.height)}`, chain.retrievedAt && retrieved(chain.retrievedAt)].filter(Boolean).join(" · "),
+        ],
       },
     );
   }
@@ -202,12 +211,20 @@ function agentMessage({ step, answer, source, think = false, rest = "done" }) {
   }
   body.append(text);
 
+  // The source: links (label and href) and notes, in order.
   if (source) {
     const line = el("p", "chat-source");
-    const link = el("a", undefined, `${source.label} ↗`);
-    link.href = source.href;
-    line.append(el("span", undefined, "↳"), link, el("span", undefined, source.note));
+    line.append(el("span", undefined, "↳"));
     line.firstChild.setAttribute("aria-hidden", "true");
+    for (const part of source) {
+      if (typeof part === "string") {
+        line.append(el("span", undefined, part));
+      } else {
+        const link = el("a", undefined, `${part.label} ↗`);
+        link.href = part.href;
+        line.append(link);
+      }
+    }
     body.append(line);
   }
   node.append(face, body);
@@ -385,16 +402,16 @@ function nearest(xs, at) {
   return best;
 }
 
-// Every weekly close since August 2010 on a log scale, with a line at the day
-// Satoshi left.
+// Every weekly close since August 2010 on a log scale, then the price now
+// when there is one, with a line at the day Satoshi left.
 function historyChart(f) {
   const weeks = f.history;
   const first = weeks[0].start;
   const last = weeks[weeks.length - 1].start;
   const { figure, plot, root } = frame(
     "Bitcoin price since 2010",
-    `Weekly close · ${shortDate(first)} – ${shortDate(f.reportDate)} · USD, log scale`,
-    `Bitcoin's weekly close on a log scale from ${longDate(first)} to ${longDate(f.reportDate)}, ` +
+    `Weekly close · ${shortDate(first)} – ${shortDate(f.asOf)} · USD, log scale`,
+    `Bitcoin's weekly close on a log scale from ${longDate(first)} to ${longDate(f.asOf)}, ` +
       `rising from ${usd(f.leftClose)} on ${longDate(f.leftOn)}, the day of Satoshi's last known email, to ${usd(f.close)}`,
   );
   const closes = weeks.map((w) => w.close);
@@ -434,9 +451,9 @@ function historyChart(f) {
     xs,
     readout: (i) => {
       const w = weeks[i];
-      const rows = [["Close", usd(w.close), COLOR.price]];
+      const rows = [[w.now ? "Price" : "Close", usd(w.close), COLOR.price]];
       if (w.start >= f.leftOn) rows.push(["Since you left", times(w.close / f.leftClose)]);
-      return { title: `Week of ${shortDate(w.start)}`, rows };
+      return { title: w.now ? `Now · ${shortDate(w.start)}` : `Week of ${shortDate(w.start)}`, rows };
     },
     mark: (i) => {
       cross.style.display = i === null ? "none" : "";
@@ -517,8 +534,9 @@ function supplyChart(chain) {
 // ── Start ─────────────────────────────────────────────────────────
 
 async function start(chat, log, date) {
-  const [facts, chain] = await Promise.all([loadSinceYouLeft(), loadChain()]);
-  date.textContent = shortDate(facts ? facts.reportDate : today());
+  const [candles, chain, livePrice] = await Promise.all([loadSinceYouLeft(), loadChain(), loadLivePrice()]);
+  const facts = candles && withLivePrice(candles, livePrice);
+  date.textContent = shortDate(facts ? facts.asOf : today());
   const messages = conversation(facts, chain).map((m) => (m.from === "user" ? userMessage(m) : agentMessage(m)));
   for (const message of messages) {
     message.node.dataset.phase = "waiting";

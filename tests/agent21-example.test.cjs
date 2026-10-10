@@ -139,3 +139,39 @@ test('the example asks BRK for the tip and for the day Satoshi left', async () =
   const down = context({ fetch: async () => ({ ok: false }) });
   assert.equal(await down.loadChain(), null);
 });
+
+test('the example quotes BRK\'s price now when it is near the latest close, with a last chart point', () => {
+  const ctx = context();
+  const facts = ctx.sinceYouLeft(ctx.parseCandles(candles()), '2011-04-23');
+  const at = Date.parse('2026-10-10T12:52:12Z');
+  const now = ctx.withLivePrice(facts, { price: 90000, at });
+  assert.equal(now.close, 90000);
+  assert.equal(now.asOf, '2026-10-10');
+  assert.equal(now.live.at, at);
+  assert.equal(now.history.length, 61);
+  assert.deepEqual({ ...now.history[60] }, { start: '2026-10-10', close: 90000, now: true });
+  // The candles' own figures are left alone.
+  assert.equal(facts.history.length, 60);
+  for (const price of [null, { price: 200000, at }]) {
+    const close = ctx.withLivePrice(facts, price);
+    assert.equal(close.live, null);
+    assert.equal(close.close, 81649.5);
+    assert.equal(close.asOf, '2026-10-08');
+    assert.equal(close.history.length, 60);
+  }
+});
+
+test('the tracker and the example share one request for the price', async () => {
+  let requests = 0;
+  const time = Math.floor(Date.now() / 1000);
+  const ctx = context({
+    fetch: async () => {
+      requests++;
+      return { ok: true, arrayBuffer: async () => new TextEncoder().encode(JSON.stringify({ time, USD: 90000 })).buffer };
+    },
+  });
+  const [a, b] = await Promise.all([ctx.loadLivePrice(), ctx.loadLivePrice()]);
+  assert.equal(requests, 1);
+  assert.equal(a, b);
+  assert.equal(a.price, 90000);
+});

@@ -12,9 +12,12 @@ import {
 import {
   SNAPSHOT_HEIGHT,
   SNAPSHOT_ODDS,
+  livePrice,
   loadChainHeight,
+  loadPrice,
   loadPriceOdds,
   priceOddsFromEvent,
+  type Close,
 } from "../components/agent21/landing/live-examples";
 import {
   SNAPSHOT_FACTS,
@@ -294,4 +297,98 @@ test("live loaders use the response date and fall back to their snapshots", asyn
   respond(async () => Response.json(event([market("↑ 90,000", 0.5)])));
   assert.equal(await loadPriceOdds(Promise.resolve(CLOSE)), SNAPSHOT_ODDS);
   assert.equal(logged.mock.callCount(), 3);
+});
+
+// BRK's price three days after the snapshot's Oct 7 close.
+const LIVE: Close = {
+  date: "2026-10-10",
+  price: 90000,
+  at: "2026-10-10T12:52:12.000Z",
+};
+
+test("the live price is used only when it is fresh, plausible and in the close's year", () => {
+  const now = Date.parse("2026-10-10T13:00:00Z");
+  const reply = (at: string, USD = 90000) => ({
+    time: Date.parse(at) / 1000,
+    USD,
+  });
+  assert.deepEqual(livePrice(reply(LIVE.at!), CLOSE, now), LIVE);
+  // Stale, from the future, implausibly far from the close, or malformed.
+  assert.equal(livePrice(reply("2026-10-10T06:00:00Z"), CLOSE, now), null);
+  assert.equal(livePrice(reply("2026-10-10T13:20:00Z"), CLOSE, now), null);
+  assert.equal(livePrice(reply(LIVE.at!, 200000), CLOSE, now), null);
+  assert.equal(livePrice(reply(LIVE.at!, 40000), CLOSE, now), null);
+  assert.equal(livePrice({ time: 1791636732, USD: "90000" }, CLOSE, now), null);
+  assert.equal(livePrice(null, CLOSE, now), null);
+  // New Year's Day against December 31's close: the close stands.
+  const newYear = Date.parse("2027-01-01T01:00:00Z");
+  assert.equal(
+    livePrice(
+      reply("2027-01-01T00:50:00Z"),
+      { date: "2026-12-31", price: 90000 },
+      newYear,
+    ),
+    null,
+  );
+});
+
+test("the price loader reads BRK and falls back to the close", async (t) => {
+  const { logged, respond } = sources(t);
+  const time = Math.floor(Date.now() / 1000);
+  respond(async () => Response.json({ time, USD: 90000 }));
+  const live = await loadPrice(Promise.resolve(CLOSE));
+  assert.equal(live.price, 90000);
+  assert.equal(live.at, new Date(time * 1000).toISOString());
+  respond(async () => Response.json({ time, USD: 1 }));
+  assert.equal(await loadPrice(CLOSE), CLOSE);
+  respond(() => Promise.reject(new Error("offline")));
+  assert.equal(await loadPrice(CLOSE), CLOSE);
+  assert.equal(logged.mock.callCount(), 2);
+});
+
+test("the examples quote the live price as the current price", () => {
+  const market = text(costBasisAnswer(SNAPSHOT_FACTS, LIVE));
+  assert.match(
+    market,
+    /Bitcoin's current price of \$90,000 sits 67% above the realized price of \$53,779 and 21% above the STH realized price of \$74,206\. It has closed above that level every day since August 19\./,
+  );
+  // Below the STH level now, though the latest close was above it.
+  const crossed = text(
+    costBasisAnswer(SNAPSHOT_FACTS, { ...LIVE, price: 70000 }),
+  );
+  assert.match(
+    crossed,
+    /It has moved below that level since the October 7 close\./,
+  );
+
+  const outlook = renderToStaticMarkup(
+    createElement("div", null, ...outlookAnswer(SNAPSHOT_FACTS, LIVE)),
+  );
+  assert.match(
+    text(outlookAnswer(SNAPSHOT_FACTS, LIVE)),
+    /At its current price of \$90,000, Bitcoin is up 3\.1% for the year\. Reaching the \$120,000 base case would take a 33% rise in the 12 weeks left\. It sits 29% above the \$70,000 bear case\./,
+  );
+  assert.match(outlook, /Year-end cases against the current price/);
+  // The week to date runs to the live price's day.
+  assert.match(outlook, /Oct 6, 2025 – Oct 10, 2026/);
+  assert.match(outlook, /53 weekly Bitcoin candles/);
+  // In a new week, a candle opens for it and the oldest drops off.
+  const nextWeek = renderToStaticMarkup(
+    createElement(
+      "div",
+      null,
+      ...outlookAnswer(SNAPSHOT_FACTS, { ...LIVE, date: "2026-10-13" }),
+    ),
+  );
+  assert.match(nextWeek, /Oct 13, 2025 – Oct 13, 2026/);
+  assert.match(nextWeek, /53 weekly Bitcoin candles/);
+
+  assert.match(
+    text(pizzaAnswer(SNAPSHOT_FACTS, SNAPSHOT_HEIGHT, LIVE)),
+    /At the current price of \$90,000, that output would be worth about \$900 million\./,
+  );
+  assert.match(
+    text(priceOddsAnswer({ ...SNAPSHOT_ODDS, close: LIVE }, SNAPSHOT_FACTS)),
+    /Now · \$90,000/,
+  );
 });

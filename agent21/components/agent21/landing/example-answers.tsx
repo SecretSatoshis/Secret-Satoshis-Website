@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import type { ExampleFacts } from "./example-facts";
-import type { ChainHeight, PriceOdds } from "./live-examples";
+import type { ChainHeight, Close, PriceOdds } from "./live-examples";
 
-// Templates for the examples built from data: the daily release facts and the
-// live block height and Polymarket ladder. The wording is fixed; every figure
-// and date comes from the data, and each sentence that depends on the market's
-// direction has a version for either side.
+// Templates for the examples built from data: the daily release facts, the
+// price now and the live block height and Polymarket ladder. The wording is
+// fixed; every figure and date comes from the data, and each sentence that
+// depends on the market's direction has a version for either side. A price
+// with no `at` is the release's latest close, and reads as that close.
 
 type CostBasis = ExampleFacts["cost_basis"];
 type Outlook = ExampleFacts["outlook"];
@@ -30,6 +31,17 @@ const longDate = (iso: string, year: number) =>
 /** "June 2022" */
 const monthYear = (iso: string) =>
   format(iso, { month: "long", year: "numeric" });
+const DAY_MS = 86_400_000;
+/** Days from `iso` to December 31 of its year. */
+const daysLeftInYear = (iso: string) =>
+  Math.round(
+    (Date.UTC(utc(iso).getUTCFullYear(), 11, 31) - utc(iso).getTime()) / DAY_MS,
+  );
+/** The release's latest close, as a price with no `at`. */
+const latestClose = (facts: ExampleFacts): Close => ({
+  date: facts.report_date,
+  price: facts.cost_basis.close,
+});
 
 const VIEW = { w: 600, h: 236 };
 const PLOT = { x0: 44, x1: 590, y0: 212, y1: 12 };
@@ -254,14 +266,54 @@ function CostBasisChart({ chart }: { chart: CostBasis["chart"] }) {
 const caseNamed = (o: Outlook, name: string) =>
   o.cases.find((c) => c.name.toLowerCase().startsWith(name));
 
+/** The weekly candles with the current week brought up to the price now: the
+ * week to date when `now` falls in it, or a new week that opens at the last
+ * close. The window stays the same number of weeks. */
+function toDate(candles: Outlook["weekly_candles"], now: Close) {
+  const last = candles.at(-1)!;
+  const day = utc(now.date).getTime();
+  const lastStart = utc(last.start).getTime();
+  if (day < lastStart) return candles;
+  const p = now.price;
+  if (day < lastStart + 7 * DAY_MS)
+    return last.complete
+      ? candles
+      : [
+          ...candles.slice(0, -1),
+          {
+            ...last,
+            high: Math.max(last.high, p),
+            low: Math.min(last.low, p),
+            close: p,
+          },
+        ];
+  const weeks = Math.floor((day - lastStart) / (7 * DAY_MS));
+  const start = new Date(lastStart + weeks * 7 * DAY_MS)
+    .toISOString()
+    .slice(0, 10);
+  return [
+    ...candles.slice(1),
+    {
+      start,
+      open: last.close,
+      high: Math.max(last.close, p),
+      low: Math.min(last.close, p),
+      close: p,
+      complete: false,
+    },
+  ];
+}
+
 function OutlookChart({
   outlook,
-  reportDate,
+  candles,
+  through,
 }: {
   outlook: Outlook;
-  reportDate: string;
+  candles: Outlook["weekly_candles"];
+  /** The day the last candle runs to. */
+  through: string;
 }) {
-  const candles = outlook.weekly_candles;
   const base = caseNamed(outlook, "base");
   const bear = caseNamed(outlook, "bear");
   const step = 5000;
@@ -319,7 +371,7 @@ function OutlookChart({
       <figcaption className="uc-chart-t">
         <span>Bitcoin Weekly Candles</span>
         <span>
-          {shortDate(candles[0].start)} – {shortDate(reportDate)} · USD
+          {shortDate(candles[0].start)} – {shortDate(through)} · USD
         </span>
       </figcaption>
       <div className="uc-plot">
@@ -427,14 +479,23 @@ const side = (value: number, level: number) => {
   return `${percent(p)} ${p > 0 ? "above" : "below"}`;
 };
 
-/** The "Analyze the market" answer: price against its on-chain cost basis. */
-export function costBasisAnswer(facts: ExampleFacts): React.ReactNode[] {
+/** The "Analyze the market" answer: price against its on-chain cost basis.
+ * The levels are the release's; the price is `now`'s, so when it has crossed
+ * the STH level since the latest close the answer says so. */
+export function costBasisAnswer(
+  facts: ExampleFacts,
+  now: Close = latestClose(facts),
+): React.ReactNode[] {
   const f = facts.cost_basis;
   const year = utc(facts.report_date).getUTCFullYear();
-  const crossedToday = f.sth_side_since === facts.report_date;
-  const held = crossedToday
-    ? `It moved ${f.sth_side} that level on this close.`
-    : `It has closed ${f.sth_side} that level every day since ${longDate(f.sth_side_since, year)}.`;
+  const closeDay = longDate(facts.report_date, year);
+  const sthNow = now.price >= f.sth_realized_price ? "above" : "below";
+  const held =
+    now.at && sthNow !== f.sth_side
+      ? `It has moved ${sthNow} that level since the ${closeDay} close.`
+      : f.sth_side_since === facts.report_date
+        ? `It moved ${f.sth_side} that level on ${now.at ? `the ${closeDay} close` : "this close"}.`
+        : `It has closed ${f.sth_side} that level every day since ${longDate(f.sth_side_since, year)}.`;
   const stretch = f.last_stretch_below_realized;
   let stretchLine = "";
   if (stretch && stretch.end === facts.report_date)
@@ -444,10 +505,10 @@ export function costBasisAnswer(facts: ExampleFacts): React.ReactNode[] {
   const above3x = f.close > f.realized_price_3x;
   return [
     <p key="close">
-      Bitcoin&apos;s {longDate(facts.report_date, year)} close of{" "}
-      <strong>{usd(f.close)}</strong> sits {side(f.close, f.realized_price)} the
-      realized price of <strong>{usd(f.realized_price)}</strong> and{" "}
-      {side(f.close, f.sth_realized_price)} the STH realized price of{" "}
+      Bitcoin&apos;s {now.at ? "current price" : `${closeDay} close`} of{" "}
+      <strong>{usd(now.price)}</strong> sits {side(now.price, f.realized_price)}{" "}
+      the realized price of <strong>{usd(f.realized_price)}</strong> and{" "}
+      {side(now.price, f.sth_realized_price)} the STH realized price of{" "}
       <strong>{usd(f.sth_realized_price)}</strong>. {held}
     </p>,
     <p key="bands">
@@ -463,19 +524,26 @@ export function costBasisAnswer(facts: ExampleFacts): React.ReactNode[] {
   ];
 }
 
-/** The "Review the outlook" answer: the year's cases against the latest close. */
-export function outlookAnswer(facts: ExampleFacts): React.ReactNode[] {
+/** The "Review the outlook" answer: the year's cases against the price now,
+ * or the latest close. */
+export function outlookAnswer(
+  facts: ExampleFacts,
+  now?: Close,
+): React.ReactNode[] {
   const o = facts.outlook;
   const year = utc(facts.report_date).getUTCFullYear();
-  const ytd = change(o.close, o.previous_year_close);
+  const live = now?.at ? now : null;
+  const price = live ? live.price : o.close;
+  const daysLeft = live ? daysLeftInYear(live.date) : o.days_left_in_year;
+  const ytd = change(price, o.previous_year_close);
   const base = caseNamed(o, "base");
   const bear = caseNamed(o, "bear");
-  const weeks = Math.round(o.days_left_in_year / 7);
+  const weeks = Math.round(daysLeft / 7);
   const left =
     weeks >= 2
       ? `the ${weeks} weeks left`
-      : o.days_left_in_year >= 2
-        ? `the ${o.days_left_in_year} days left`
+      : daysLeft >= 2
+        ? `the ${daysLeft} days left`
         : "the last days of the year";
   const levels = [
     o.nearest_support &&
@@ -485,27 +553,31 @@ export function outlookAnswer(facts: ExampleFacts): React.ReactNode[] {
   ].filter(Boolean);
   return [
     <p key="cases">
-      At the {longDate(facts.report_date, year)} close of{" "}
-      <strong>{usd(o.close)}</strong>, Bitcoin is {ytd >= 0 ? "up" : "down"}{" "}
+      At{" "}
+      {live
+        ? "its current price of"
+        : `the ${longDate(facts.report_date, year)} close of`}{" "}
+      <strong>{usd(price)}</strong>, Bitcoin is {ytd >= 0 ? "up" : "down"}{" "}
       {Math.abs(ytd).toFixed(1)}% for the year.
       {base &&
-        (o.close < base.price ? (
+        (price < base.price ? (
           <>
             {" "}
             Reaching the <strong>{usd(base.price)}</strong> base case would take
-            a {percent(change(base.price, o.close))} rise in {left}.
+            a {percent(change(base.price, price))} rise in {left}.
           </>
         ) : (
           <>
             {" "}
-            The close is already {percent(change(o.close, base.price))} above
-            the <strong>{usd(base.price)}</strong> base case.
+            The {live ? "price" : "close"} is already{" "}
+            {percent(change(price, base.price))} above the{" "}
+            <strong>{usd(base.price)}</strong> base case.
           </>
         ))}
       {bear && (
         <>
           {" "}
-          It sits {side(o.close, bear.price)} the{" "}
+          It sits {side(price, bear.price)} the{" "}
           <strong>{usd(bear.price)}</strong> bear case.
         </>
       )}
@@ -516,11 +588,18 @@ export function outlookAnswer(facts: ExampleFacts): React.ReactNode[] {
       {longDate(o.year_low.date, 0)}.
       {levels.length > 0 && ` The outlook marks ${levels.join(" and ")}.`}
     </p>,
-    <OutlookChart key="chart" outlook={o} reportDate={facts.report_date} />,
+    <OutlookChart
+      key="chart"
+      outlook={o}
+      candles={live ? toDate(o.weekly_candles, live) : o.weekly_candles}
+      through={live ? live.date : facts.report_date}
+    />,
     <table key="table" className="uc-cases">
       <caption>
         Year-end cases against the{" "}
-        {shortDate(facts.report_date).replace(/, \d{4}$/, "")} close
+        {live
+          ? "current price"
+          : `${shortDate(facts.report_date).replace(/, \d{4}$/, "")} close`}
       </caption>
       <thead>
         <tr>
@@ -531,7 +610,7 @@ export function outlookAnswer(facts: ExampleFacts): React.ReactNode[] {
       </thead>
       <tbody>
         {o.cases.map((c) => {
-          const move = change(c.price, o.close);
+          const move = change(c.price, price);
           return (
             <tr key={c.name}>
               <th scope="row">{c.name.replace(/ Case$/, " case")}</th>
@@ -676,8 +755,10 @@ export function priceOddsAnswer(
           <OddsRow key={s.price} price={s.price} chance={s.odds} up />
         ))}
         <p className="uc-odds-now">
-          {shortDate(market.close.date).replace(/, \d{4}$/, "")} close ·{" "}
-          {usd(market.close.price)}
+          {market.close.at
+            ? "Now"
+            : `${shortDate(market.close.date).replace(/, \d{4}$/, "")} close`}{" "}
+          · {usd(market.close.price)}
         </p>
         {market.down.map((s) => (
           <OddsRow key={s.price} price={s.price} chance={s.odds} up={false} />
@@ -691,12 +772,14 @@ const PIZZA_BLOCK = 57043;
 const PIZZA_BTC = 10000;
 
 /** The "Explore the blockchain" answer: the 2010 pizza transaction, with its
- * value at the latest close and its confirmations at the current block. */
+ * value at the price now (or the latest close) and its confirmations at the
+ * current block. */
 export function pizzaAnswer(
   facts: ExampleFacts,
   chain: ChainHeight,
+  now: Close = latestClose(facts),
 ): React.ReactNode[] {
-  const value = PIZZA_BTC * facts.cost_basis.close;
+  const value = PIZZA_BTC * now.price;
   const year = utc(facts.report_date).getUTCFullYear();
   const fields: [string, string][] = [
     ["Status", "Confirmed"],
@@ -714,8 +797,11 @@ export function pizzaAnswer(
     <p key="summary">
       It is widely known as the 2010 pizza transaction. It spent{" "}
       <strong>131 inputs</strong> into a single <strong>10,000 BTC</strong>{" "}
-      output and left a 0.99 BTC fee. At the {longDate(facts.report_date, year)}{" "}
-      close of {usd(facts.cost_basis.close)}, that output would be worth about{" "}
+      output and left a 0.99 BTC fee. At{" "}
+      {now.at
+        ? "the current price"
+        : `the ${longDate(facts.report_date, year)} close`}{" "}
+      of {usd(now.price)}, that output would be worth about{" "}
       <strong>
         {value >= 1e9
           ? `$${(value / 1e9).toFixed(1)} billion`

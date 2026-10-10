@@ -1,11 +1,12 @@
 import { z } from "zod";
 import { warnDiagnostic } from "../../../lib/agent21/diagnostics";
 
-// Live figures for two landing-page examples: the current block height (the
-// halving example and the transaction's confirmations) from BRK, and
-// Polymarket's yearly "What price will Bitcoin hit" ladder. Each is cached for
-// an hour and falls back to the snapshot below, logged, when its source is
-// unavailable.
+// Live figures for the landing-page examples: Bitcoin's price now and the
+// current block height (the halving example and the transaction's
+// confirmations) from BRK, and Polymarket's yearly "What price will Bitcoin
+// hit" ladder. The price is read on every visit and falls back to the daily
+// release's latest close; the others are cached for an hour and fall back to
+// the snapshot below. Each fallback is logged.
 
 const HOUR = 3600;
 const TIMEOUT_MS = 3000;
@@ -17,8 +18,10 @@ const HEADERS = {
 
 export type ChainHeight = { height: number; retrievedAt: string };
 
-/** A daily close: the strikes either side of it make the ladder. */
-export type Close = { date: string; price: number };
+/** Bitcoin's price on `date`: BRK's live price, read at `at`, or the daily
+ * release's close for that day (no `at`). The strikes either side of it make
+ * the ladder. */
+export type Close = { date: string; price: number; at?: string };
 
 export type PriceOdds = {
   year: number;
@@ -107,6 +110,62 @@ export async function loadChainHeight(): Promise<ChainHeight> {
     return { height, retrievedAt: retrievedAt(response) };
   } catch {
     return fellBack(SNAPSHOT_HEIGHT, "block_height_unavailable");
+  }
+}
+
+const PRICE_URL = "https://bitview.space/api/v1/prices";
+// A live price older than this, or this many times above or below the
+// release's close, is a stale or bad reply; the close stands in for it.
+const PRICE_MAX_AGE_MS = 6 * HOUR * 1000;
+const PRICE_MAX_MOVE = 1.5;
+
+const priceSchema = z.object({
+  time: z.number().int().positive(),
+  USD: z.number().positive().finite(),
+});
+
+/** BRK's price reply as a `Close` dated by its UTC day, or null when it is
+ * stale, from the future, in another year than `close` or implausibly far
+ * from it. */
+export function livePrice(
+  reply: unknown,
+  close: Close,
+  now = Date.now(),
+): Close | null {
+  const parsed = priceSchema.safeParse(reply);
+  if (!parsed.success) return null;
+  const at = new Date(parsed.data.time * 1000);
+  const age = now - at.getTime();
+  const move = parsed.data.USD / close.price;
+  const date = at.toISOString().slice(0, 10);
+  if (
+    age > PRICE_MAX_AGE_MS ||
+    age < -10 * 60 * 1000 ||
+    move > PRICE_MAX_MOVE ||
+    move < 1 / PRICE_MAX_MOVE ||
+    date.slice(0, 4) !== close.date.slice(0, 4)
+  )
+    return null;
+  return { date, price: parsed.data.USD, at: at.toISOString() };
+}
+
+/** Bitcoin's price now from BRK, read on every visit, or `close` when BRK's
+ * price is unavailable or fails the checks in livePrice(). The request starts
+ * before `close` resolves. */
+export async function loadPrice(close: Close | Promise<Close>): Promise<Close> {
+  try {
+    const response = await fetch(PRICE_URL, {
+      headers: HEADERS,
+      cache: "no-store",
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    const reply = response.ok ? await response.json() : null;
+    return (
+      livePrice(reply, await close) ??
+      fellBack(await close, "live_price_unavailable", response.status)
+    );
+  } catch {
+    return fellBack(await close, "live_price_unavailable");
   }
 }
 

@@ -118,9 +118,10 @@ if (ladder && ladderFill) {
 
 /* ═══ OUTLOOK TRACKER ═══ */
 /*
- * Everything the tracker renders is fetched from the Report Library's published CSVs —
- * the three case levels, the year they forecast, and the daily close. Nothing is
- * hardcoded here. A local copy of the levels would be a second hand-maintained place
+ * Everything the tracker renders is fetched: the three case levels, the year they
+ * forecast and the daily close from the Report Library's published CSVs, and the price
+ * now from BRK, which stands in for the close when it passes the checks in
+ * plausibleLivePrice(). Nothing is hardcoded here. A local copy of the levels would be a second hand-maintained place
  * for the same published number, and the two would eventually disagree: the dashboard
  * and this page would then show different bull/base/bear levels for one forecast.
  *
@@ -139,12 +140,50 @@ const RELEASE_MANIFEST_URL = CSV_BASE + '/release_manifest.json';
  * hidden and no diagnostic. */
 const FETCH_TIMEOUT_MS = 8000;
 
+/*
+ * Bitcoin's price now, from BRK, so the tracker and the Agent 21 example read as of
+ * today rather than the release's last completed day. One request serves both. A
+ * price that is stale, from the future, malformed or implausibly far from the
+ * release's verified close is not used, and the close stands in for it.
+ */
+const LIVE_PRICE_URL = 'https://bitview.space/api/v1/prices';
+const LIVE_PRICE_MAX_AGE_MS = 6 * 3600 * 1000;
+const LIVE_PRICE_MAX_MOVE = 1.5;
+let livePriceRequest = null;
+
+function loadLivePrice() {
+  if (!livePriceRequest) {
+    livePriceRequest = fetchBytes(LIVE_PRICE_URL).then((bytes) => parseLivePrice(readJson(bytes), Date.now()));
+  }
+  return livePriceRequest;
+}
+
+/* { price, at } (at in milliseconds) from BRK's reply, or null if malformed or not recent. */
+function parseLivePrice(reply, now) {
+  if (!reply || !Number.isFinite(reply.USD) || reply.USD <= 0 || !Number.isFinite(reply.time)) return null;
+  const at = reply.time * 1000;
+  if (now - at > LIVE_PRICE_MAX_AGE_MS || at - now > 10 * 60 * 1000) return null;
+  return { price: reply.USD, at };
+}
+
+/* The live price with the visitor's date for it, when it is within reach of `close`. */
+function plausibleLivePrice(live, close) {
+  if (!live || live.price > close * LIVE_PRICE_MAX_MOVE || live.price < close / LIVE_PRICE_MAX_MOVE) return null;
+  return { price: live.price, at: live.at, date: localDate(live.at) };
+}
+
+/* "2026-10-10": the day `ms` falls on for the visitor. */
+function localDate(ms) {
+  return new Date(ms).toLocaleDateString('en-CA');
+}
+
 document.addEventListener('DOMContentLoaded', initOutlookTracker);
 
 async function initOutlookTracker() {
   const root = document.getElementById('outlookTracker');
   if (!root) return;
 
+  const livePrice = loadLivePrice();
   const [ohlcBytes, outlookBytes, manifestBytes] = await Promise.all([
     fetchBytes(CSV_BASE + '/' + OHLC_FILE),
     fetchBytes(CSV_BASE + '/' + OUTLOOK_FILE),
@@ -191,10 +230,18 @@ async function initOutlookTracker() {
     return;
   }
 
+  // The price now, when BRK's passes the checks and falls in the outlook's year (on New
+  // Year's Day the year just ended is still being tracked); otherwise the close.
+  const live = plausibleLivePrice(await livePrice, close);
+  const now = live && Number(live.date.slice(0, 4)) === outlook.year ? live : null;
+  if (!now) console.warn('Outlook tracker shows the ' + date + ' close: BRK\'s price could not be used.');
+  const price = now ? now.price : close;
+  const asOf = now ? now.date : date;
+
   const { bear, base, bull } = outlook;
 
   document.getElementById('outlookYear').textContent = String(outlook.year);
-  document.getElementById('outlookAsOf').textContent = 'as of ' + formatAsOf(date);
+  document.getElementById('outlookAsOf').textContent = 'as of ' + formatAsOf(asOf);
 
   // Case ticks: bear anchors 0%, bull anchors 100%, base falls where it falls.
   root.querySelectorAll('.outlook-tick').forEach((tick) => {
@@ -205,24 +252,24 @@ async function initOutlookTracker() {
 
   // Marker. Clamped into the dashed overflow zone rather than pinned at a level
   // it has not reached.
-  const rawPct = pctOfRange(close, outlook);
+  const rawPct = pctOfRange(price, outlook);
   const pct = Math.min(108.7, Math.max(-8.7, rawPct));
   const marker = document.getElementById('outlookNow');
   marker.style.left = pct + '%';
-  marker.classList.toggle('is-outside', close < bear || close > bull);
+  marker.classList.toggle('is-outside', price < bear || price > bull);
   marker.classList.toggle('align-start', pct < 6);
   marker.classList.toggle('align-end', pct > 94);
 
   document.getElementById('outlookPrice').textContent =
-    close < bear ? '◂ ' + formatUsd(close)
-    : close > bull ? formatUsd(close) + ' ▸'
-    : formatUsd(close);
+    price < bear ? '◂ ' + formatUsd(price)
+    : price > bull ? formatUsd(price) + ' ▸'
+    : formatUsd(price);
 
   document.getElementById('outlookSummary').textContent =
-    'Bitcoin daily close: ' + formatUsd(close) + '. Bear case: ' + formatUsd(bear) +
-    '. Base case: ' + formatUsd(base) + '. Bull case: ' + formatUsd(bull) + '.';
+    (now ? 'Bitcoin price: ' : 'Bitcoin daily close: ') + formatUsd(price) + '. Bear case: ' +
+    formatUsd(bear) + '. Base case: ' + formatUsd(base) + '. Bull case: ' + formatUsd(bull) + '.';
 
-  document.getElementById('outlookRead').innerHTML = readingLine(close, date, outlook);
+  document.getElementById('outlookRead').innerHTML = readingLine(price, asOf, outlook);
   root.hidden = false;
 
   // Labels can only be measured once the tracker is laid out.
@@ -460,9 +507,9 @@ function relativeTo(close, level, name) {
 }
 
 /*
- * Time remaining as of the same close shown by the tracker. Deriving this from the
- * browser clock creates a year-boundary contradiction when the latest completed report
- * still belongs to 31 December. Whole weeks while a week remains, then days, so the
+ * Time remaining as of the day the tracker shows: the live price's, or the close's.
+ * Deriving it from the browser clock instead would contradict the tracker on New Year's
+ * Day, when the latest completed report still belongs to 31 December. Whole weeks while a week remains, then days, so the
  * last week of the year never reads as "0 weeks left".
  */
 function timeLeftInYear(reportDate) {
@@ -588,6 +635,19 @@ function sinceYouLeft({ daily, weekly }, leftOn) {
     close: latest.close,
     history: weekly.map(({ start, close }) => ({ start, close })),
   };
+}
+
+/*
+ * The figures with BRK's price now in place of the latest close, when it passes the
+ * checks: `live` and `asOf` (the visitor's date for the price) say which. The history
+ * chart gains a last point at the price now.
+ */
+function withLivePrice(facts, livePrice) {
+  const now = plausibleLivePrice(livePrice, facts.close);
+  if (!now) return { ...facts, live: null, asOf: facts.reportDate };
+  const history = facts.history.slice();
+  if (now.date >= history[history.length - 1].start) history.push({ start: now.date, close: now.price, now: true });
+  return { ...facts, close: now.price, live: now, asOf: now.date, history };
 }
 
 /*
