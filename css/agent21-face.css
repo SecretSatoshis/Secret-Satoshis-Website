@@ -372,9 +372,11 @@
     display: none;
   }
 
+  /* Centered, so its lines break evenly rather than leaving a word alone. */
   .a21-hero .a21-hero-lead {
     max-width: 46ch;
     margin: 0 auto 40px;
+    text-wrap: balance;
   }
 
   .a21-hero .a21-hero-rule {
