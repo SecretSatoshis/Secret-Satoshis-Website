@@ -1,12 +1,12 @@
 import { z } from "zod";
 import { warnDiagnostic } from "../../../lib/agent21/diagnostics";
 
-// Live figures for the landing-page examples: Bitcoin's price now and the
-// current block height (the halving example and the transaction's
-// confirmations) from BRK, and Polymarket's yearly "What price will Bitcoin
-// hit" ladder. The price is read on every visit and falls back to the daily
-// release's latest close; the others are cached for an hour and fall back to
-// the snapshot below. Each fallback is logged.
+// Live figures for the landing-page examples: Bitcoin's price now, its
+// realized prices and the current block height (the halving example and the
+// transaction's confirmations) from BRK, and Polymarket's yearly "What price
+// will Bitcoin hit" ladder. The price and the realized prices are read on
+// every visit and fall back to the daily release's; the others are cached
+// for an hour and fall back to the snapshot below. Each fallback is logged.
 
 const HOUR = 3600;
 const TIMEOUT_MS = 3000;
@@ -166,6 +166,82 @@ export async function loadPrice(close: Close | Promise<Close>): Promise<Close> {
     );
   } catch {
     return fellBack(await close, "live_price_unavailable");
+  }
+}
+
+/** BRK's realized price and STH realized price at block `height`, read at `at`. */
+export type RealizedLevels = {
+  realized: number;
+  sth: number;
+  height: number;
+  at: string;
+};
+
+// The release's levels are a day old at most, and realized prices move
+// slowly: a live level this far from the release's is a bad reply.
+const LEVEL_MAX_MOVE = 1.1;
+
+const tipSeriesSchema = z.object({
+  index: z.literal("height"),
+  start: z.number().int().positive(),
+  data: z.tuple([z.number().positive().finite()]),
+  stamp: z.string(),
+});
+
+/** The two levels from BRK's series replies, or null when either is
+ * malformed, they are blocks apart or either strays from `release`'s. */
+export function realizedLevels(
+  realizedReply: unknown,
+  sthReply: unknown,
+  release: { realized: number; sth: number },
+): RealizedLevels | null {
+  const realized = tipSeriesSchema.safeParse(realizedReply);
+  const sth = tipSeriesSchema.safeParse(sthReply);
+  if (!realized.success || !sth.success) return null;
+  const near = (value: number, to: number) =>
+    value < to * LEVEL_MAX_MOVE && value > to / LEVEL_MAX_MOVE;
+  const at = new Date(realized.data.stamp);
+  if (
+    Math.abs(realized.data.start - sth.data.start) > 1 ||
+    !near(realized.data.data[0], release.realized) ||
+    !near(sth.data.data[0], release.sth) ||
+    Number.isNaN(at.getTime())
+  )
+    return null;
+  return {
+    realized: realized.data.data[0],
+    sth: sth.data.data[0],
+    height: Math.max(realized.data.start, sth.data.start),
+    at: at.toISOString(),
+  };
+}
+
+/** BRK's realized price and STH realized price now, read on every visit, or
+ * null (the release's levels stand) when they fail the checks in
+ * realizedLevels(). The requests start before `release` resolves. */
+export async function loadRealizedLevels(
+  release: Promise<{ realized: number; sth: number }>,
+): Promise<RealizedLevels | null> {
+  try {
+    const [realized, sth] = await Promise.all(
+      ["realized_price", "sth_realized_price"].map(async (name) => {
+        const response = await fetch(
+          `https://bitview.space/api/series/${name}/height?start=-1`,
+          {
+            headers: HEADERS,
+            cache: "no-store",
+            signal: AbortSignal.timeout(TIMEOUT_MS),
+          },
+        );
+        return response.ok ? response.json() : null;
+      }),
+    );
+    return (
+      realizedLevels(realized, sth, await release) ??
+      fellBack(null, "realized_levels_unavailable")
+    );
+  } catch {
+    return fellBack(null, "realized_levels_unavailable");
   }
 }
 

@@ -16,8 +16,11 @@ import {
   loadChainHeight,
   loadPrice,
   loadPriceOdds,
+  loadRealizedLevels,
   priceOddsFromEvent,
+  realizedLevels,
   type Close,
+  type RealizedLevels,
 } from "../components/agent21/landing/live-examples";
 import {
   SNAPSHOT_FACTS,
@@ -390,5 +393,101 @@ test("the examples quote the live price as the current price", () => {
   assert.match(
     text(priceOddsAnswer({ ...SNAPSHOT_ODDS, close: LIVE }, SNAPSHOT_FACTS)),
     /Now · \$90,000/,
+  );
+});
+
+// BRK's realized prices at the tip, as its series replies give them.
+const tipReply = (value: number, start = 970770) => ({
+  version: 4126600415,
+  index: "height",
+  type: "Dollars",
+  start,
+  end: start + 1,
+  stamp: "2026-10-10T13:17:20Z",
+  data: [value],
+});
+const RELEASE_LEVELS = { realized: 53778.77, sth: 74206.18 };
+const LEVELS: RealizedLevels = {
+  realized: 53799.91,
+  sth: 74280.86,
+  height: 970770,
+  at: "2026-10-10T13:17:20.000Z",
+};
+
+test("live realized prices must be well formed, from one block and near the release's", () => {
+  assert.deepEqual(
+    realizedLevels(tipReply(53799.91), tipReply(74280.86), RELEASE_LEVELS),
+    LEVELS,
+  );
+  // A block apart is fine; further apart, far from the release, or malformed is not.
+  assert.equal(
+    realizedLevels(
+      tipReply(53799.91, 970771),
+      tipReply(74280.86),
+      RELEASE_LEVELS,
+    )?.height,
+    970771,
+  );
+  assert.equal(
+    realizedLevels(
+      tipReply(53799.91, 970775),
+      tipReply(74280.86),
+      RELEASE_LEVELS,
+    ),
+    null,
+  );
+  assert.equal(
+    realizedLevels(tipReply(5379991), tipReply(74280.86), RELEASE_LEVELS),
+    null,
+  );
+  assert.equal(
+    realizedLevels(
+      { ...tipReply(53799.91), index: "day1" },
+      tipReply(74280.86),
+      RELEASE_LEVELS,
+    ),
+    null,
+  );
+  assert.equal(realizedLevels(null, tipReply(74280.86), RELEASE_LEVELS), null);
+});
+
+test("the realized-price loader reads both series from BRK and falls back to null", async (t) => {
+  const logged = t.mock.method(console, "warn", () => {});
+  const asked: string[] = [];
+  const fetched = t.mock.method(globalThis, "fetch", async (url: string) => {
+    asked.push(url);
+    return Response.json(
+      url.includes("sth_") ? tipReply(74280.86) : tipReply(53799.91),
+    );
+  });
+  assert.deepEqual(
+    await loadRealizedLevels(Promise.resolve(RELEASE_LEVELS)),
+    LEVELS,
+  );
+  assert.deepEqual(asked.sort(), [
+    "https://bitview.space/api/series/realized_price/height?start=-1",
+    "https://bitview.space/api/series/sth_realized_price/height?start=-1",
+  ]);
+  fetched.mock.mockImplementation(
+    async () => new Response("", { status: 503 }),
+  );
+  assert.equal(await loadRealizedLevels(Promise.resolve(RELEASE_LEVELS)), null);
+  assert.equal(logged.mock.callCount(), 1);
+});
+
+test("with live realized prices the market answer and its chart run to now", () => {
+  const answer = costBasisAnswer(SNAPSHOT_FACTS, LIVE, LEVELS);
+  assert.match(
+    text(answer),
+    /Bitcoin's current price of \$90,000 sits 67% above the realized price of \$53,800 and 21% above the STH realized price of \$74,281\. It has closed above that level every day since August 19\.\s?The 3x realized price sits at \$161,400\./,
+  );
+  const markup = renderToStaticMarkup(createElement("div", null, ...answer));
+  assert.match(markup, /Oct 13, 2021 – Oct 10, 2026/);
+  // Without a live price the release's levels stand, and so does the chart.
+  const close = costBasisAnswer(SNAPSHOT_FACTS, undefined, LEVELS);
+  assert.match(text(close), /realized price of \$53,779/);
+  assert.match(
+    renderToStaticMarkup(createElement("div", null, ...close)),
+    /Oct 13, 2021 – Oct 7, 2026/,
   );
 });

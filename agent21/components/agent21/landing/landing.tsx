@@ -57,7 +57,8 @@ export function Landing({
   access: Access;
   /** Figures for the examples that follow the daily release. */
   facts: ExampleFacts;
-  /** The price now, the live block height and the Polymarket ladder. */
+  /** The price and realized prices now, the block height and the Polymarket
+   * ladder. */
   live: LiveExamples;
 }) {
   // The hero agent reacts to what the visitor points at.

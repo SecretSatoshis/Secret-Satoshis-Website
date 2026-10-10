@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import type { ExampleFacts } from "./example-facts";
-import type { ChainHeight, Close, PriceOdds } from "./live-examples";
+import type {
+  ChainHeight,
+  Close,
+  PriceOdds,
+  RealizedLevels,
+} from "./live-examples";
 
 // Templates for the examples built from data: the daily release facts, the
 // price now and the live block height and Polymarket ladder. The wording is
@@ -155,7 +160,14 @@ function Legend({ items }: { items: [string, string][] }) {
   );
 }
 
-function CostBasisChart({ chart }: { chart: CostBasis["chart"] }) {
+function CostBasisChart({
+  chart,
+  now = false,
+}: {
+  chart: CostBasis["chart"];
+  /** The last point is the price and levels now, not a weekly reading. */
+  now?: boolean;
+}) {
   const bands: [string, number[], string][] = [
     ["3x Realized Price", chart.realized_price_3x, "#b39aee"],
     ["STH Realized Price", chart.sth_realized_price, "#5fd4d0"],
@@ -186,7 +198,10 @@ function CostBasisChart({ chart }: { chart: CostBasis["chart"] }) {
     series.map((v, i) => `${xs[i].toFixed(1)},${y(v).toFixed(1)}`).join(" ");
   const [point, svg, keyed] = usePoint(xs);
   const readout = (i: number) => ({
-    title: shortDate(chart.dates[i]),
+    title:
+      now && i === chart.dates.length - 1
+        ? `Now · ${shortDate(chart.dates[i])}`
+        : shortDate(chart.dates[i]),
     rows: bands
       .map(([label, series, color]) => ({ label, v: series[i], color }))
       .sort((a, b) => b.v - a.v)
@@ -480,16 +495,34 @@ const side = (value: number, level: number) => {
 };
 
 /** The "Analyze the market" answer: price against its on-chain cost basis.
- * The levels are the release's; the price is `now`'s, so when it has crossed
- * the STH level since the latest close the answer says so. */
+ * With a live price and live `levels`, the readings and the chart's last
+ * point are as of now; otherwise the levels are the release's. When the
+ * price has crossed the STH level since the latest close the answer says so;
+ * the history of closes is the release's either way. */
 export function costBasisAnswer(
   facts: ExampleFacts,
   now: Close = latestClose(facts),
+  levels: RealizedLevels | null = null,
 ): React.ReactNode[] {
   const f = facts.cost_basis;
   const year = utc(facts.report_date).getUTCFullYear();
   const closeDay = longDate(facts.report_date, year);
-  const sthNow = now.price >= f.sth_realized_price ? "above" : "below";
+  const live = now.at && levels ? levels : null;
+  const realized = live ? live.realized : f.realized_price;
+  const sth = live ? live.sth : f.sth_realized_price;
+  const realized3x = live ? 3 * live.realized : f.realized_price_3x;
+  const c = f.chart;
+  const chart =
+    live && now.date > c.dates.at(-1)!
+      ? {
+          dates: [...c.dates, now.date],
+          price: [...c.price, now.price],
+          realized_price: [...c.realized_price, realized],
+          sth_realized_price: [...c.sth_realized_price, sth],
+          realized_price_3x: [...c.realized_price_3x, realized3x],
+        }
+      : c;
+  const sthNow = now.price >= sth ? "above" : "below";
   const held =
     now.at && sthNow !== f.sth_side
       ? `It has moved ${sthNow} that level since the ${closeDay} close.`
@@ -506,13 +539,13 @@ export function costBasisAnswer(
   return [
     <p key="close">
       Bitcoin&apos;s {now.at ? "current price" : `${closeDay} close`} of{" "}
-      <strong>{usd(now.price)}</strong> sits {side(now.price, f.realized_price)}{" "}
-      the realized price of <strong>{usd(f.realized_price)}</strong> and{" "}
-      {side(now.price, f.sth_realized_price)} the STH realized price of{" "}
-      <strong>{usd(f.sth_realized_price)}</strong>. {held}
+      <strong>{usd(now.price)}</strong> sits {side(now.price, realized)} the
+      realized price of <strong>{usd(realized)}</strong> and{" "}
+      {side(now.price, sth)} the STH realized price of{" "}
+      <strong>{usd(sth)}</strong>. {held}
     </p>,
     <p key="bands">
-      The 3x realized price sits at <strong>{usd(f.realized_price_3x)}</strong>.{" "}
+      The 3x realized price sits at <strong>{usd(realized3x)}</strong>.{" "}
       {above3x
         ? "Bitcoin closed above it."
         : f.last_close_above_3x
@@ -520,7 +553,7 @@ export function costBasisAnswer(
           : "Bitcoin has not closed above it."}
       {stretchLine}
     </p>,
-    <CostBasisChart key="chart" chart={f.chart} />,
+    <CostBasisChart key="chart" chart={chart} now={chart !== c} />,
   ];
 }
 

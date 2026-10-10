@@ -22,7 +22,12 @@ import {
   shortDate,
 } from "./example-answers";
 import type { ExampleFacts } from "./example-facts";
-import type { ChainHeight, Close, PriceOdds } from "./live-examples";
+import type {
+  ChainHeight,
+  Close,
+  PriceOdds,
+  RealizedLevels,
+} from "./live-examples";
 
 // The landing page's example use cases, each shown as a chat. "Analyze the
 // market" and "Review the outlook" follow the Report Library's daily facts
@@ -184,11 +189,13 @@ type UseCase = {
   chat: React.ReactNode;
 };
 
-/** Live data: the block height, the Polymarket ladder and the price now. */
+/** Live data: the block height, the Polymarket ladder, the price now and the
+ * realized prices now (null when the release's stand). */
 export type LiveExamples = {
   chain: ChainHeight;
   odds: PriceOdds;
   price: Close;
+  levels: RealizedLevels | null;
 };
 
 /** The step's mention of the price, and the source's, when it is live. */
@@ -199,7 +206,7 @@ const priceSource = (price: Close) =>
 
 const buildUseCases = (
   facts: ExampleFacts,
-  { chain, odds, price }: LiveExamples,
+  { chain, odds, price, levels }: LiveExamples,
 ): UseCase[] => [
   {
     id: "fundamentals",
@@ -230,17 +237,30 @@ const buildUseCases = (
     chat: (
       <Chat
         question="Where is Bitcoin trading against its on-chain cost basis? Show me the last five years."
-        step={`Read the published Bitcoin Realized Price chart, trimmed to five years of completed UTC days${priceStep(price)}`}
+        step={
+          price.at && levels
+            ? "Read the published Bitcoin Realized Price chart, trimmed to five years, and the current price and realized prices from BRK"
+            : `Read the published Bitcoin Realized Price chart, trimmed to five years of completed UTC days${priceStep(price)}`
+        }
         date={shortDate(price.date)}
         source={
-          <>
-            <a href={CHART_URL}>Chart Library ↗</a>
-            <span>Data through {shortDate(facts.report_date)}</span>
-            {priceSource(price)}
-          </>
+          price.at && levels ? (
+            <>
+              <a href={CHART_URL}>Chart Library ↗</a>
+              <span>
+                BRK price and realized prices · {retrievedLabel(levels.at)}
+              </span>
+            </>
+          ) : (
+            <>
+              <a href={CHART_URL}>Chart Library ↗</a>
+              <span>Data through {shortDate(facts.report_date)}</span>
+              {priceSource(price)}
+            </>
+          )
         }
       >
-        {costBasisAnswer(facts, price)}
+        {costBasisAnswer(facts, price, levels)}
       </Chat>
     ),
   },

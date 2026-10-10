@@ -47,6 +47,7 @@ const codes = new Set([
   "block_height_unavailable",
   "price_odds_unavailable",
   "live_price_unavailable",
+  "realized_levels_unavailable",
 ]);
 const openaiErrors = new Set([
   "APIError",

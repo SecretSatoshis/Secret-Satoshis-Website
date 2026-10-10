@@ -10,6 +10,7 @@ import {
   loadChainHeight,
   loadPrice,
   loadPriceOdds,
+  loadRealizedLevels,
 } from "../components/agent21/landing/live-examples";
 import "./landing.css";
 export const dynamic = "force-dynamic";
@@ -59,9 +60,9 @@ export default async function AgentPage() {
       access = allowed === null ? "unavailable" : "denied";
     }
   }
-  // Every source loads together. The price now falls back to the release's
-  // latest close, so it waits for the release; the Polymarket ladder waits
-  // only for the price it is drawn around.
+  // Every source loads together. The price now and the realized prices fall
+  // back to the release's, so they wait for the release; the Polymarket
+  // ladder waits only for the price it is drawn around.
   const factsLoad = loadExampleFacts();
   const priceLoad = loadPrice(
     factsLoad.then((f) => ({
@@ -69,13 +70,23 @@ export default async function AgentPage() {
       price: f.cost_basis.close,
     })),
   );
-  const [facts, chain, price, odds] = await Promise.all([
+  const [facts, chain, price, odds, levels] = await Promise.all([
     factsLoad,
     loadChainHeight(),
     priceLoad,
     loadPriceOdds(priceLoad),
+    loadRealizedLevels(
+      factsLoad.then((f) => ({
+        realized: f.cost_basis.realized_price,
+        sth: f.cost_basis.sth_realized_price,
+      })),
+    ),
   ]);
   return (
-    <Landing access={access} facts={facts} live={{ chain, odds, price }} />
+    <Landing
+      access={access}
+      facts={facts}
+      live={{ chain, odds, price, levels }}
+    />
   );
 }
