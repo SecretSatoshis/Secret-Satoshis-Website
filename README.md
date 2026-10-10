@@ -1,7 +1,7 @@
 # Secret Satoshis
 
 The home page of [Secret Satoshis](https://secretsatoshis.com/): Bitcoin market analysis and
-open data, built on a decade inside Bitcoin markets. The site introduces the platform, tracks
+open-source data, built on a decade inside Bitcoin markets. The site introduces the platform, tracks
 the year's Bitcoin price outlook against the latest daily close, and points visitors to the
 newsletter, Agent 21, the Market Dashboard and the Chart Library.
 

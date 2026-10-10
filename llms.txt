@@ -1,7 +1,7 @@
 # Secret Satoshis
 
-> AI-native Bitcoin market intelligence. Original analysis and open data, built
-> on more than a decade inside Bitcoin markets. The daily Report Library release
+> AI-native Bitcoin market intelligence. Original analysis and open-source data,
+> built on more than a decade inside Bitcoin markets. The daily Report Library release
 > includes file hashes and a report date so downstream tools can check that they
 > use a consistent release.
 
