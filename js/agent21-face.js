@@ -33,7 +33,7 @@ export const STATE_LABEL = {
   listening: "Listening",
   thinking: "Thinking",
   answering: "Answering",
-  done: "Answered",
+  done: "Ready",
 };
 
 // Pose keys that react faster than the default easing.
@@ -84,7 +84,6 @@ function targetPose(state, t, look) {
     eyeScale: 1,
     lookX: x * 12,
     lookY: y * 9,
-    squint: 0,
     smileDepth: 1,
     smileWidth: 1,
     smileShift: 0,
@@ -140,16 +139,7 @@ function targetPose(state, t, look) {
         mouthOpen: talk(t),
         smileDepth: 0.9,
       };
-    case "done":
-      return {
-        ...pose,
-        squint: 1,
-        smileDepth: 1.25,
-        smileWidth: 1.06,
-        brightness: 1.08,
-        lookX: x * 4,
-        lookY: y * 3,
-      };
+    // Completed answers return to the default pose on both sites.
     default:
       return pose;
   }
@@ -270,27 +260,6 @@ function draw(ctx, px, size, p, t, dpr) {
     ctx.fill();
   }
   ctx.globalCompositeOperation = "source-over";
-  // Done: the cheeks push up and the eyes become smiling arches.
-  if (p.squint > 0.01) {
-    for (const e of eyes) {
-      ctx.save();
-      traceEye(ctx, e);
-      ctx.clip();
-      ctx.beginPath();
-      ctx.ellipse(
-        e.cx,
-        e.bottom + e.h * 0.25,
-        e.w * 0.62,
-        e.h * 0.62 * p.squint,
-        0,
-        0,
-        TAU,
-      );
-      ctx.fill();
-      ctx.restore();
-    }
-  }
-
   // Thinking: a glint sweeps across the face.
   if (p.glint > 0.01) {
     const pos = ((t * 0.55) % 1.6) - 0.3;
@@ -317,7 +286,6 @@ function draw(ctx, px, size, p, t, dpr) {
 export function mountAgent(root, canvas, options = {}) {
   const { size, followPointer = false, float = false } = options;
   let state = options.state ?? "idle";
-  let changedAt = performance.now() / 1000;
   const ctx = canvas.getContext("2d");
   if (!ctx) return { setState() {}, destroy() {} };
 
@@ -428,15 +396,17 @@ export function mountAgent(root, canvas, options = {}) {
       pose[key] += (target[key] - pose[key]) * (1 - Math.exp(-dt * rate));
     }
     if (s) {
-      draw(ctx, px, s, { ...pose, eyeOpen: pose.eyeOpen * blinkFactor(t) }, t, dpr);
+      draw(
+        ctx,
+        px,
+        s,
+        { ...pose, eyeOpen: pose.eyeOpen * blinkFactor(t) },
+        t,
+        dpr,
+      );
       root.style.setProperty("--glow", (0.3 * pose.brightness).toFixed(3));
       if (float) {
-        const since = t - changedAt;
-        const hop =
-          state === "done"
-            ? -0.05 * s * Math.abs(Math.sin(since * 7)) * Math.exp(-since * 2.6)
-            : 0;
-        const lift = hop + Math.sin(t * 1.6) * s * 0.013;
+        const lift = Math.sin(t * 1.6) * s * 0.013;
         root.style.transform = `perspective(${s * 3}px) rotateY(${(look.x * 12).toFixed(2)}deg) rotateX(${(-look.y * 9).toFixed(2)}deg) translateY(${lift.toFixed(2)}px)`;
       }
     }
@@ -459,7 +429,6 @@ export function mountAgent(root, canvas, options = {}) {
     setState(next) {
       if (next === state) return;
       state = next;
-      changedAt = performance.now() / 1000;
     },
     destroy() {
       cancelAnimationFrame(frame);

@@ -3,7 +3,7 @@
 // and listens while pointed at or focused; its status line says which.
 // The face's ?v= is its cache version: bump it with each change to the face,
 // and this script's own ?v= in index.html with it.
-import { mountAgent, STATE_LABEL } from "./agent21-face.js?v=1";
+import { mountAgent, STATE_LABEL } from "./agent21-face.js?v=2";
 
 const link = document.querySelector(".hero-agent");
 const root = link?.querySelector(".a21-agent");

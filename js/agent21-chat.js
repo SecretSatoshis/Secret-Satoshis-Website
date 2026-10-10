@@ -8,7 +8,7 @@
 // whole conversation is laid out at once, hidden, so nothing moves as it
 // plays; each message plays as it scrolls into view.
 // The face's ?v= matches js/agent21-hero.js, so both load one copy.
-import { mountAgent, SMALL, STATE_LABEL } from "./agent21-face.js?v=1";
+import { mountAgent, SMALL, STATE_LABEL } from "./agent21-face.js?v=2";
 
 const WORD_MS = 28; // between words; keep in step with .chat-w in css/style.css
 const BLOCK_WORDS = 10; // a chart counts as this many words
