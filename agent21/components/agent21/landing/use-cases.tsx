@@ -105,8 +105,9 @@ function Chat({
     const count = { n: 0 };
     return [streamable(children, count), count.n] as const;
   }, [children]);
-  // The first time the chat scrolls into view the agent thinks, writes its
-  // answer word by word, then shows the source.
+  // The first time its use case scrolls into view (the top four-fifths of
+  // the screen), the agent thinks, writes its answer word by word, then
+  // shows the source.
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -125,9 +126,9 @@ function Chat({
           setTimeout(() => setState("done"), THINK_MS + words * WORD_MS + 400),
         );
       },
-      { rootMargin: "0px 0px -35% 0px" },
+      { rootMargin: "0px 0px -20% 0px" },
     );
-    io.observe(el);
+    io.observe(el.closest(".uc-case") ?? el);
     const stop = () => {
       io.disconnect();
       timers.forEach(clearTimeout);
