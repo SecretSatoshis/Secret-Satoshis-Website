@@ -629,7 +629,11 @@ section {
 
 @media (max-width: 580px) {
   .chat { padding: 18px 16px; }
-  .chat-msg { grid-template-columns: minmax(0, 1fr); }
+  /* Keep the avatar beside the name; answers and charts use the full row. */
+  .chat-msg { row-gap: 12px; }
+  .chat-msg-body { display: contents; }
+  .chat-name { grid-column: 2; align-self: center; }
+  .chat-msg-body > :not(.chat-name) { grid-column: 1 / -1; min-width: 0; }
 
   /* Narrow charts show the readout under the plot instead of over it. */
   .chat-tip[data-side] {

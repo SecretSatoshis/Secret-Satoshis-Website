@@ -940,7 +940,19 @@
     padding: 18px 16px;
   }
   .uc-msg {
-    grid-template-columns: minmax(0, 1fr);
+    row-gap: 12px;
+  }
+  /* Keep the avatar beside the name; answers and charts use the full row. */
+  .uc-msg-body {
+    display: contents;
+  }
+  .uc-name {
+    grid-column: 2;
+    align-self: center;
+  }
+  .uc-msg-body > :not(.uc-name) {
+    grid-column: 1 / -1;
+    min-width: 0;
   }
   .uc-tx > div {
     grid-template-columns: minmax(0, 1fr);
