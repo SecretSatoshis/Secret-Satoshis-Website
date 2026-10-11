@@ -265,6 +265,7 @@
   white-space: nowrap;
 }
 
+/* Its lines break evenly rather than leaving a word or two alone. */
 .a21-hero .a21-hero-lead {
   max-width: 54ch;
   margin: 28px 0 40px;
@@ -272,6 +273,7 @@
   font-size: 16px;
   line-height: 1.7;
   color: #e4e4ef;
+  text-wrap: balance;
 }
 
 .a21-hero .a21-button {
@@ -372,11 +374,9 @@
     display: none;
   }
 
-  /* Centered, so its lines break evenly rather than leaving a word alone. */
   .a21-hero .a21-hero-lead {
     max-width: 46ch;
     margin: 0 auto 40px;
-    text-wrap: balance;
   }
 
   .a21-hero .a21-hero-rule {
