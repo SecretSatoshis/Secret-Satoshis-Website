@@ -336,11 +336,15 @@ section {
 /* The example chat: the Agent 21 site's example cards
    (agent21/app/landing.css, .uc-chat) on this page's tokens, built and played
    by js/agent21-chat.js, in a window of fixed size like a chat app's: the
-   log scrolls, and follows each message as it joins. */
+   log scrolls, and follows each message as it joins. The log fills the
+   window until the ask bar joins below it at the end. */
 .chat {
   --chat-pad: 24px;
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 18px;
+  height: clamp(520px, 62vh + 150px, 710px);
+  height: clamp(520px, 62svh + 150px, 710px);
   max-width: 780px;
   margin: 0 auto;
   padding: 24px var(--chat-pad);
@@ -359,16 +363,15 @@ section {
   color: var(--text-mute);
 }
 
-/* The window: a fixed height that scrolls, edge to edge so its scrollbar
-   sits at the chat's border, with earlier messages fading out under the
-   bar. */
+/* The window: the chat's height less its bar (and the ask bar, once it
+   joins), scrolling edge to edge so its scrollbar sits at the chat's border,
+   with earlier messages fading out under the bar. */
 .chat-log {
   position: relative;
   display: grid;
   align-content: start;
   gap: 22px;
-  height: clamp(380px, 62vh, 560px);
-  height: clamp(380px, 62svh, 560px);
+  min-height: 0;
   margin: -14px calc(-1 * var(--chat-pad)) 0;
   padding: 14px var(--chat-pad) 2px;
   overflow: hidden auto;
@@ -606,10 +609,9 @@ section {
   white-space: nowrap;
 }
 
-/* The ask bar closes the chat like a message box: one link to Agent 21.
-   While the conversation plays it keeps its place but stays hidden, so the
-   chat keeps its size, then shows, lit, once Agent 21 asks what's next.
-   Without the script it shows from the start. */
+/* The ask bar closes the chat like a message box: one link to Agent 21. It
+   joins, lit, once Agent 21 asks what's next, taking its room from the log
+   so the chat keeps its size. Without the script it shows from the start. */
 .chat-ask {
   display: flex;
   align-items: center;
@@ -622,15 +624,17 @@ section {
   background: var(--bg);
   color: var(--text-mute);
   font-size: 13px;
-  transition: opacity 0.4s ease, visibility 0.4s, border-color 0.4s ease, color 0.2s ease;
+  transition: border-color 0.4s ease, color 0.2s ease;
 }
 
 .chat.is-playing:not(.is-done) .chat-ask {
-  visibility: hidden;
-  opacity: 0;
+  display: none;
 }
 
-.chat.is-done .chat-ask { border-color: rgba(247,147,26,0.5); }
+.chat.is-done .chat-ask {
+  border-color: rgba(247,147,26,0.5);
+  animation: chat-in 0.4s ease both;
+}
 .chat-ask:hover { border-color: var(--accent); color: var(--text); }
 
 .chat-ask:focus-visible {
@@ -656,6 +660,7 @@ section {
 
 /* Without scripts there is no conversation; the ask bar stays. */
 @media (scripting: none) {
+  .chat { height: auto; }
   .chat-bar,
   .chat-log { display: none; }
   .chat-ask { margin-top: 0; }

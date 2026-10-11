@@ -316,6 +316,8 @@ function player(chat, log, messages, done) {
       if (message !== messages[messages.length - 1]) await wait(PAUSE_MS);
     }
     done();
+    // The ask bar takes its room from the log: keep the last message in view.
+    if (following) log.scrollTo({ top: log.scrollHeight, behavior: "smooth" });
   }
   function finish() {
     if (stopped) return;
