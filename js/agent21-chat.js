@@ -5,9 +5,9 @@
 // and a chart. The figures come from js/main.js (loaded first):
 // loadSinceYouLeft() reads the Report Library's published candles,
 // loadLivePrice() the price now and loadChain() the chain tip from BRK, each
-// checked, with SATOSHI_LEFT_ON. The conversation plays through once the
-// chat is on screen, the chat growing a message at a time, and the ask bar
-// below it joins when it ends. A fast scroll past finds the chat short.
+// checked, with SATOSHI_LEFT_ON. The chat is a window of fixed size: the
+// conversation plays through once it is on screen, each message joining the
+// log, which scrolls to follow it, and the ask bar below lights when it ends.
 // The face's ?v= matches js/agent21-hero.js, so both load one copy.
 import { mountAgent, SMALL, STATE_LABEL } from "./agent21-face.js?v=2";
 
@@ -248,16 +248,44 @@ function reached(node) {
   });
 }
 
-// Plays the messages in turn once `chat` comes into view, each joining the
-// log as its turn comes: a reply thinks (with its step showing), writes its
-// answer word by word, then shows its source.
-// finish() shows everything at once in its final state. Either way `done`
-// runs once the last message is in.
-function player(chat, messages, done) {
+// Plays the messages in turn once `chat` comes into view, each joining `log`
+// as its turn comes: a reply thinks (with its step showing), writes its
+// answer word by word, then shows its source. The log scrolls to each
+// message as it joins, unless the reader has scrolled it back up; back at
+// the newest message, it follows again.
+// finish() shows everything at once in its final state, where the reader
+// left the log. Either way `done` runs once the last message is in.
+function player(chat, log, messages, done) {
   let stopped = false;
+  let following = true;
+  // Only the reader scrolls the log up; following only ever scrolls it down.
+  let last = 0;
+  log.addEventListener(
+    "scroll",
+    () => {
+      if (log.scrollTop < last) following = false;
+      if (log.scrollHeight - log.scrollTop - log.clientHeight < 24) following = true;
+      last = log.scrollTop;
+    },
+    { passive: true },
+  );
+  // A message that has just joined, brought into view in the log: all of it
+  // when it fits, otherwise its start. The page itself never moves.
+  const follow = (node) => {
+    if (!following || stopped) return;
+    const pad = 8;
+    const fits = node.offsetHeight + 2 * pad <= log.clientHeight;
+    const top = fits ? node.offsetTop + node.offsetHeight + pad - log.clientHeight : node.offsetTop - pad;
+    if (top > log.scrollTop) log.scrollTo({ top, behavior: "smooth" });
+  };
+  const show = (message, phase) => {
+    const joining = message.node.dataset.phase === "waiting";
+    message.node.dataset.phase = phase;
+    if (joining) follow(message.node);
+  };
   // The message joins the log before its face is drawn.
   const set = (message, state, phase) => {
-    message.node.dataset.phase = phase;
+    show(message, phase);
     message.agent ??= mountAgent(message.face, message.canvas, { size: AVATAR, state });
     message.agent.setState(state);
     message.chip.textContent = STATE_LABEL[state];
@@ -267,7 +295,7 @@ function player(chat, messages, done) {
     for (const message of messages) {
       if (stopped) return;
       if (!message.face) {
-        message.node.dataset.phase = "done";
+        show(message, "done");
       } else {
         if (message.think) {
           set(message, "thinking", "thinking");
@@ -288,7 +316,7 @@ function player(chat, messages, done) {
     stopped = true;
     for (const message of messages) {
       if (message.face) set(message, message.rest, "done");
-      else message.node.dataset.phase = "done";
+      else show(message, "done");
     }
     done();
   }
@@ -546,12 +574,22 @@ async function start(chat, log, date) {
   }
   chat.setAttribute("aria-busy", "false");
   // Agent 21's last question hands over to the ask bar below the conversation.
-  const { play, finish } = player(chat, messages, () => chat.classList.add("is-done"));
-  // Focus inside the chat before the conversation has played shows it whole,
-  // so the keyboard reaches every chart and link.
-  chat.addEventListener("focusin", finish);
+  const { play, finish } = player(chat, log, messages, () => chat.classList.add("is-done"));
+  // Keyboard focus inside the chat before the conversation has played shows
+  // it whole, so the keyboard reaches every chart and link. A click does not.
+  chat.addEventListener("focusin", (e) => {
+    if (byKeyboard(e.target)) finish();
+  });
   if (reduced) finish();
   else play();
+}
+
+function byKeyboard(node) {
+  try {
+    return node.matches(":focus-visible");
+  } catch {
+    return true; // No :focus-visible: treat every focus as the keyboard's.
+  }
 }
 
 const chat = document.getElementById("agentChat");

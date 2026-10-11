@@ -335,14 +335,15 @@ section {
 
 /* The example chat: the Agent 21 site's example cards
    (agent21/app/landing.css, .uc-chat) on this page's tokens, built and played
-   by js/agent21-chat.js. It grows a message at a time as the conversation
-   plays, so a fast scroll past finds it short rather than empty. */
+   by js/agent21-chat.js, in a window of fixed size like a chat app's: the
+   log scrolls, and follows each message as it joins. */
 .chat {
+  --chat-pad: 24px;
   display: grid;
   gap: 18px;
   max-width: 780px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 24px var(--chat-pad);
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--surface);
@@ -358,9 +359,28 @@ section {
   color: var(--text-mute);
 }
 
+/* The window: a fixed height that scrolls, edge to edge so its scrollbar
+   sits at the chat's border, with earlier messages fading out under the
+   bar. */
 .chat-log {
+  position: relative;
   display: grid;
+  align-content: start;
   gap: 22px;
+  height: clamp(380px, 62vh, 560px);
+  height: clamp(380px, 62svh, 560px);
+  margin: -14px calc(-1 * var(--chat-pad)) 0;
+  padding: 14px var(--chat-pad) 2px;
+  overflow: hidden auto;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14px);
+  mask-image: linear-gradient(to bottom, transparent, #000 14px);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-hi) transparent;
+}
+
+.chat-log:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 .chat-user {
@@ -586,9 +606,10 @@ section {
   white-space: nowrap;
 }
 
-/* The ask bar closes the chat like a message box: one link to Agent 21. It
-   joins, lit, once Agent 21 asks what's next. Without the script it shows
-   from the start. */
+/* The ask bar closes the chat like a message box: one link to Agent 21.
+   While the conversation plays it keeps its place but stays hidden, so the
+   chat keeps its size, then shows, lit, once Agent 21 asks what's next.
+   Without the script it shows from the start. */
 .chat-ask {
   display: flex;
   align-items: center;
@@ -601,17 +622,15 @@ section {
   background: var(--bg);
   color: var(--text-mute);
   font-size: 13px;
-  transition: border-color 0.4s ease, color 0.2s ease;
+  transition: opacity 0.4s ease, visibility 0.4s, border-color 0.4s ease, color 0.2s ease;
 }
 
 .chat.is-playing:not(.is-done) .chat-ask {
-  display: none;
+  visibility: hidden;
+  opacity: 0;
 }
 
-.chat.is-done .chat-ask {
-  border-color: rgba(247,147,26,0.5);
-  animation: chat-in 0.4s ease both;
-}
+.chat.is-done .chat-ask { border-color: rgba(247,147,26,0.5); }
 .chat-ask:hover { border-color: var(--accent); color: var(--text); }
 
 .chat-ask:focus-visible {
@@ -643,7 +662,7 @@ section {
 }
 
 @media (max-width: 580px) {
-  .chat { padding: 18px 16px; }
+  .chat { --chat-pad: 16px; padding: 18px var(--chat-pad); }
   /* Keep the avatar beside the name; answers and charts use the full row. */
   .chat-msg { row-gap: 12px; }
   .chat-msg-body { display: contents; }
