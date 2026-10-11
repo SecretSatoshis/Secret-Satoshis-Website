@@ -5,8 +5,9 @@
 // and a chart. The figures come from js/main.js (loaded first):
 // loadSinceYouLeft() reads the Report Library's published candles,
 // loadLivePrice() the price now and loadChain() the chain tip from BRK, each
-// checked, with SATOSHI_LEFT_ON. The chat is a window of fixed size: the
-// conversation plays through once it is on screen, each message joining the
+// checked, with SATOSHI_LEFT_ON. The chat is a window of fixed size. Agent
+// 21's greeting is in it from the start; the conversation plays on from
+// Satoshi's question once the chat is on screen, each message joining the
 // log, which scrolls to follow it, and the ask bar below lights when it ends.
 // The face's ?v= matches js/agent21-hero.js, so both load one copy.
 import { mountAgent, SMALL, STATE_LABEL } from "./agent21-face.js?v=2";
@@ -52,13 +53,16 @@ const times = (n) => `${n >= 100 ? n.toLocaleString("en-US", { maximumSignifican
 const tickLabel = (v) => (v >= 1000 ? `$${v / 1000}k` : `$${v}`);
 const b = (text) => ({ b: text });
 
-// The conversation. Every figure comes from the published candles, the price
-// now and the chain tip; an answer whose source is unavailable says so or is
-// left out, and without the price now it quotes the latest close.
+// Agent 21's greeting, shown before any data has loaded.
+const GREETING = { from: "agent", rest: "idle", answer: [["Hello, I'm Agent 21. What can I look into for you?"]] };
+
+// The conversation after the greeting. Every figure comes from the published
+// candles, the price now and the chain tip; an answer whose source is
+// unavailable says so or is left out, and without the price now it quotes
+// the latest close.
 function conversation(f, chain) {
   const days = Math.round((utc(today()) - utc(SATOSHI_LEFT_ON)) / 86400000);
   const messages = [
-    { from: "agent", rest: "idle", answer: [["Hello, I'm Agent 21. What can I look into for you?"]] },
     { from: "user", text: "Hey Agent 21. What's happened to the Bitcoin price since I left?" },
   ];
   if (f) {
@@ -292,6 +296,8 @@ function player(chat, log, messages, done) {
   };
   async function play() {
     await reached(chat);
+    // A beat on the greeting before Satoshi answers it.
+    await wait(PAUSE_MS);
     for (const message of messages) {
       if (stopped) return;
       if (!message.face) {
@@ -598,6 +604,13 @@ const date = document.getElementById("agentChatDate");
 if (chat && log && date) {
   // The ask bar waits for the conversation (see .chat-ask in css/style.css).
   chat.classList.add("is-playing");
+  // The greeting and today's date are there from the start, so the chat is
+  // never an empty window.
+  const greeting = agentMessage(GREETING);
+  greeting.node.dataset.phase = "done";
+  log.append(greeting.node);
+  mountAgent(greeting.face, greeting.canvas, { size: AVATAR, state: "idle" });
+  date.textContent = shortDate(today());
   // Load the data a screen before the chat comes into view.
   const near = new IntersectionObserver(
     ([entry]) => {
