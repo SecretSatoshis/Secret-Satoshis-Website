@@ -335,8 +335,8 @@ section {
 
 /* The example chat: the Agent 21 site's example cards
    (agent21/app/landing.css, .uc-chat) on this page's tokens, built and played
-   by js/agent21-chat.js. Each message waits hidden in its place, so nothing
-   moves as the conversation plays. */
+   by js/agent21-chat.js. It grows a message at a time as the conversation
+   plays, so a fast scroll past finds it short rather than empty. */
 .chat {
   display: grid;
   gap: 18px;
@@ -443,18 +443,25 @@ section {
 .chat-source a { color: var(--text); }
 .chat-source a:hover { color: var(--accent); }
 
-/* Playing: a message fades in when its turn comes; a reply's step shows while
-   it thinks, its words (then its chart) fade in in order 28ms apart, and its
-   source shows when it is done. */
-.chat-user,
-.chat-msg,
-.chat-source {
-  transition: opacity 0.4s ease, transform 0.4s ease;
+/* Playing: a message joins the log, fading in, when its turn comes; a reply's
+   step shows while it thinks, its words (then its chart) fade in in order
+   28ms apart in the space they will fill, and its source shows when it is
+   done. */
+.chat-log [data-phase="waiting"] {
+  display: none;
 }
 
-.chat-log [data-phase="waiting"] {
-  opacity: 0;
-  transform: translateY(8px);
+.chat-user,
+.chat-msg {
+  animation: chat-in 0.4s ease both;
+}
+
+.chat-source {
+  transition: opacity 0.4s ease;
+}
+
+@keyframes chat-in {
+  from { opacity: 0; transform: translateY(8px); }
 }
 
 .chat-msg:not([data-phase="answering"], [data-phase="done"]) :is(.chat-w, .chat-block),
@@ -579,9 +586,8 @@ section {
   white-space: nowrap;
 }
 
-/* The ask bar closes the chat like a message box: one link to Agent 21.
-   While the conversation plays it keeps its place but stays hidden, then
-   shows, lit, once Agent 21 asks what's next. Without the script it shows
+/* The ask bar closes the chat like a message box: one link to Agent 21. It
+   joins, lit, once Agent 21 asks what's next. Without the script it shows
    from the start. */
 .chat-ask {
   display: flex;
@@ -595,15 +601,17 @@ section {
   background: var(--bg);
   color: var(--text-mute);
   font-size: 13px;
-  transition: opacity 0.4s ease, visibility 0.4s, border-color 0.4s ease, color 0.2s ease;
+  transition: border-color 0.4s ease, color 0.2s ease;
 }
 
 .chat.is-playing:not(.is-done) .chat-ask {
-  visibility: hidden;
-  opacity: 0;
+  display: none;
 }
 
-.chat.is-done .chat-ask { border-color: rgba(247,147,26,0.5); }
+.chat.is-done .chat-ask {
+  border-color: rgba(247,147,26,0.5);
+  animation: chat-in 0.4s ease both;
+}
 .chat-ask:hover { border-color: var(--accent); color: var(--text); }
 
 .chat-ask:focus-visible {

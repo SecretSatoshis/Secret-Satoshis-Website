@@ -5,10 +5,9 @@
 // and a chart. The figures come from js/main.js (loaded first):
 // loadSinceYouLeft() reads the Report Library's published candles,
 // loadLivePrice() the price now and loadChain() the chain tip from BRK, each
-// checked, with SATOSHI_LEFT_ON. The
-// whole conversation is laid out at once, hidden, so nothing moves as it
-// plays; it plays through once its first message scrolls into view, and the
-// ask bar below it shows when it ends.
+// checked, with SATOSHI_LEFT_ON. The conversation plays through once the
+// chat is on screen, the chat growing a message at a time, and the ask bar
+// below it joins when it ends. A fast scroll past finds the chat short.
 // The face's ?v= matches js/agent21-hero.js, so both load one copy.
 import { mountAgent, SMALL, STATE_LABEL } from "./agent21-face.js?v=2";
 
@@ -231,37 +230,40 @@ function agentMessage({ step, answer, source, think = false, rest = "done" }) {
   return { node, face, canvas, chip, words: counter.n, think, rest };
 }
 
-// Resolves once `node` is in the top four-fifths of the screen, or has been
-// scrolled past.
+// Resolves once `node` is in the top four-fifths of the screen, below the
+// fixed nav. Scrolled past does not count, nor does an edge left under the
+// nav by a jump to the next section: a chat growing above the reader would
+// push the page down.
 function reached(node) {
   return new Promise((resolve) => {
     const io = new IntersectionObserver(
       ([entry]) => {
-        if (!entry.isIntersecting && entry.boundingClientRect.top > 0) return;
+        if (!entry.isIntersecting) return;
         io.disconnect();
         resolve();
       },
-      { rootMargin: "0px 0px -20% 0px" },
+      { rootMargin: "-80px 0px -20% 0px" },
     );
     io.observe(node);
   });
 }
 
-// Plays the messages in turn once the first comes into view: a reply thinks
-// (with its step showing), writes its answer word by word, then shows its
-// source.
+// Plays the messages in turn once `chat` comes into view, each joining the
+// log as its turn comes: a reply thinks (with its step showing), writes its
+// answer word by word, then shows its source.
 // finish() shows everything at once in its final state. Either way `done`
 // runs once the last message is in.
-function player(messages, done) {
+function player(chat, messages, done) {
   let stopped = false;
+  // The message joins the log before its face is drawn.
   const set = (message, state, phase) => {
+    message.node.dataset.phase = phase;
     message.agent ??= mountAgent(message.face, message.canvas, { size: AVATAR, state });
     message.agent.setState(state);
     message.chip.textContent = STATE_LABEL[state];
-    message.node.dataset.phase = phase;
   };
   async function play() {
-    await reached(messages[0].node);
+    await reached(chat);
     for (const message of messages) {
       if (stopped) return;
       if (!message.face) {
@@ -544,9 +546,9 @@ async function start(chat, log, date) {
   }
   chat.setAttribute("aria-busy", "false");
   // Agent 21's last question hands over to the ask bar below the conversation.
-  const { play, finish } = player(messages, () => chat.classList.add("is-done"));
-  // Focus inside (a chart, a link) before the conversation has played shows it
-  // whole, so focus never lands on something hidden.
+  const { play, finish } = player(chat, messages, () => chat.classList.add("is-done"));
+  // Focus inside the chat before the conversation has played shows it whole,
+  // so the keyboard reaches every chart and link.
   chat.addEventListener("focusin", finish);
   if (reduced) finish();
   else play();
