@@ -37,13 +37,8 @@ test('pages share one cache version per asset, so a release reaches every page',
   }
 });
 
-test('the hero and chat scripts import one cache version of the face module', () => {
-  const versions = ['js/agent21-hero.js', 'js/agent21-chat.js'].map((file) => {
-    const match = read(file).match(/from "\.\/agent21-face\.js(\?v=\d+)";/);
-    assert.ok(match, `${file} imports the face module without a cache version`);
-    return match[1];
-  });
-  assert.equal(new Set(versions).size, 1, `the face module is imported as ${versions.join(' and ')}`);
+test('the hero imports the face module with a cache version', () => {
+  assert.match(read('js/agent21-hero.js'), /from "\.\/agent21-face\.js\?v=\d+";/);
 });
 
 test('no page loads fonts or styles from a third-party service', () => {

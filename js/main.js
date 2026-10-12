@@ -141,21 +141,17 @@ const RELEASE_MANIFEST_URL = CSV_BASE + '/release_manifest.json';
 const FETCH_TIMEOUT_MS = 8000;
 
 /*
- * Bitcoin's price now, from BRK, so the tracker and the Agent 21 example read as of
- * today rather than the release's last completed day. One request serves both. A
- * price that is stale, from the future, malformed or implausibly far from the
- * release's verified close is not used, and the close stands in for it.
+ * Bitcoin's price now, from BRK, so the tracker reads as of today rather than the
+ * release's last completed day. A price that is stale, from the future, malformed or
+ * implausibly far from the release's verified close is not used, and the close stands
+ * in for it.
  */
 const LIVE_PRICE_URL = 'https://bitview.space/api/v1/prices';
 const LIVE_PRICE_MAX_AGE_MS = 6 * 3600 * 1000;
 const LIVE_PRICE_MAX_MOVE = 1.5;
-let livePriceRequest = null;
 
-function loadLivePrice() {
-  if (!livePriceRequest) {
-    livePriceRequest = fetchBytes(LIVE_PRICE_URL).then((bytes) => parseLivePrice(readJson(bytes), Date.now()));
-  }
-  return livePriceRequest;
+async function loadLivePrice() {
+  return parseLivePrice(readJson(await fetchBytes(LIVE_PRICE_URL)), Date.now());
 }
 
 /* { price, at } (at in milliseconds) from BRK's reply, or null if malformed or not recent. */
@@ -303,6 +299,15 @@ async function fetchBytes(url) {
 
 function decodeText(bytes) {
   return new TextDecoder().decode(bytes);
+}
+
+function readJson(bytes) {
+  if (!bytes) return null;
+  try {
+    return JSON.parse(decodeText(bytes));
+  } catch (err) {
+    return null;
+  }
 }
 
 /*
@@ -538,208 +543,4 @@ function formatAsOf(isoDate) {
   return new Intl.DateTimeFormat('en-US', {
     day: 'numeric', month: 'short', year: 'numeric'
   }).format(d);
-}
-
-/* ═══ AGENT 21 EXAMPLE DATA ═══ */
-/*
- * The figures in the homepage's Agent 21 example (js/agent21-chat.js, which calls
- * loadSinceYouLeft() and loadChain()): Bitcoin's price since Satoshi left, from the
- * Report Library's published candles, and its supply, live from BRK. Like the tracker
- * each fails closed: if a source cannot be fetched or read, or the candles do not
- * match the release manifest, the example answers without those figures.
- */
-const CANDLES_FILE = 'bitcoin_candles.csv.gz';
-/* Satoshi's last known email, to Mike Hearn: "I've moved on to other things." */
-const SATOSHI_LEFT_ON = '2011-04-23';
-
-async function loadSinceYouLeft() {
-  const [candleBytes, manifestBytes] = await Promise.all([
-    fetchBytes(CSV_BASE + '/' + CANDLES_FILE),
-    fetchBytes(RELEASE_MANIFEST_URL),
-  ]);
-  const text = candleBytes && await gunzipText(candleBytes);
-  const candles = text && parseCandles(text);
-  const facts = candles && sinceYouLeft(candles, SATOSHI_LEFT_ON);
-  if (!facts) {
-    console.warn('Agent 21 example without figures: ' + CANDLES_FILE + ' could not be read.');
-    return null;
-  }
-  const consistent = await matchesReleaseManifest(manifestBytes, facts.reportDate, {
-    [CANDLES_FILE]: candleBytes,
-  });
-  if (!consistent) {
-    console.warn('Agent 21 example without figures: ' + CANDLES_FILE + ' does not match the release manifest.');
-    return null;
-  }
-  return facts;
-}
-
-/* Null where the browser cannot unzip (no DecompressionStream) or the bytes are not gzip. */
-async function gunzipText(bytes) {
-  if (typeof DecompressionStream === 'undefined') return null;
-  try {
-    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
-    return await new Response(stream).text();
-  } catch (err) {
-    return null;
-  }
-}
-
-/*
- * The daily and weekly candles, oldest first. Any malformed or out-of-order row fails
- * the whole file: a chart drawn from a misread row would show a price that never traded.
- */
-function parseCandles(text) {
-  const records = parseCsv(text);
-  if (!records) return null;
-
-  const series = { daily: [], weekly: [] };
-  for (const row of records) {
-    const list = series[row.interval];
-    if (!list) continue;  // monthly
-    const candle = {
-      start: row.period_start,
-      open: Number(row.Open),
-      high: Number(row.High),
-      low: Number(row.Low),
-      close: Number(row.Close),
-      complete: row.complete === 'True',
-    };
-    const { open, high, low, close } = candle;
-    if (!isValidReportDate(candle.start)
-        || (row.complete !== 'True' && row.complete !== 'False')
-        || ![open, high, low, close].every((v) => Number.isFinite(v) && v > 0)
-        || high < Math.max(open, close) || low > Math.min(open, close)) return null;
-    const previous = list[list.length - 1];
-    if (previous && previous.start >= candle.start) return null;
-    list.push(candle);
-  }
-  if (series.daily.length < 2 || series.weekly.length < 2) return null;
-  return series;
-}
-
-/*
- * What Agent 21 tells Satoshi: the close on the day he left and on the latest completed
- * day (the release's report date), and every weekly close for the history chart, the
- * current week to date.
- */
-function sinceYouLeft({ daily, weekly }, leftOn) {
-  const completed = daily.filter((c) => c.complete);
-  const latest = completed[completed.length - 1];
-  const left = completed.find((c) => c.start === leftOn);
-  if (!latest || !left || latest.start <= leftOn) return null;
-
-  return {
-    leftOn,
-    leftClose: left.close,
-    reportDate: latest.start,
-    close: latest.close,
-    history: weekly.map(({ start, close }) => ({ start, close })),
-  };
-}
-
-/*
- * The figures with BRK's price now in place of the latest close, when it passes the
- * checks: `live` and `asOf` (the visitor's date for the price) say which. The history
- * chart gains a last point at the price now.
- */
-function withLivePrice(facts, livePrice) {
-  const now = plausibleLivePrice(livePrice, facts.close);
-  if (!now) return { ...facts, live: null, asOf: facts.reportDate };
-  const history = facts.history.slice();
-  if (now.date >= history[history.length - 1].start) history.push({ start: now.date, close: now.price, now: true });
-  return { ...facts, close: now.price, live: now, asOf: now.date, history };
-}
-
-/*
- * The supply answer, live from BRK (the node the Report Library and the Agent 21 site
- * read): the chain tip's height and the bitcoin mined through it, and the bitcoin mined
- * by the end of the day Satoshi left. A reply that is malformed, or a mined total that
- * strays from the issuance schedule, leaves the answer out.
- */
-const BRK_SERIES = 'https://bitview.space/api/series';
-/* BRK numbers its daily series from this day. */
-const BRK_DAY_ZERO = '2009-01-01';
-const HALVING_INTERVAL = 210000;
-const MAX_SUPPLY = 20999999.9769;
-
-async function loadChain() {
-  const day = Math.round((Date.parse(SATOSHI_LEFT_ON) - Date.parse(BRK_DAY_ZERO)) / 86400000);
-  const [tipBytes, thenBytes] = await Promise.all([
-    fetchBytes(BRK_SERIES + '/subsidy_cumulative/height?start=-1'),
-    fetchBytes(BRK_SERIES + '/subsidy_cumulative/day1?start=' + day + '&end=' + (day + 1)),
-  ]);
-  const chain = parseChain(readJson(tipBytes), readJson(thenBytes), day);
-  if (!chain) console.warn('Agent 21 example without supply: BRK could not be read.');
-  return chain;
-}
-
-function readJson(bytes) {
-  if (!bytes) return null;
-  try {
-    return JSON.parse(decodeText(bytes));
-  } catch (err) {
-    return null;
-  }
-}
-
-/* The one value of a BRK series reply, which must be for the index and position asked. */
-function seriesValue(reply, index, start) {
-  if (!reply || reply.index !== index || reply.start !== start
-      || !Array.isArray(reply.data) || reply.data.length !== 1) return null;
-  const value = reply.data[0];
-  return Number.isFinite(value) && value > 0 ? value : null;
-}
-
-function parseChain(tip, then, day) {
-  const height = tip && tip.start;
-  if (!Number.isInteger(height) || height <= 0) return null;
-  const mined = seriesValue(tip, 'height', height);
-  const minedWhenLeft = seriesValue(then, 'day1', day);
-  // Miners have left a few coins unclaimed, so the mined total sits just under the schedule.
-  const scheduled = scheduledSupply(height);
-  if (mined === null || minedWhenLeft === null || mined > scheduled
-      || scheduled - mined > 1000 || minedWhenLeft >= mined) return null;
-  return {
-    height,
-    mined,
-    minedWhenLeft,
-    left: MAX_SUPPLY - mined,
-    share: mined / MAX_SUPPLY,
-    subsidy: blockSubsidy(height),
-    nextHalving: (Math.floor(height / HALVING_INTERVAL) + 1) * HALVING_INTERVAL,
-    eras: supplyEras(height),
-    retrievedAt: typeof tip.stamp === 'string' ? tip.stamp : null,
-  };
-}
-
-/* The reward for mining block `height`: 50 bitcoin, halved every 210,000 blocks. */
-function blockSubsidy(height) {
-  return 50 / 2 ** Math.floor(height / HALVING_INTERVAL);
-}
-
-/* Bitcoin issued through block `height`, block 0 included, on that schedule. */
-function scheduledSupply(height) {
-  let total = 0;
-  for (let first = 0; first <= height; first += HALVING_INTERVAL) {
-    total += (Math.min(height + 1, first + HALVING_INTERVAL) - first) * blockSubsidy(first);
-  }
-  return total;
-}
-
-/*
- * The 21 million in halving eras, through the current one, then everything after it as
- * one: each with its first block, reward, bitcoin issued and the running total at its end.
- */
-function supplyEras(height) {
-  const eras = [];
-  let end = 0;
-  for (let first = 0; first <= height; first += HALVING_INTERVAL) {
-    const subsidy = blockSubsidy(first);
-    end += HALVING_INTERVAL * subsidy;
-    eras.push({ first, last: first + HALVING_INTERVAL - 1, subsidy, issued: HALVING_INTERVAL * subsidy, end });
-  }
-  const first = eras.length * HALVING_INTERVAL;
-  eras.push({ first, last: null, subsidy: blockSubsidy(first), issued: MAX_SUPPLY - end, end: MAX_SUPPLY });
-  return eras;
 }
