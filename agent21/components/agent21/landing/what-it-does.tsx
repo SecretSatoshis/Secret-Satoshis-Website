@@ -11,11 +11,11 @@ const CARDS: Card[] = [
   },
   {
     title: "Secret Satoshis data sets",
-    text: "Our open-source daily data release: 300+ Bitcoin metrics back to 2010, the same numbers behind our charts, dashboard and newsletter.",
+    text: "Our open-source daily data release: 300+ Bitcoin metrics with history back to 2010, the same numbers behind our charts, dashboard and newsletter.",
   },
   {
     title: "On-chain data",
-    text: "Blocks, transactions, addresses, fees and the mempool, plus thousands of market and on-chain series, straight from the blockchain.",
+    text: "Blocks, transactions, addresses, fees and the mempool, read straight from the blockchain, plus thousands of market and on-chain series.",
   },
   {
     title: "Prediction markets",
