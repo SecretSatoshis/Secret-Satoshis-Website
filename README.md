@@ -1,9 +1,9 @@
 # Secret Satoshis
 
-The home page of the [Secret Satoshis](https://secretsatoshis.com/) newsletter: our Bitcoin market
-view, from a yearly price outlook and the market analysis that tracks it, written for long-term
-investors. The site tracks the year's Bitcoin price outlook against the price today, and points
-visitors to the newsletter, Agent 21, the Market Dashboard and the Chart Library.
+The home page of the [Secret Satoshis](https://secretsatoshis.com/) newsletter: a yearly Bitcoin
+price outlook and weekly market analysis that tracks it, written for long-term investors. The
+site tracks the year's Bitcoin price outlook against the price today, and points visitors to the
+newsletter, Agent 21, the Market Dashboard and the Chart Library.
 
 - **Visit the site:** [secretsatoshis.com](https://secretsatoshis.com/)
 - **Read the newsletter:** [newsletter.secretsatoshis.com](https://newsletter.secretsatoshis.com/)

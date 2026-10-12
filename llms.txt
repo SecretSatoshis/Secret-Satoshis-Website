@@ -1,7 +1,7 @@
 # Secret Satoshis
 
-> The Secret Satoshis newsletter: our Bitcoin market view, from a yearly price outlook
-> and the market analysis that tracks it, written for long-term investors. The daily
+> The Secret Satoshis newsletter: a yearly Bitcoin price outlook and weekly market
+> analysis that tracks it, written for long-term investors. The daily
 > Report Library release includes file hashes and a report date so downstream tools
 > can check that they use a consistent release.
 
