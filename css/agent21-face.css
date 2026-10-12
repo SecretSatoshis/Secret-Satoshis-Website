@@ -221,32 +221,8 @@
   align-items: flex-start;
 }
 
-/* The copy: a small orange label (optional), a large tight headline, a 16px
-   lead, the call to action and a dashed rule above the last line. */
-.a21-hero .a21-hero-label {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: fit-content;
-  margin: 0 0 24px;
-  font-family: "JetBrains Mono", ui-monospace, Menlo, monospace;
-  font-size: 9px;
-  font-weight: 400;
-  line-height: 1.7;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #f7931a;
-}
-
-.a21-hero .a21-hero-label::before {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #f7931a;
-  box-shadow: 0 0 12px #f7931a55;
-  content: "";
-}
-
+/* The copy: a large tight headline, a 16px lead, the call to action and a
+   dashed rule above the last line. */
 .a21-hero .a21-hero-title {
   margin: 0;
   font-family: "Syne", "Helvetica Neue", Arial, sans-serif;
@@ -364,10 +340,6 @@
     align-items: center;
   }
 
-  .a21-hero .a21-hero-label {
-    margin-inline: auto;
-  }
-
   .a21-hero .a21-wide-only {
     display: none;
   }
@@ -393,10 +365,6 @@
 
   .a21-stage {
     --a21-floor-gap: 14px;
-  }
-
-  .a21-hero .a21-hero-label {
-    font-size: 8px;
   }
 
   /* Sized so the homepage's "The Secret Satoshis" (8.7 times the font size

@@ -113,9 +113,6 @@ export function Landing({
         <section className="r9-hero a21-hero a21-hero-grid">
           <div className="a21-hero-copy">
             <div className="a21-hero-head">
-              <p className="a21-hero-label">
-                Introducing Agent 21 · Private beta
-              </p>
               <h1 className="a21-hero-title">
                 The <span className="a21-nowrap">Bitcoin-native</span>{" "}
                 <br className="a21-wide-only" />
