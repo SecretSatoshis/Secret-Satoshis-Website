@@ -230,6 +230,30 @@ const buildUseCases = (
     ),
   },
   {
+    id: "outlook",
+    title: "Review the Secret Satoshis price outlook",
+    summary:
+      "Ask about our Bitcoin price outlook and newsletter updates, and see how our view of the market is holding up against the latest data.",
+    chat: (
+      <Chat
+        question={`How is the Secret Satoshis ${facts.outlook.year} outlook holding up?`}
+        step={`Read the ${facts.outlook.year} price outlook and the last 52 weekly candles from the daily release${priceStep(price)}`}
+        date={shortDate(price.date)}
+        source={
+          <>
+            <span>
+              Secret Satoshis {facts.outlook.year} outlook · Report Library
+              release, {shortDate(facts.report_date)}
+            </span>
+            {priceSource(price)}
+          </>
+        }
+      >
+        {outlookAnswer(facts, price)}
+      </Chat>
+    ),
+  },
+  {
     id: "market",
     title: "Analyze the market",
     summary:
@@ -261,30 +285,6 @@ const buildUseCases = (
         }
       >
         {costBasisAnswer(facts, price, levels)}
-      </Chat>
-    ),
-  },
-  {
-    id: "outlook",
-    title: "Review the Secret Satoshis price outlook",
-    summary:
-      "Ask about our Bitcoin price outlook and newsletter updates, and see how our view of the market is holding up against the latest data.",
-    chat: (
-      <Chat
-        question={`How is the Secret Satoshis ${facts.outlook.year} outlook holding up?`}
-        step={`Read the ${facts.outlook.year} price outlook and the last 52 weekly candles from the daily release${priceStep(price)}`}
-        date={shortDate(price.date)}
-        source={
-          <>
-            <span>
-              Secret Satoshis {facts.outlook.year} outlook · Report Library
-              release, {shortDate(facts.report_date)}
-            </span>
-            {priceSource(price)}
-          </>
-        }
-      >
-        {outlookAnswer(facts, price)}
       </Chat>
     ),
   },
