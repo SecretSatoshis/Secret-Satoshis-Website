@@ -1,9 +1,9 @@
 # Secret Satoshis
 
-> AI-native Bitcoin market intelligence: our Bitcoin market view, published in our
-> newsletter and built into Agent 21, our Bitcoin-native AI agent. The daily Report
-> Library release includes file hashes and a report date so downstream tools can
-> check that they use a consistent release.
+> The Secret Satoshis newsletter: our Bitcoin market view, from a yearly price outlook
+> and the market analysis that tracks it, written for long-term investors. The daily
+> Report Library release includes file hashes and a report date so downstream tools
+> can check that they use a consistent release.
 
 Secret Satoshis publishes Bitcoin market analysis alongside the data and code
 behind it. One price forecast is published each year with bear, base and bull

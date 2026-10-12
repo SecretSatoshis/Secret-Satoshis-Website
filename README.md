@@ -1,9 +1,9 @@
 # Secret Satoshis
 
-The home page of [Secret Satoshis](https://secretsatoshis.com/): our Bitcoin market view,
-published in our newsletter and built into Agent 21, our Bitcoin-native AI agent. The site
-introduces the platform, tracks the year's Bitcoin price outlook against the price today, and
-points visitors to the newsletter, Agent 21, the Market Dashboard and the Chart Library.
+The home page of the [Secret Satoshis](https://secretsatoshis.com/) newsletter: our Bitcoin market
+view, from a yearly price outlook and the market analysis that tracks it, written for long-term
+investors. The site tracks the year's Bitcoin price outlook against the price today, and points
+visitors to the newsletter, Agent 21, the Market Dashboard and the Chart Library.
 
 - **Visit the site:** [secretsatoshis.com](https://secretsatoshis.com/)
 - **Read the newsletter:** [newsletter.secretsatoshis.com](https://newsletter.secretsatoshis.com/)
@@ -12,7 +12,7 @@ points visitors to the newsletter, Agent 21, the Market Dashboard and the Chart 
 
 | Section | What it does |
 |---------|--------------|
-| **Hero** | "AI-Native Bitcoin Market Intelligence", a link to the price outlook, and Agent 21, which follows the cursor and links to its site |
+| **Hero** | "The Secret Satoshis Newsletter", a link to the price outlook, and Agent 21, which follows the cursor and links to its site |
 | **Newsletter** | The yearly, weekly, quarterly and year-end issues, the live outlook tracker, and a sign-up form that goes straight to Substack |
 | **Your Next Step** | Start Here, the Chart Library, the Market Dashboard and the open-source code on GitHub |
 

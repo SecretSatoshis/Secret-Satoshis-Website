@@ -399,8 +399,8 @@
     font-size: 8px;
   }
 
-  /* Sized so the homepage's "Market Intelligence." (8.7 times the font
-     size wide) fits inside the side gutters. */
+  /* Sized so the homepage's "The Secret Satoshis" (8.7 times the font size
+     wide) fits inside the side gutters. */
   .a21-hero .a21-hero-title {
     font-size: min(56px, calc((100vw - 48px) / 8.8));
   }
