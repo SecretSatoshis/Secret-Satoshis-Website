@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 // The landing page is the public front door, so unlike the app's other routes
 // it is indexed and carries a share card (the homepage's).
 const DESCRIPTION =
-  "Agent 21 is the Bitcoin-native AI agent built by Secret Satoshis: our market frameworks, open-source code and live market data in one conversation.";
+  "Agent 21 is the Bitcoin-native AI agent from Secret Satoshis: it starts from Bitcoin's first principles, reads on-chain data directly and applies our research to answer your questions and analyze the market.";
 const CARD = {
   url: "https://secretsatoshis.com/assets/images/social-card.jpg",
   width: 1200,

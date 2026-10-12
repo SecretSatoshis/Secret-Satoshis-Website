@@ -292,10 +292,10 @@ const buildUseCases = (
     id: "price",
     title: "See the market's odds",
     summary:
-      "Get the market's own odds for where Bitcoin trades next, with the volume and liquidity behind each price.",
+      "See Polymarket's odds of Bitcoin touching each price this year, with the volume and liquidity behind them.",
     chat: (
       <Chat
-        question="What price is Bitcoin likely to hit this year?"
+        question="What do Polymarket's odds look like for Bitcoin's price over the rest of this year?"
         step={`Read the open strikes on Polymarket's “${odds.title}” market`}
         date={shortDate(odds.retrievedAt.slice(0, 10))}
         source={
