@@ -509,8 +509,9 @@ function relativeTo(close, level, name) {
 /*
  * Time remaining as of the day the tracker shows: the live price's, or the close's.
  * Deriving it from the browser clock instead would contradict the tracker on New Year's
- * Day, when the latest completed report still belongs to 31 December. Whole weeks while a week remains, then days, so the
- * last week of the year never reads as "0 weeks left".
+ * Day, when the latest completed report still belongs to 31 December. Whole weeks while
+ * a week remains, then days, so the last week of the year never reads as "0 weeks
+ * left". The Agent 21 site's outlook example counts the same way.
  */
 function timeLeftInYear(reportDate) {
   const days = daysLeftInYear(reportDate);

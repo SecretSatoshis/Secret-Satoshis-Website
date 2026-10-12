@@ -29,7 +29,7 @@ export function SectionLabel({ children }: { children: React.ReactNode }) {
 /** The page's one call-to-action button: the waitlist by default. */
 export function AccessLink({
   href = "/waitlist",
-  children = "Join the private beta",
+  children = "Join the waitlist",
 }: {
   href?: string;
   children?: React.ReactNode;

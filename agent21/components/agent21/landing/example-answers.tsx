@@ -525,10 +525,10 @@ export function costBasisAnswer(
   const sthNow = now.price >= sth ? "above" : "below";
   const held =
     now.at && sthNow !== f.sth_side
-      ? `It has moved ${sthNow} that level since the ${closeDay} close.`
+      ? `It has moved ${sthNow} the STH level since the ${closeDay} close.`
       : f.sth_side_since === facts.report_date
-        ? `It moved ${f.sth_side} that level on ${now.at ? `the ${closeDay} close` : "this close"}.`
-        : `It has closed ${f.sth_side} that level every day since ${longDate(f.sth_side_since, year)}.`;
+        ? `It moved ${f.sth_side} the STH level on ${now.at ? `the ${closeDay} close` : "this close"}.`
+        : `It has closed ${f.sth_side} the STH level every day since ${longDate(f.sth_side_since, year)}.`;
   const stretch = f.last_stretch_below_realized;
   let stretchLine = "";
   if (stretch && stretch.end === facts.report_date)
@@ -541,7 +541,7 @@ export function costBasisAnswer(
       Bitcoin&apos;s {now.at ? "current price" : `${closeDay} close`} of{" "}
       <strong>{usd(now.price)}</strong> sits {side(now.price, realized)} the
       realized price of <strong>{usd(realized)}</strong> and{" "}
-      {side(now.price, sth)} the STH realized price of{" "}
+      {side(now.price, sth)} the short-term holder (STH) realized price of{" "}
       <strong>{usd(sth)}</strong>. {held}
     </p>,
     <p key="bands">
@@ -571,13 +571,15 @@ export function outlookAnswer(
   const ytd = change(price, o.previous_year_close);
   const base = caseNamed(o, "base");
   const bear = caseNamed(o, "bear");
-  const weeks = Math.round(daysLeft / 7);
+  // Whole weeks while a week remains, then days: the homepage tracker's rule
+  // (timeLeftInYear in js/main.js), so both sites give the same count.
+  const weeks = Math.floor(daysLeft / 7);
   const left =
-    weeks >= 2
-      ? `the ${weeks} weeks left`
-      : daysLeft >= 2
-        ? `the ${daysLeft} days left`
-        : "the last days of the year";
+    daysLeft === 0
+      ? "on the final day of the year"
+      : daysLeft < 7
+        ? `in the ${daysLeft} day${daysLeft === 1 ? "" : "s"} left`
+        : `in the ${weeks} week${weeks === 1 ? "" : "s"} left`;
   const levels = [
     o.nearest_support &&
       `support at ${usd(o.nearest_support.price)} (${o.nearest_support.name})`,
@@ -597,7 +599,7 @@ export function outlookAnswer(
           <>
             {" "}
             Reaching the <strong>{usd(base.price)}</strong> base case would take
-            a {percent(change(base.price, price))} rise in {left}.
+            a {percent(change(base.price, price))} rise {left}.
           </>
         ) : (
           <>
@@ -739,7 +741,7 @@ function OddsRow({
   );
 }
 
-/** The "Ask where price is heading" answer: Polymarket's yearly price ladder. */
+/** The "See the market's odds" answer: Polymarket's yearly price ladder. */
 export function priceOddsAnswer(
   market: PriceOdds,
   facts: ExampleFacts,

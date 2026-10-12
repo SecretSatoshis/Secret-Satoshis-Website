@@ -290,7 +290,7 @@ const buildUseCases = (
   },
   {
     id: "price",
-    title: "Ask where price is heading",
+    title: "See the market's odds",
     summary:
       "Get the market's own odds for where Bitcoin trades next, with the volume and liquidity behind each price.",
     chat: (

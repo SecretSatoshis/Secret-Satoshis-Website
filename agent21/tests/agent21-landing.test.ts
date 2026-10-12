@@ -48,7 +48,7 @@ test("the bundled snapshot reads like the Oct 7 release", () => {
   const market = text(costBasisAnswer(SNAPSHOT_FACTS));
   assert.match(
     market,
-    /Bitcoin's October 7 close of \$83,172 sits 55% above the realized price of \$53,779 and 12% above the STH realized price of \$74,206\. It has closed above that level every day since August 19\./,
+    /Bitcoin's October 7 close of \$83,172 sits 55% above the realized price of \$53,779 and 12% above the short-term holder \(STH\) realized price of \$74,206\. It has closed above the STH level every day since August 19\./,
   );
   assert.match(market, /Bitcoin last closed above it on April 17, 2021\./);
   assert.match(
@@ -83,8 +83,11 @@ test("price below the STH level, or crossing it on the day, reads that way", () 
       }),
     ),
   );
-  assert.match(below, /6% below the STH realized price/);
-  assert.match(below, /closed below that level every day since September 1\./);
+  assert.match(below, /6% below the short-term holder \(STH\) realized price/);
+  assert.match(
+    below,
+    /closed below the STH level every day since September 1\./,
+  );
   const crossed = text(
     costBasisAnswer(
       facts((f) => {
@@ -92,7 +95,7 @@ test("price below the STH level, or crossing it on the day, reads that way", () 
       }),
     ),
   );
-  assert.match(crossed, /It moved above that level on this close\./);
+  assert.match(crossed, /It moved above the STH level on this close\./);
 });
 
 test("a stretch below realized price that is still running is described as ongoing", () => {
@@ -133,6 +136,18 @@ test("a close past the base case and the last days of the year read that way", (
     ),
   );
   assert.match(late, /rise in the 5 days left\./);
+  // Whole weeks while a week remains, then days: the homepage tracker's count.
+  const left = (days: number) =>
+    text(
+      outlookAnswer(
+        facts((f) => {
+          f.outlook.days_left_in_year = days;
+        }),
+      ),
+    );
+  assert.match(left(13), /rise in the 1 week left\./);
+  assert.match(left(1), /rise in the 1 day left\./);
+  assert.match(left(0), /rise on the final day of the year\./);
 });
 
 // Each fallback logs a sanitized warning; the tests silence and count them.
@@ -353,7 +368,7 @@ test("the examples quote the live price as the current price", () => {
   const market = text(costBasisAnswer(SNAPSHOT_FACTS, LIVE));
   assert.match(
     market,
-    /Bitcoin's current price of \$90,000 sits 67% above the realized price of \$53,779 and 21% above the STH realized price of \$74,206\. It has closed above that level every day since August 19\./,
+    /Bitcoin's current price of \$90,000 sits 67% above the realized price of \$53,779 and 21% above the short-term holder \(STH\) realized price of \$74,206\. It has closed above the STH level every day since August 19\./,
   );
   // Below the STH level now, though the latest close was above it.
   const crossed = text(
@@ -361,7 +376,7 @@ test("the examples quote the live price as the current price", () => {
   );
   assert.match(
     crossed,
-    /It has moved below that level since the October 7 close\./,
+    /It has moved below the STH level since the October 7 close\./,
   );
 
   const outlook = renderToStaticMarkup(
@@ -369,7 +384,7 @@ test("the examples quote the live price as the current price", () => {
   );
   assert.match(
     text(outlookAnswer(SNAPSHOT_FACTS, LIVE)),
-    /At its current price of \$90,000, Bitcoin is up 3\.1% for the year\. Reaching the \$120,000 base case would take a 33% rise in the 12 weeks left\. It sits 29% above the \$70,000 bear case\./,
+    /At its current price of \$90,000, Bitcoin is up 3\.1% for the year\. Reaching the \$120,000 base case would take a 33% rise in the 11 weeks left\. It sits 29% above the \$70,000 bear case\./,
   );
   assert.match(outlook, /Year-end cases against the current price/);
   // The week to date runs to the live price's day.
@@ -479,7 +494,7 @@ test("with live realized prices the market answer and its chart run to now", () 
   const answer = costBasisAnswer(SNAPSHOT_FACTS, LIVE, LEVELS);
   assert.match(
     text(answer),
-    /Bitcoin's current price of \$90,000 sits 67% above the realized price of \$53,800 and 21% above the STH realized price of \$74,281\. It has closed above that level every day since August 19\.\s?The 3x realized price sits at \$161,400\./,
+    /Bitcoin's current price of \$90,000 sits 67% above the realized price of \$53,800 and 21% above the short-term holder \(STH\) realized price of \$74,281\. It has closed above the STH level every day since August 19\.\s?The 3x realized price sits at \$161,400\./,
   );
   const markup = renderToStaticMarkup(createElement("div", null, ...answer));
   assert.match(markup, /Oct 13, 2021 – Oct 10, 2026/);

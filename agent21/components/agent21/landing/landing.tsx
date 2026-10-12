@@ -124,9 +124,8 @@ export function Landing({
             </div>
             <div className="a21-hero-body">
               <p className="a21-hero-lead">
-                Agent&nbsp;21 understands Bitcoin from first principles, reads
-                the blockchain directly, and works through your questions the
-                way we would.
+                Agent&nbsp;21 works from first principles and our research,
+                reads the blockchain directly, and cites its sources.
               </p>
               {access === "open" && (
                 <>
