@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import site from "../site.json";
 import { headers } from "next/headers";
 import { auth } from "@clerk/nextjs/server";
 import { hasAccess } from "../lib/agent21/auth";
@@ -18,10 +19,7 @@ export const dynamic = "force-dynamic";
 
 // The landing page is the public front door, so unlike the app's other routes
 // it is indexed and carries a share card (the homepage's).
-const TITLE = "Agent 21 — Bitcoin-native AI Agent | Secret Satoshis";
-const URL = "https://agent21.secretsatoshis.com/";
-const DESCRIPTION =
-  "Agent 21 is a Bitcoin-native AI agent that helps you understand Bitcoin and analyze the market with Secret Satoshis research and current market and on-chain data.";
+const { title: TITLE, url: URL, description: DESCRIPTION } = site;
 const CARD = {
   url: "https://secretsatoshis.com/assets/images/agent21-social-card.jpg",
   width: 1200,

@@ -17,13 +17,28 @@ Content and code are licensed GPL-3.0. Third-party datasets keep the terms of
 their upstream publishers. Nothing published here is investment advice. Created
 by Trey Brunson (https://treybrunson.com/).
 
+## Start here
+
+- [Start Here](https://newsletter.secretsatoshis.com/p/start-here): an introduction to the newsletter and tools, and where to begin.
+- [Agent 21 FAQ](https://newsletter.secretsatoshis.com/p/agent-21): capabilities, research and data sources, and beta access.
+
 ## Where the work is published
 
 - [Secret Satoshis](https://secretsatoshis.com/): the platform and the starting point.
-- [Market Dashboard](https://dashboard.secretsatoshis.com/): current Bitcoin market data, valuation models, on-chain conditions and cycle context, updated daily.
-- [Chart Library](https://charts.secretsatoshis.com/): interactive charts covering price, ETF flows, on-chain activity, supply, mining and valuation. Each chart is a standalone page with its own definition.
-- [Newsletter](https://newsletter.secretsatoshis.com/): written analysis, the annual price outlook, and the weekly, quarterly and year-end reports that track it.
+- [Market Dashboard](https://dashboard.secretsatoshis.com/): Bitcoin market performance, on-chain indicators, valuation models, and network activity, updated daily.
+- [Chart Library](https://charts.secretsatoshis.com/): interactive Bitcoin charts covering price, valuation, ETF flows, network activity, supply, and market cycles. Each chart is a standalone page with its own definition.
+- [Newsletter](https://newsletter.secretsatoshis.com/): written analysis, the yearly price outlook, and the weekly, quarterly and year-end reports that track it.
 - [Agent 21](https://agent21.secretsatoshis.com/): the Bitcoin-native AI agent built by Secret Satoshis, in invite-only beta. It works from the published research, open data and live Bitcoin network and market data.
+
+## Product guides for agents
+
+- [Agent 21 guide](https://agent21.secretsatoshis.com/llms.txt): public capabilities, examples, and beta access; generated from the homepage copy.
+- [Market Dashboard guide](https://dashboard.secretsatoshis.com/llms.txt): metric definitions, chart data, and release provenance; generated with the dashboard from its verified data release.
+- [Chart Library guide](https://charts.secretsatoshis.com/llms.txt): chart definitions and links grouped by category; generated from the chart catalog.
+
+The original yearly scenarios are reference points. Subsequent outlook assessments
+are published in newsletter issues. Check observation dates and source metadata
+before treating a reading as current; daily releases are not intraday feeds.
 
 ## Data and code
 
@@ -39,6 +54,5 @@ by Trey Brunson (https://treybrunson.com/).
 
 ## Optional
 
-- [Start Here](https://newsletter.secretsatoshis.com/p/start-here): what the platform is and where to begin.
 - [Disclaimer and licensing](https://newsletter.secretsatoshis.com/p/secret-satoshis-newsletter-disclaimer): how the content is produced, the AI disclosure, and the GPL-3.0 terms.
 - [Privacy](https://secretsatoshis.com/privacy.html)

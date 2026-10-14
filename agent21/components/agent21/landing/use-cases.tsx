@@ -1,5 +1,6 @@
 "use client";
 
+import { useCases } from "../../../site.json";
 import {
   Children,
   Fragment,
@@ -208,9 +209,7 @@ const buildUseCases = (
 ): UseCase[] => [
   {
     id: "fundamentals",
-    title: "Learn the fundamentals",
-    summary:
-      "Start with a simple question. Agent 21 answers in plain language and helps you understand Bitcoin from first principles.",
+    ...useCases.fundamentals,
     chat: (
       <Chat
         question="What does the halving actually change?"
@@ -229,9 +228,7 @@ const buildUseCases = (
   },
   {
     id: "outlook",
-    title: "Review the Secret Satoshis price outlook",
-    summary:
-      "Ask about our Bitcoin price outlook and newsletter updates, and see how our view of the market is holding up against the latest data.",
+    ...useCases.outlook,
     chat: (
       <Chat
         question="How does Bitcoin’s current price compare with our year-end scenarios?"
@@ -253,9 +250,7 @@ const buildUseCases = (
   },
   {
     id: "market",
-    title: "Analyze the market",
-    summary:
-      "Explore market and on-chain data through charts, with explanations of the readings that matter to your question.",
+    ...useCases.market,
     chat: (
       <Chat
         question="Chart Bitcoin’s price against realized price over the past five years and explain where it stands today."
@@ -284,9 +279,7 @@ const buildUseCases = (
   },
   {
     id: "price",
-    title: "See the market's odds",
-    summary:
-      "See Polymarket's odds of Bitcoin touching each price this year, with the volume and liquidity behind them.",
+    ...useCases.price,
     chat: (
       <Chat
         question="What odds does Polymarket give Bitcoin of reaching different prices this year, and how much trading supports those odds?"
@@ -307,9 +300,7 @@ const buildUseCases = (
   },
   {
     id: "blockchain",
-    title: "Explore the blockchain",
-    summary:
-      "Look up Bitcoin transactions, blocks, and addresses, and understand their details using data read directly from the blockchain.",
+    ...useCases.blockchain,
     chat: (
       <Chat
         question={

@@ -1,0 +1,27 @@
+{
+  "title": "Agent 21 — Bitcoin-native AI Agent | Secret Satoshis",
+  "url": "https://agent21.secretsatoshis.com/",
+  "description": "Agent 21 is a Bitcoin-native AI agent that helps you understand Bitcoin and analyze the market with Secret Satoshis research and current market and on-chain data.",
+  "useCases": {
+    "fundamentals": {
+      "title": "Learn the fundamentals",
+      "summary": "Start with a simple question. Agent 21 answers in plain language and helps you understand Bitcoin from first principles."
+    },
+    "outlook": {
+      "title": "Review the Secret Satoshis price outlook",
+      "summary": "Ask about our Bitcoin price outlook and newsletter updates, and see how our view of the market is holding up against the latest data."
+    },
+    "market": {
+      "title": "Analyze the market",
+      "summary": "Explore market and on-chain data through charts, with explanations of the readings that matter to your question."
+    },
+    "price": {
+      "title": "See the market's odds",
+      "summary": "See Polymarket's odds of Bitcoin touching each price this year, with the volume and liquidity behind them."
+    },
+    "blockchain": {
+      "title": "Explore the blockchain",
+      "summary": "Look up Bitcoin transactions, blocks, and addresses, and understand their details using data read directly from the blockchain."
+    }
+  }
+}
