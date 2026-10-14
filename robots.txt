@@ -6,6 +6,7 @@
 User-agent: *
 Content-Signal: search=yes, ai-input=yes, ai-train=yes
 Allow: /
+Disallow: /analytics.html
 
 Sitemap: https://secretsatoshis.com/sitemap.xml
 

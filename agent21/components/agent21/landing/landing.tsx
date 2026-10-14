@@ -1,5 +1,7 @@
 "use client";
 
+import { PublicAnalytics } from "../public-analytics";
+
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { AgentAvatar, STATE_LABEL, type AgentState } from "../agent-avatar";
@@ -110,6 +112,7 @@ export function Landing({
   }, []);
   return (
     <div className="lp rx" ref={rootRef}>
+      <PublicAnalytics path="/" />
       <SiteHeader />
       <main>
         {/* The homepage's hero too (css/agent21-face.css): the copy on the

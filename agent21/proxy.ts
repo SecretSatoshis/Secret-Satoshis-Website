@@ -17,6 +17,7 @@ const clerk = clerkMiddleware({
       "connect-src": ["https://vercel.com/api/blob/"],
       "img-src": ["data:", "blob:"],
       "font-src": ["self"],
+      "frame-src": ["https://secretsatoshis.com"],
       "object-src": ["none"],
       "base-uri": ["self"],
       "frame-ancestors": ["none"],
@@ -26,7 +27,7 @@ const clerk = clerkMiddleware({
 // Before Clerk is configured the app serves only the "coming soon" page.
 function unconfigured(request: NextRequest) {
   const nonce = btoa(crypto.randomUUID());
-  const policy = `default-src 'self'; script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'`;
+  const policy = `default-src 'self'; script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}; style-src 'self' 'unsafe-inline'; frame-src 'self' https://secretsatoshis.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'`;
   const headers = new Headers(request.headers);
   headers.set("x-nonce", nonce);
   headers.set("Content-Security-Policy", policy);

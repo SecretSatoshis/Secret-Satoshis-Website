@@ -94,6 +94,11 @@ GitHub Actions runs them on every pull request and every push to `main`.
 
 ## Making changes
 
+- **Analytics:** the public homepage, Dashboard, and Chart Library use
+  `js/analytics.js?v=1` with GA4 stream `G-9GQYJPLLC8`. Local previews and
+  file exports skip tracking. Agent 21 mounts a cross-origin analytics frame
+  only on its public landing and waitlist pages; Google scripts do not run in
+  the chat app. Update the shared script version on all products when changing it.
 - **CSS or JavaScript:** pages load their stylesheets and scripts with a version query, such
   as `style.css?v=26`. Raise the version of the file you changed on every page that loads it,
   so every visitor gets the new file. The tests fail if the pages disagree. `js/agent21-face.js`
