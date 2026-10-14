@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { auth } from "@clerk/nextjs/server";
 import { hasAccess } from "../lib/agent21/auth";
 import { configured } from "../lib/agent21/config";
@@ -17,23 +18,57 @@ export const dynamic = "force-dynamic";
 
 // The landing page is the public front door, so unlike the app's other routes
 // it is indexed and carries a share card (the homepage's).
+const TITLE = "Agent 21 — Bitcoin-native AI Agent | Secret Satoshis";
+const URL = "https://agent21.secretsatoshis.com/";
 const DESCRIPTION =
-  "Agent 21 helps you understand Bitcoin and analyze the market, using Secret Satoshis research and current market and on-chain data.";
+  "Agent 21 is a Bitcoin-native AI agent that helps you understand Bitcoin and analyze the market with Secret Satoshis research and current market and on-chain data.";
 const CARD = {
   url: "https://secretsatoshis.com/assets/images/agent21-social-card.jpg",
   width: 1200,
   height: 630,
   alt: "Agent 21, the Bitcoin-native AI agent from Secret Satoshis",
 };
+const STRUCTURED_DATA = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://secretsatoshis.com/#organization",
+      name: "Secret Satoshis",
+      url: "https://secretsatoshis.com/",
+    },
+    {
+      "@type": "WebPage",
+      "@id": `${URL}#webpage`,
+      url: URL,
+      name: TITLE,
+      description: DESCRIPTION,
+      publisher: { "@id": "https://secretsatoshis.com/#organization" },
+      mainEntity: { "@id": `${URL}#application` },
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": `${URL}#application`,
+      name: "Agent 21",
+      url: URL,
+      description: DESCRIPTION,
+      applicationCategory: "FinanceApplication",
+      operatingSystem: "Web browser",
+      publisher: { "@id": "https://secretsatoshis.com/#organization" },
+    },
+  ],
+};
 export const metadata: Metadata = {
+  title: TITLE,
   description: DESCRIPTION,
   robots: { index: true, follow: true },
-  alternates: { canonical: "/" },
+  alternates: { canonical: URL },
   openGraph: {
     type: "website",
-    url: "/",
+    url: URL,
+    locale: "en_US",
     siteName: "Secret Satoshis",
-    title: "Agent 21 | Secret Satoshis",
+    title: TITLE,
     description: DESCRIPTION,
     images: [CARD],
   },
@@ -41,7 +76,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     site: "@SecretSatoshis",
     creator: "@SecretSatoshis",
-    title: "Agent 21 | Secret Satoshis",
+    title: TITLE,
     description: DESCRIPTION,
     images: [CARD],
   },
@@ -82,11 +117,21 @@ export default async function AgentPage() {
       })),
     ),
   ]);
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
-    <Landing
-      access={access}
-      facts={facts}
-      live={{ chain, odds, price, levels }}
-    />
+    <>
+      <script
+        type="application/ld+json"
+        nonce={nonce}
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(STRUCTURED_DATA).replace(/</g, "\\u003c"),
+        }}
+      />
+      <Landing
+        access={access}
+        facts={facts}
+        live={{ chain, odds, price, levels }}
+      />
+    </>
   );
 }

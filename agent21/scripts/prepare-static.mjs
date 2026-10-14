@@ -18,6 +18,7 @@ await writeFile(
     "Disallow: /sign-up",
     "Disallow: /waitlist",
     "Disallow: /agent21-chart/",
+    "Sitemap: https://agent21.secretsatoshis.com/sitemap.xml",
     "",
   ].join("\n"),
 );
