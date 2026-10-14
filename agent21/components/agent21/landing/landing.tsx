@@ -7,7 +7,6 @@ import type { ExampleFacts } from "./example-facts";
 import { AccessLink, Beta, UNAVAILABLE, type Access } from "./parts";
 import { SiteFooter, SiteHeader } from "./site-chrome";
 import { UseCases, type LiveExamples } from "./use-cases";
-import { WhatItDoes } from "./what-it-does";
 
 // In the hero, "done" is the agent greeting the visitor.
 const STATUS: Record<AgentState, string> = { ...STATE_LABEL, done: "Hello" };
@@ -121,9 +120,9 @@ export function Landing({
             </div>
             <div className="a21-hero-body">
               <p className="a21-hero-lead">
-                Agent&nbsp;21 starts from Bitcoin&apos;s first principles, reads
-                on-chain data directly and applies our research to answer your
-                questions and analyze the&nbsp;market.
+                Agent&nbsp;21 helps you understand Bitcoin and analyze the
+                market, using Secret Satoshis research and current market and
+                on-chain&nbsp;data.
               </p>
               {access === "open" && (
                 <>
@@ -173,7 +172,6 @@ export function Landing({
           </div>
         </section>
         <UseCases facts={facts} live={live} />
-        <WhatItDoes />
         <div className="r9-beta section-divider">
           <div className="nx-wrap">
             <Beta access={access} />

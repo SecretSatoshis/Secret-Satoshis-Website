@@ -198,9 +198,7 @@ export type LiveExamples = {
   levels: RealizedLevels | null;
 };
 
-/** The step's mention of the price, and the source's, when it is live. */
-const priceStep = (price: Close) =>
-  price.at ? ", and the current price from BRK" : "";
+/** The source's mention of the price when it is live. */
 const priceSource = (price: Close) =>
   price.at && <span>BRK price · {retrievedLabel(price.at)}</span>;
 
@@ -216,7 +214,7 @@ const buildUseCases = (
     chat: (
       <Chat
         question="What does the halving actually change?"
-        step="Read the current block height from BRK"
+        step="Checked Bitcoin’s current block height."
         date={shortDate(chain.retrievedAt.slice(0, 10))}
         source={
           <span>
@@ -236,8 +234,8 @@ const buildUseCases = (
       "Ask about our Bitcoin price outlook and newsletter updates, and see how our view of the market is holding up against the latest data.",
     chat: (
       <Chat
-        question={`How is the Secret Satoshis ${facts.outlook.year} outlook holding up?`}
-        step={`Read the ${facts.outlook.year} price outlook and the last 52 weekly candles from the daily release${priceStep(price)}`}
+        question="How does Bitcoin’s current price compare with our year-end scenarios?"
+        step="Compared the published outlook with recent price data."
         date={shortDate(price.date)}
         source={
           <>
@@ -257,15 +255,11 @@ const buildUseCases = (
     id: "market",
     title: "Analyze the market",
     summary:
-      "Ask for market and on-chain analysis and get the data charted, with the readings that matter called out.",
+      "Explore market and on-chain data through charts, with explanations of the readings that matter to your question.",
     chat: (
       <Chat
-        question="Where is Bitcoin trading against its on-chain cost basis? Show me the last five years."
-        step={
-          price.at && levels
-            ? "Read the published Bitcoin Realized Price chart, trimmed to five years, and the current price and realized prices from BRK"
-            : `Read the published Bitcoin Realized Price chart, trimmed to five years of completed UTC days${priceStep(price)}`
-        }
+        question="Chart Bitcoin’s price against realized price over the past five years and explain where it stands today."
+        step="Compared Bitcoin’s price and realized price over five years."
         date={shortDate(price.date)}
         source={
           price.at && levels ? (
@@ -295,8 +289,8 @@ const buildUseCases = (
       "See Polymarket's odds of Bitcoin touching each price this year, with the volume and liquidity behind them.",
     chat: (
       <Chat
-        question="What do Polymarket's odds look like for Bitcoin's price over the rest of this year?"
-        step={`Read the open strikes on Polymarket's “${odds.title}” market`}
+        question="What odds does Polymarket give Bitcoin of reaching different prices this year, and how much trading supports those odds?"
+        step="Checked Polymarket’s price odds, volume, and liquidity."
         date={shortDate(odds.retrievedAt.slice(0, 10))}
         source={
           <>
@@ -315,15 +309,16 @@ const buildUseCases = (
     id: "blockchain",
     title: "Explore the blockchain",
     summary:
-      "Look up any transaction, block or address straight from a Bitcoin node, for builders and the curious alike.",
+      "Look up Bitcoin transactions, blocks, and addresses, and understand their details using data read directly from the blockchain.",
     chat: (
       <Chat
         question={
           <>
-            What is transaction <code>{PIZZA_TX}</code>?
+            Look up this Bitcoin transaction and explain its inputs, outputs,
+            fee, and confirmation status. TXID: <code>{PIZZA_TX}</code>
           </>
         }
-        step="GET /api/tx/a1075db5…f5d48d from BRK"
+        step="Retrieved the transaction details."
         date={shortDate(chain.retrievedAt.slice(0, 10))}
         source={
           <span>
@@ -365,15 +360,10 @@ export function UseCases({
       <div className="nx-wrap">
         <div className="uc-head">
           <SectionLabel>How to use Agent 21</SectionLabel>
-          <h2>
-            A decade of Bitcoin research, <br />
-            working for you.
-          </h2>
+          <h2>From Bitcoin fundamentals to market analysis.</h2>
           <p className="uc-sub">
-            From your first question about Bitcoin to this week&apos;s market
-            move, Agent 21 applies the frameworks and outlook we use at Secret
-            Satoshis, so you understand what&apos;s happening and why it
-            matters.
+            Ask about a Bitcoin concept, examine our outlook, or investigate a
+            market move.
           </p>
         </div>
         <div className="uc-body">

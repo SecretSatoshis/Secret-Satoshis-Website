@@ -49,8 +49,8 @@ export function Beta({ access }: { access: Access }) {
         <Eyebrow>Private beta</Eyebrow>
         <h2>Ask Agent 21 your next Bitcoin question.</h2>
         <p>
-          From the fundamentals to this week&apos;s market move, grounded in our
-          frameworks and research.
+          We&apos;re inviting beta testers to use Agent 21 and help shape its
+          development.
         </p>
       </div>
       <div className="nx-beta-action">

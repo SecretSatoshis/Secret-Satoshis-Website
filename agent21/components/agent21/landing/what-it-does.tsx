@@ -7,23 +7,23 @@ type Card = { title: string; text: string };
 const CARDS: Card[] = [
   {
     title: "Secret Satoshis newsletter",
-    text: "Secret Satoshis newsletter content: our weekly, quarterly and annual view of the Bitcoin market. Agent 21 can talk you through any issue.",
+    text: "Our yearly outlook, weekly recaps, quarterly reviews, and year-end assessments.",
   },
   {
     title: "Secret Satoshis data sets",
-    text: "Our open-source daily data release: 300+ Bitcoin metrics with history back to 2010, the same numbers behind our charts, dashboard and newsletter.",
+    text: "More than 300 Bitcoin metrics, updated daily, with historical coverage extending back to 2010.",
   },
   {
-    title: "On-chain data",
-    text: "Blocks, transactions, addresses, fees and the mempool, read straight from the blockchain, plus thousands of market and on-chain series.",
+    title: "Market and on-chain data",
+    text: "Price and on-chain indicators, plus blocks, transactions, addresses, fees, and mempool activity.",
   },
   {
     title: "Prediction markets",
-    text: "Polymarket odds on Bitcoin's price and the events that move it, with the volume and liquidity behind each.",
+    text: "Polymarket odds, trading volume, and liquidity for Bitcoin prices and related events.",
   },
   {
     title: "Latest news",
-    text: "Web search for what changed today, from primary and reputable sources, each one linked and dated.",
+    text: "Current reporting from primary and reputable sources, with links and dates.",
   },
 ];
 
@@ -35,8 +35,8 @@ export function WhatItDoes() {
           <SectionLabel>What Agent 21 knows</SectionLabel>
           <h2>Bitcoin intelligence</h2>
           <p className="wd-sub">
-            Secret Satoshis market frameworks. Open-source code. Live market
-            data.
+            Agent 21 draws on Secret Satoshis research, open-source data sets,
+            blockchain records, prediction markets, and current news.
           </p>
         </div>
         <div className="wd-grid">
