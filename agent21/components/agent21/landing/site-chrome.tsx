@@ -105,7 +105,7 @@ export function SiteFooter() {
               <span className="acc">{"//"}</span> SECRET SATOSHIS
             </a>
             <p className="ss-footer-tagline">
-              AI-native Bitcoin market intelligence
+              Bitcoin market analysis for long-term investors
             </p>
           </div>
           {FOOTER.map(([title, links]) => (
