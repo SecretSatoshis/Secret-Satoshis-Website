@@ -8,8 +8,14 @@ import { AccessLink, Beta, UNAVAILABLE, type Access } from "./parts";
 import { SiteFooter, SiteHeader } from "./site-chrome";
 import { UseCases, type LiveExamples } from "./use-cases";
 
-// In the hero, "done" is the agent greeting the visitor.
-const STATUS: Record<AgentState, string> = { ...STATE_LABEL, done: "Hello" };
+// In the hero the agent at rest is just its name, pointed at it is ready, and
+// "done" is it greeting the visitor.
+const STATUS: Record<AgentState, string> = {
+  ...STATE_LABEL,
+  idle: "",
+  listening: "Ready",
+  done: "Hello",
+};
 
 // Agent 21 floats in a soft orange glow and reacts to the visitor. Its size
 // is set in CSS (.r9-agent), so the server renders it at its final size.
@@ -39,7 +45,7 @@ function AgentStage({
           <span className="a21-stage-floor" aria-hidden="true" />
           <p className="a21-stage-status" aria-live="polite">
             <i aria-hidden="true" />
-            Agent 21 / {STATUS[state]}
+            Agent 21{STATUS[state] && ` / ${STATUS[state]}`}
           </p>
         </div>
       </div>
