@@ -30,9 +30,6 @@ CLAUDE.md
 .codex/
 .local/
 
-# Private brand and channel source documents
-/brand/
-
 # Private planning docs live in the private runtime repository, not this public one.
 /docs/
 
