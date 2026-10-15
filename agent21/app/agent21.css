@@ -30,6 +30,14 @@ textarea,
 summary {
   outline-offset: 4px;
 }
+/* Focus rings use the brand orange instead of the browser's blue. */
+:focus-visible {
+  outline: 2px solid var(--a21-orange);
+}
+textarea:focus-visible,
+input:focus-visible {
+  outline-offset: 2px;
+}
 a {
   color: inherit;
 }
@@ -237,7 +245,8 @@ button:disabled {
     sans-serif;
   display: block;
 }
-.a21-main header span {
+/* The tagline only; the Agent 21 mark's own spans keep their sizing. */
+.a21-main header div > span {
   display: block;
   font-size: 10px;
   color: var(--a21-dim);
