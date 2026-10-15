@@ -7,7 +7,9 @@ export default function Page() {
   return (
     <main className="a21-auth">
       <PublicAnalytics path="/waitlist" />
-      <a href={SITE}>{"// SECRET SATOSHIS"}</a>
+      <a href={SITE}>
+        <span className="a21-accent">{"//"}</span> SECRET SATOSHIS
+      </a>
       {process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? (
         <Waitlist afterJoinWaitlistUrl="/" />
       ) : (

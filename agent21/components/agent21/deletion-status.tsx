@@ -38,7 +38,7 @@ export function DeletionStatus({ id }: { id: string }) {
   return (
     <main className="a21-gate">
       <a className="a21-brand" href={SITE}>
-        {"// SECRET SATOSHIS"}
+        <span className="a21-accent">{"//"}</span> SECRET SATOSHIS
       </a>
       <h1>Agent 21 data deletion</h1>
       <p role="status" aria-live="polite">

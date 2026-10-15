@@ -49,6 +49,9 @@ button:disabled {
   opacity: 0.4;
   cursor: wait;
 }
+.a21-accent {
+  color: var(--a21-orange);
+}
 .a21-brand {
   text-decoration: none;
   letter-spacing: 0.05em;
@@ -133,7 +136,9 @@ button:disabled {
 }
 .a21-new {
   text-align: left;
-  padding: 12px;
+  padding: 11px 12px;
+  font-size: 12px;
+  white-space: nowrap;
 }
 .a21-history-head {
   display: flex;
@@ -223,10 +228,8 @@ button:disabled {
   gap: 16px;
   padding: 18px 30px;
 }
-.a21-main header > a {
-  color: var(--a21-orange);
-  text-decoration: none;
-  font-size: 28px;
+.a21-main header > .a21-agent {
+  flex-shrink: 0;
 }
 .a21-main header strong {
   font:
@@ -294,11 +297,18 @@ button:disabled {
   font-size: 13px;
 }
 .a21-user {
-  padding: 18px 24px;
+  padding: 10px 16px;
+  line-height: 1.6;
   background: var(--a21-panel);
   border: 1px solid var(--a21-border);
   border-radius: 12px;
   margin-left: 12%;
+}
+.a21-user p {
+  margin: 0;
+}
+.a21-user .a21-attachments {
+  padding: 8px 0 0;
 }
 .a21-speaker {
   font-size: 11px;
@@ -520,9 +530,6 @@ button:disabled {
   .a21-main header {
     gap: 10px;
   }
-  .a21-main header > a {
-    font-size: 22px;
-  }
   .a21-main {
     min-height: 0;
   }
@@ -614,4 +621,27 @@ button.a21-danger {
 .a21-rename button {
   font-size: 10px;
   padding: 4px 6px;
+}
+/* Without a profile photo the account shows its initial on an orange disc. */
+.a21-account-button {
+  position: relative;
+  display: inline-flex;
+}
+.a21-account-button[data-initial] .cl-userButtonAvatarBox {
+  background: var(--a21-orange);
+}
+.a21-account-button[data-initial] .cl-userButtonAvatarImage {
+  opacity: 0;
+}
+.a21-account-button[data-initial]::after {
+  content: attr(data-initial);
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--a21-bg);
+  font:
+    700 13px Syne,
+    sans-serif;
+  pointer-events: none;
 }

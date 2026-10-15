@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { UserButton } from "@clerk/nextjs";
+import { UserButton, useUser } from "@clerk/nextjs";
 import { uploadPresigned } from "@vercel/blob/client";
 import {
   AssistantRuntimeProvider,
@@ -250,7 +250,6 @@ function Attachment({ removable = false }: { removable?: boolean }) {
 function UserMessage() {
   return (
     <MessagePrimitive.Root className="a21-message a21-user">
-      <div className="a21-speaker">You</div>
       <MessagePrimitive.Parts />
       <div className="a21-attachments">
         <MessagePrimitive.Attachments>
@@ -279,6 +278,35 @@ const fetchConversation = (id: string): Promise<Loaded> =>
     id,
     ...value,
   }));
+/**
+ * Clerk's account button. Without a profile photo the account shows its
+ * initial on an orange disc instead of Clerk's generated avatar.
+ */
+function AccountButton() {
+  const { user } = useUser();
+  const initial = (
+    user?.firstName ||
+    user?.primaryEmailAddress?.emailAddress ||
+    ""
+  )
+    .charAt(0)
+    .toUpperCase();
+  return (
+    <span
+      className="a21-account-button"
+      data-initial={user && !user.hasImage ? initial || "₿" : undefined}
+    >
+      <UserButton
+        appearance={{
+          variables: {
+            colorPrimary: "#f7931a",
+            fontFamily: '"JetBrains Mono", monospace',
+          },
+        }}
+      />
+    </span>
+  );
+}
 export function Chat() {
   const params = useParams<{ conversation?: string }>();
   const router = useRouter();
@@ -706,7 +734,7 @@ export function Chat() {
             data-open={drawer || undefined}
           >
             <a className="a21-brand" href={SITE}>
-              {"// SECRET SATOSHIS"}
+              <span className="a21-accent">{"//"}</span> SECRET SATOSHIS
             </a>
             <ThreadListPrimitive.Root className="a21-threads">
               <ThreadListPrimitive.New className="a21-new">
@@ -827,7 +855,7 @@ export function Chat() {
               </nav>
             </ThreadListPrimitive.Root>
             <div className="a21-account">
-              <UserButton />
+              <AccountButton />
               <span>Private beta</span>
               <a href={`${SITE}/privacy.html`}>Privacy</a>
               {confirmingAccount ? (
@@ -861,10 +889,10 @@ export function Chat() {
               >
                 ☰
               </button>
-              <a href={SITE}>₿</a>
+              <AgentAvatar size={34} />
               <div>
                 <strong>Agent 21</strong>
-                <span>Bitcoin research & analysis</span>
+                <span>Bitcoin-native AI agent</span>
               </div>
             </header>
             <ThreadPrimitive.Root className="a21-chat">

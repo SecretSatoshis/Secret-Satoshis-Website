@@ -4,7 +4,7 @@ export default function NotFound() {
   return (
     <main className="a21-welcome">
       <a className="a21-brand" href={SITE}>
-        {"// SECRET SATOSHIS"}
+        <span className="a21-accent">{"//"}</span> SECRET SATOSHIS
       </a>
       <div className="a21-intro">
         <p className="a21-eyebrow">404</p>
