@@ -61,6 +61,8 @@ export function missingCredentials() {
         !(local && webhookCredentials.some((webhook) => webhook === name)),
     ),
     ...(blobConfigured() ? [] : ["BLOB_STORE_ID"]),
+    // Presigned browser uploads cannot be signed without it.
+    ...(process.env.BLOB_WEBHOOK_PUBLIC_KEY ? [] : ["BLOB_WEBHOOK_PUBLIC_KEY"]),
   ];
 }
 export function enabled() {

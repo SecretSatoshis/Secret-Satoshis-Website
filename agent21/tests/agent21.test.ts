@@ -21,6 +21,7 @@ test("webhook credentials are optional only for loopback development; production
     "NODE_ENV",
     "BLOB_STORE_ID",
     "BLOB_READ_WRITE_TOKEN",
+    "BLOB_WEBHOOK_PUBLIC_KEY",
   ];
   const before = Object.fromEntries(
     names.map((name) => [name, process.env[name]]),
@@ -28,6 +29,7 @@ test("webhook credentials are optional only for loopback development; production
   try {
     for (const name of credentialNames) process.env[name] = "configured";
     process.env.BLOB_STORE_ID = "store_configured";
+    process.env.BLOB_WEBHOOK_PUBLIC_KEY = "configured";
     delete process.env.OPENAI_WEBHOOK_SECRET;
     delete process.env.CLERK_WEBHOOK_SIGNING_SECRET;
     process.env.APP_ORIGIN = "http://localhost:3000";
@@ -53,6 +55,10 @@ test("webhook credentials are optional only for loopback development; production
       true,
       "Local development may use a read-write token",
     );
+    // Presigned uploads verify Blob callbacks with the store's public key.
+    delete process.env.BLOB_WEBHOOK_PUBLIC_KEY;
+    assert.deepEqual(missingCredentials(), ["BLOB_WEBHOOK_PUBLIC_KEY"]);
+    process.env.BLOB_WEBHOOK_PUBLIC_KEY = "configured";
     // The GitHub MCP token reaches OpenAI only through the session's vault.
     delete process.env.AGENT21_MCP_VAULT_ID;
     assert.deepEqual(missingCredentials(), ["AGENT21_MCP_VAULT_ID"]);
