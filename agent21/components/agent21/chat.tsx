@@ -302,6 +302,16 @@ export function Chat() {
   const [renaming, setRenaming] = useState<{ id: string; title: string }>();
   const [confirming, setConfirming] = useState<string>();
   const [confirmingAccount, setConfirmingAccount] = useState(false);
+  // On phones the history is a drawer opened from the header.
+  const [drawer, setDrawer] = useState(false);
+  useEffect(() => {
+    if (!drawer) return;
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setDrawer(false);
+    };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [drawer]);
   const pendingCancel = useRef(false);
   const pendingRequest = useRef<{
     text: string;
@@ -331,6 +341,7 @@ export function Chat() {
   const show = useCallback((id: string | null) => {
     selection.current = id;
     setSelected(id);
+    setDrawer(false);
     setError("");
     setNotice("");
     window.history.pushState({}, "", id ? `/c/${id}` : "/");
@@ -682,7 +693,18 @@ export function Chat() {
     <AssistantRuntimeProvider runtime={runtime}>
       <ConversationFiles.Provider value={linkable}>
         <div className="a21-shell">
-          <aside className="a21-sidebar">
+          {drawer && (
+            <button
+              className="a21-backdrop"
+              aria-label="Close conversation history"
+              onClick={() => setDrawer(false)}
+            />
+          )}
+          <aside
+            id="a21-history"
+            className="a21-sidebar"
+            data-open={drawer || undefined}
+          >
             <a className="a21-brand" href={SITE}>
               {"// SECRET SATOSHIS"}
             </a>
@@ -780,12 +802,15 @@ export function Chat() {
                           >
                             Rename
                           </button>
-                          <ThreadListItemPrimitive.Archive>
-                            Archive
-                          </ThreadListItemPrimitive.Archive>
-                          <ThreadListItemPrimitive.Unarchive>
-                            Restore
-                          </ThreadListItemPrimitive.Unarchive>
+                          {archivedView ? (
+                            <ThreadListItemPrimitive.Unarchive>
+                              Restore
+                            </ThreadListItemPrimitive.Unarchive>
+                          ) : (
+                            <ThreadListItemPrimitive.Archive>
+                              Archive
+                            </ThreadListItemPrimitive.Archive>
+                          )}
                           <button
                             onClick={(event) => {
                               closeMenu(event.currentTarget);
@@ -827,6 +852,15 @@ export function Chat() {
           </aside>
           <main className="a21-main">
             <header>
+              <button
+                className="a21-drawer-toggle"
+                aria-label="Conversation history"
+                aria-controls="a21-history"
+                aria-expanded={drawer}
+                onClick={() => setDrawer(!drawer)}
+              >
+                ☰
+              </button>
               <a href={SITE}>₿</a>
               <div>
                 <strong>Agent 21</strong>
