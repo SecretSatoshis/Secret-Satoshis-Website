@@ -321,6 +321,41 @@ button:disabled {
 .a21-user .a21-attachments {
   padding: 8px 0 0;
 }
+/* The answer in progress, until its text starts to arrive. */
+.a21-working-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+}
+.a21-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--a21-orange);
+  animation: a21-pulse 1.4s ease-in-out infinite;
+  flex: none;
+}
+@keyframes a21-pulse {
+  50% {
+    opacity: 0.3;
+    transform: scale(0.75);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .a21-pulse {
+    animation: none;
+  }
+}
+.a21-elapsed {
+  color: var(--a21-dim);
+  font-variant-numeric: tabular-nums;
+}
+.a21-working-note {
+  margin: 6px 0 0 18px;
+  color: var(--a21-dim);
+  line-height: 1.6;
+}
 .a21-speaker {
   font-size: 11px;
   color: var(--a21-dim);

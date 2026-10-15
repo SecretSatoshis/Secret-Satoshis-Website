@@ -16,6 +16,7 @@ import {
   mcpVaultId,
   sessionTools,
 } from "./openai";
+import { claimWarmEnvironment, liveEnvironment, liveSession } from "./warm";
 import {
   attachToEnvironment,
   boundedBytes,
@@ -265,28 +266,57 @@ function messageText(run: Run, retainedFiles: number) {
   }
   return `${text}\n\n${notes.length ? notes.join(" ") + "\n" : ""}Current time: ${utc} UTC${local}.`;
 }
-/** The conversation's current session, unless its sandbox has expired or failed. */
-async function reusableSession(run: Run) {
-  if (!run.current_session) return undefined;
-  try {
-    const session = await openai().beta.agents.sessions.retrieve(
-      run.current_session,
-    );
-    if (session.status === "failed") return undefined;
-    const environment = await openai().beta.agents.environments.retrieve(
-      environmentId(session),
-    );
-    // OpenAI-hosted sandboxes do not come back after they expire: the
-    // conversation continues in a new session with its files and history.
-    return environment.status === "connected" ||
-      environment.status === "pending"
-      ? session
-      : undefined;
-  } catch (error) {
-    if (isProviderError(error, 404)) return undefined;
-    throw error;
+/**
+ * The conversation's current session, unless its sandbox has expired or
+ * failed. OpenAI-hosted sandboxes do not come back after they expire: the
+ * conversation continues in a new session with its files and history.
+ */
+const reusableSession = (run: Run) =>
+  run.current_session ? liveSession(run.current_session) : undefined;
+/**
+ * The new session's sandbox: the account's pre-warmed one with the
+ * conversation's files copied in, or a cold start from the template that
+ * receives the files at creation. A pre-warmed sandbox that cannot take the
+ * files is left to expire.
+ */
+async function sessionEnvironment(
+  run: Run,
+  files: FileRow[],
+  prewarmed: boolean,
+) {
+  const warm =
+    prewarmed && (await claimWarmEnvironment(run.owner_id, run.template_id));
+  if (warm) {
+    try {
+      for (const file of files) {
+        await keepLease(run);
+        await attachToEnvironment(file, warm);
+      }
+      return {
+        environment: { type: "openai_hosted" as const, environment_id: warm },
+        attached: files.map((file) => file.id),
+      };
+    } catch (error) {
+      logDiagnostic(error, "warm_environment_unused", { runId: run.id });
+    }
   }
+  const environmentFiles = [];
+  for (const file of files) {
+    await keepLease(run);
+    environmentFiles.push({
+      type: "file_id" as const,
+      file_id: await providerFile(file),
+      path: inputPath(file),
+    });
+  }
+  return {
+    environment: hostedEnvironment(run.template_id, environmentFiles),
+    attached: [],
+  };
 }
+// A submission is resent unchanged only while its pre-warmed sandbox is alive.
+const prewarmedId = (submission: SessionSubmission) =>
+  (submission.body.environment as { environment_id?: string }).environment_id;
 /**
  * Creates the conversation's session with the message and its files in one
  * request. Session creation has no idempotency key, so the SDK must not retry
@@ -296,61 +326,78 @@ async function reusableSession(run: Run) {
 async function createSession(run: Run) {
   let submission =
     run.submission?.kind === "session" ? run.submission : undefined;
+  const warm = submission && prewarmedId(submission);
+  if (warm && !(await liveEnvironment(warm))) submission = undefined;
   if (!submission) {
     if (await withdrawn(run)) return;
-    const files = (await readyFiles(run.conversation_id)).slice(
-      0,
-      SESSION_FILES,
-    );
-    const environmentFiles = [];
-    for (const file of files) {
-      await keepLease(run);
-      environmentFiles.push({
-        type: "file_id" as const,
-        file_id: await providerFile(file),
-        path: inputPath(file),
-      });
-    }
-    submission = {
-      kind: "session",
-      body: canonicalData({
-        agent_id: run.agent_id,
-        ...(mcpVaultId() ? { vault_ids: [mcpVaultId()!] } : {}),
-        environment: hostedEnvironment(run.template_id, environmentFiles),
-        input: (await earlierHistory(run)) + messageText(run, files.length),
-        metadata: {
-          conversation: run.conversation_id,
-          run: run.id,
-          runtime: run.runtime_version,
-        },
-      }),
-    } satisfies SessionSubmission;
+    submission = await newSubmission(run, true);
   } else if (await withdrawn(run)) return;
+  let session;
+  try {
+    session = await sendCreation(run, submission);
+  } catch (error) {
+    // A refused request created nothing. A pre-warmed sandbox the provider
+    // would not attach is left to expire, and the session starts cold.
+    if (!prewarmedId(submission) || !isProviderError(error, 400, 404, 409))
+      throw error;
+    logDiagnostic(error, "warm_environment_unused", { runId: run.id });
+    submission = await newSubmission(run, false);
+    session = await sendCreation(run, submission);
+  }
+  await adoptSession(run, session);
+  await acceptCreated(run, submission);
+}
+/** The new session's request: its sandbox, the message and the history that fits. */
+async function newSubmission(
+  run: Run,
+  prewarmed: boolean,
+): Promise<SessionSubmission> {
+  const files = (await readyFiles(run.conversation_id)).slice(0, SESSION_FILES);
+  const { environment, attached } = await sessionEnvironment(
+    run,
+    files,
+    prewarmed,
+  );
+  return {
+    kind: "session",
+    ...(attached.length ? { attached } : {}),
+    body: canonicalData({
+      agent_id: run.agent_id,
+      ...(mcpVaultId() ? { vault_ids: [mcpVaultId()!] } : {}),
+      environment,
+      input: (await earlierHistory(run)) + messageText(run, files.length),
+      metadata: {
+        conversation: run.conversation_id,
+        run: run.id,
+        runtime: run.runtime_version,
+      },
+    }),
+  };
+}
+async function sendCreation(run: Run, submission: SessionSubmission) {
   await updateRun(run.id, {
     submission: JSON.stringify(submission),
     prior_turn_ids: "[]",
     session_creation_started_at: new Date(),
   });
   // Session tools are resolved here and never stored; MCP credentials stay in the OpenAI vault.
-  const session = await openai().beta.agents.sessions.create(
+  return openai().beta.agents.sessions.create(
     {
       ...submission.body,
       agent: { tools: await sessionTools(run.agent_id) },
     } as unknown as SessionCreateParamsNonStreaming,
     { maxRetries: 0 },
   );
-  await adoptSession(run, session);
-  await acceptCreated(run, submission);
 }
 /** A created session already holds the message and the files listed in its body. */
 async function acceptCreated(run: Run, submission: SessionSubmission) {
   const environment = submission.body.environment as {
     files?: { path: string }[];
   };
-  await recordSessionFiles(
-    run.session_id!,
-    (environment.files ?? []).map(({ path }) => path.split("/")[3]),
-  );
+  await recordSessionFiles(run.session_id!, [
+    ...(environment.files ?? []).map(({ path }) => path.split("/")[3]),
+    ...(submission.attached ?? []),
+  ]);
   await accept(run);
 }
 /** Sends the message to the conversation's reused session. */
@@ -737,13 +784,12 @@ async function monitor(run: Run) {
       await sendSubmission(session.id, run.submission as MessageSubmission);
     return false;
   }
+  // The listing holds a turn's items only once it has ended; live progress
+  // and text reach the browser from the session's events (stream.ts).
   const text = publicText(await turnItems(session.id, turn.id));
   await updateRun(run.id, {
     turn_id: turn.id,
-    display: JSON.stringify({
-      text,
-      progress: "Working on your response…",
-    }),
+    display: JSON.stringify({ text }),
   });
   if (!terminal(turn.status)) return false;
   if (turn.status === "failed" && (await retryTurn(run, session, turn)))

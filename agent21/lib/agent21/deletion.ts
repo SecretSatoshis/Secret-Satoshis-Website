@@ -56,7 +56,11 @@ const ignoreMissing = async (fn: () => Promise<unknown>) => {
     if (!isProviderError(error, 404)) throw error;
   }
 };
-/** Removes a conversation's sessions; deleting a session also clears its sandbox copies. */
+/**
+ * Removes a conversation's sessions. Deleting a session clears a sandbox the
+ * session created; a pre-warmed sandbox (warm.ts) has no deletion endpoint and
+ * expires 20 minutes after its last activity.
+ */
 async function removeSessions(conversation: string) {
   for (const session of await db()
     .selectFrom("agent21_sessions")

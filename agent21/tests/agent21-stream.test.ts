@@ -28,6 +28,12 @@ const fakeFetch: typeof fetch = async (input, options) => {
       headers: { "content-type": "text/event-stream" },
     });
   }
+  if (url.pathname === "/v1/agents/sessions/session-stream/turns/turn-stream")
+    return Response.json({
+      id: "turn-stream",
+      object: "agent.session.turn",
+      status: "completed",
+    });
   if (url.pathname === "/v1/agents/sessions/session-stream/items")
     return Response.json({
       object: "list",
@@ -87,15 +93,21 @@ test("a stream that subscribes after the turn ended closes once the run settles"
   const events = (await body)
     .trim()
     .split("\n\n")
+    .filter((frame) => frame.startsWith("data: "))
     .map((frame) => JSON.parse(frame.slice("data: ".length)));
   const elapsed = Date.now() - started;
   assert(subscribed);
   assert(elapsed < 10_000, `The stream stayed open for ${elapsed}ms`);
   assert.deepEqual(
     events.map((event) => event.type),
-    ["snapshot", "text", "snapshot"],
+    ["snapshot", "text", "progress", "snapshot"],
     "No interim snapshot can overwrite the streamed text",
   );
   assert.equal(events[1].text, "Final answer.");
-  assert.equal(events[2].run.state, "completed");
+  assert.deepEqual(events[2], {
+    type: "progress",
+    progress: "Writing the answer",
+    note: "",
+  });
+  assert.equal(events[3].run.state, "completed");
 });

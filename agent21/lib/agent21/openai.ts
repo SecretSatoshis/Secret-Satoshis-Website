@@ -54,9 +54,9 @@ export async function turnItems(session: string, turn: string) {
 }
 // The dashboard's environment template sets network access and packages. A
 // template has no sandbox size and a session defaults to medium (2 vCPU, 4 GB),
-// so the session asks for small (1 vCPU, 1 GB): the agent's data and charts fit,
-// and the sandbox is the largest part of a conversation's cost. container_size is
-// documented but not yet declared by SDK 7.25.0.
+// so a cold session asks for small (1 vCPU, 1 GB): the agent's data and charts
+// fit, and the sandbox is the largest part of a conversation's cost. A
+// pre-warmed sandbox (warm.ts) takes no size and runs as medium.
 export function hostedEnvironment(
   template: string,
   files: HostedEnvironmentFileParam[] = [],

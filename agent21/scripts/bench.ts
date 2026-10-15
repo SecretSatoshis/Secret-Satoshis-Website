@@ -5,7 +5,11 @@
 //
 //   pnpm bench "What is Bitcoin's block height?" [--model gpt-6.1-sol]
 //     [--effort low|medium|high] [--tier auto|default|flex] [--size small|medium]
-//     [--bare] [--repeat 3] [--label x]
+//     [--bare] [--prewarm] [--repeat 3] [--label x]
+//
+// --prewarm starts a sandbox from the template first, waits until it is ready
+// (as if the user were still writing) and attaches it, so the timings start
+// with a warm sandbox. Pre-warmed sandboxes take no size and run as medium.
 //
 // Writes the event timeline, per-call model times and token use to
 // .exports/bench-*.json (git-ignored) and deletes each benchmark session.
@@ -27,6 +31,7 @@ const { values, positionals } = parseArgs({
     tier: { type: "string" },
     size: { type: "string" },
     bare: { type: "boolean", default: false },
+    prewarm: { type: "boolean", default: false },
     repeat: { type: "string", default: "1" },
     label: { type: "string", default: "baseline" },
     "time-zone": { type: "string", default: "America/New_York" },
@@ -97,8 +102,28 @@ const attr = (span: Span, key: string) => {
 const secs = (ns: string | number | bigint) => Number(ns) / 1e9;
 const round = (n: number) => Math.round(n * 10) / 10;
 
+/** A sandbox from the template, ready before the question is sent. */
+async function prewarmed() {
+  const start = Date.now();
+  const { id } = await openai().beta.agents.environments.create({
+    environment: {
+      type: "openai_hosted",
+      environment_template_id: process.env.AGENT21_ENVIRONMENT_TEMPLATE_ID!,
+    },
+    ...(mcpVaultId() ? { vault_ids: [mcpVaultId()!] } : {}),
+  });
+  for (;;) {
+    const { status } = await openai().beta.agents.environments.retrieve(id);
+    if (status === "ready") break;
+    if (status !== "pending") throw new Error(`Pre-warm ended as ${status}`);
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  }
+  return { id, readySeconds: round((Date.now() - start) / 1000) };
+}
+
 async function once(run: number) {
   const agentId = process.env.AGENT21_AGENT_ID!;
+  const warm = values.prewarm ? await prewarmed() : undefined;
   const overrides = {
     tools: await sessionTools(agentId),
     ...(values.model ? { model: values.model } : {}),
@@ -111,12 +136,14 @@ async function once(run: number) {
     ...(mcpVaultId() ? { vault_ids: [mcpVaultId()!] } : {}),
     // --bare: a hosted sandbox without the template (no packages or skills),
     // to time the template's own start-up cost.
-    environment: {
-      ...(values.bare
-        ? { type: "openai_hosted", container_size: "small" }
-        : hostedEnvironment(process.env.AGENT21_ENVIRONMENT_TEMPLATE_ID!)),
-      ...(values.size ? { container_size: values.size } : {}),
-    },
+    environment: warm
+      ? { type: "openai_hosted", environment_id: warm.id }
+      : {
+          ...(values.bare
+            ? { type: "openai_hosted", container_size: "small" }
+            : hostedEnvironment(process.env.AGENT21_ENVIRONMENT_TEMPLATE_ID!)),
+          ...(values.size ? { container_size: values.size } : {}),
+        },
     input: messageText(question, values["time-zone"]!),
     metadata: { benchmark: values.label! },
     stream: true,
@@ -176,7 +203,9 @@ async function once(run: number) {
       effort: values.effort,
       tier: values.tier,
       size: values.size,
+      prewarm: values.prewarm,
     },
+    prewarmReadySeconds: warm?.readySeconds ?? null,
     session,
     ended,
     totalSeconds: total,
@@ -235,7 +264,7 @@ for (let i = 1; i <= Number(values.repeat); i++) {
   const r = await once(i);
   results.push(r);
   console.log(
-    `[${r.label} #${i}] ${r.ended ?? "no end"} · total ${r.totalSeconds}s · session ${r.firstEventSeconds}s · sandbox ready ${r.environmentReadySeconds}s · first answer text ${r.firstAnswerTextSeconds}s · ` +
+    `[${r.label} #${i}] ${r.ended ?? "no end"} · ${r.prewarmReadySeconds !== null ? `pre-warmed in ${r.prewarmReadySeconds}s · ` : ""}total ${r.totalSeconds}s · session ${r.firstEventSeconds}s · sandbox ready ${r.environmentReadySeconds}s · first answer text ${r.firstAnswerTextSeconds}s · ` +
       `model ${r.modelSeconds}s in ${r.modelCalls} calls (first ${r.firstModelCallSeconds}s) · tools ${r.toolSeconds}s in ${r.toolCalls} (${r.failedTools} failed) · ` +
       `tokens in ${r.tokens.input} (cached ${r.tokens.cached}) out ${r.tokens.output} (reasoning ${r.tokens.reasoning})`,
   );

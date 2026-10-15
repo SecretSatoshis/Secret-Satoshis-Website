@@ -185,9 +185,13 @@ function AssistantMessage() {
       .map((part) => (part.type === "text" ? part.text : ""))
       .join("\n"),
   );
+  const running = useAuiState((s) => s.message.status?.type === "running");
   // Charts a block places in the text are not repeated under the answer.
   const placed = useMemo(() => placedCharts(text), [text]);
   const listed = files?.filter((file) => !placed.has(file.name));
+  // The thread's placeholder while a message is sent: the Working card stands
+  // in for it until the answer's text arrives.
+  if (running && !text.trim()) return null;
   return (
     <MessagePrimitive.Root className="a21-message a21-assistant">
       <div className="a21-speaker">
@@ -205,6 +209,45 @@ function AssistantMessage() {
         </ActionBarPrimitive.FeedbackNegative>
       </ActionBarPrimitive.Root>
     </MessagePrimitive.Root>
+  );
+}
+/** Whole seconds since a time, updated every second. */
+function Elapsed({ since }: { since: number }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  return <>{Math.max(0, Math.round((now - since) / 1000))}s</>;
+}
+/**
+ * Shown in the thread while an answer is on its way and none of its text has
+ * arrived: what the agent is doing, how long it has been working and its
+ * latest progress note.
+ */
+function Working({
+  progress,
+  note,
+  since,
+}: {
+  progress: string;
+  note: string;
+  since: number;
+}) {
+  return (
+    <div className="a21-message a21-working" role="status" aria-live="polite">
+      <div className="a21-speaker">
+        <AgentAvatar size={24} /> Agent 21
+      </div>
+      <p className="a21-working-line">
+        <span className="a21-pulse" aria-hidden="true" />
+        {progress}
+        <span className="a21-elapsed">
+          <Elapsed since={since} />
+        </span>
+      </p>
+      {note && <p className="a21-working-note">{note}</p>}
+    </div>
   );
 }
 function Attachment({ removable = false }: { removable?: boolean }) {
@@ -330,6 +373,7 @@ export function Chat() {
   const [error, setError] = useState("");
   const loading = Boolean(selected && !current && !error);
   const [sending, setSending] = useState(false);
+  const [sentAt, setSentAt] = useState(0);
   const [deletion, setDeletion] = useState<string>();
   const [archivedView, setArchivedView] = useState(false);
   const [notice, setNotice] = useState("");
@@ -436,8 +480,26 @@ export function Chat() {
       const event = JSON.parse(frame.data);
       if (event.type === "text")
         setRun(id, (previous) => ({ ...previous, text: event.text }));
+      if (event.type === "progress")
+        setRun(id, (previous) => ({
+          ...previous,
+          progress: event.progress,
+          note: event.note,
+        }));
       if (event.type === "snapshot") {
-        setRun(id, () => event.run);
+        // A reconnect's snapshot comes before the replayed events, so it
+        // keeps the progress and text already shown while the run works,
+        // unless the server has a message of its own (sending, retrying).
+        setRun(id, (previous) =>
+          terminal(event.run.state) || event.run.state === "unknown"
+            ? event.run
+            : {
+                ...event.run,
+                text: event.run.text || previous.text,
+                progress: event.run.progress || previous.progress,
+                note: event.run.note || previous.note,
+              },
+        );
         if (terminal(event.run.state) || event.run.state === "unknown") {
           events.close();
           void load(conversation).then(refreshThreads);
@@ -462,6 +524,24 @@ export function Chat() {
     );
     return () => clearInterval(timer);
   }, [run?.state, selected, load]);
+  // The sandbox starts while the user writes: a new conversation, or one whose
+  // sandbox has expired, otherwise waits 30 to 50 seconds for it after sending.
+  // The server keeps at most one pre-warmed sandbox per account.
+  const warmed = useRef<{ key: string; at: number } | null>(null);
+  const warm = useCallback(() => {
+    if (active) return;
+    const key = selection.current ?? "new";
+    const last = warmed.current;
+    if (last?.key === key && Date.now() - last.at < 3 * 60_000) return;
+    warmed.current = { key, at: Date.now() };
+    void api(
+      "warm",
+      "POST",
+      selection.current ? { conversationId: key } : {},
+    ).catch(() => {
+      warmed.current = null;
+    });
+  }, [active]);
   const create = useCallback(async () => {
     const { id } = await api<{ id: string }>("conversations", "POST", {
       requestId: crypto.randomUUID(),
@@ -616,6 +696,7 @@ export function Chat() {
     adapters: { threadList, attachments, feedback },
     onNew: async (input) => {
       pendingCancel.current = false;
+      setSentAt(Date.now());
       setSending(true);
       setError("");
       setNotice("");
@@ -926,6 +1007,16 @@ export function Chat() {
                 <ThreadPrimitive.Messages
                   components={{ UserMessage, AssistantMessage }}
                 />
+                {(sending || (run && active && !run.text)) && (
+                  <Working
+                    progress={
+                      (run && active && run.progress) ||
+                      (sending ? "Sending your message" : "Starting")
+                    }
+                    note={(run && active && run.note) || ""}
+                    since={run && active ? Date.parse(run.startedAt) : sentAt}
+                  />
+                )}
                 {uploads.length > 0 && (
                   <details className="a21-sources">
                     <summary>Files in this conversation</summary>
@@ -952,11 +1043,6 @@ export function Chat() {
                   </p>
                 )}
                 {notice && <p role="status">{notice}</p>}
-                {run?.progress && (
-                  <p role="status" aria-live="polite">
-                    {run.progress}
-                  </p>
-                )}
                 {(error || run?.error) && (
                   <p className="a21-error" role="alert">
                     {error || run?.error}
@@ -990,6 +1076,8 @@ export function Chat() {
                       placeholder="Ask Agent 21 about Bitcoin…"
                       aria-label="Message Agent 21"
                       rows={2}
+                      onFocus={warm}
+                      onKeyDown={warm}
                     />
                     {active || sending ? (
                       <ComposerPrimitive.Cancel aria-label="Stop response">

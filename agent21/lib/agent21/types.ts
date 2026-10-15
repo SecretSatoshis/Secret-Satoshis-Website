@@ -31,9 +31,14 @@ export type RunView = {
   id: string;
   state: RunState;
   text: string;
+  /** What the agent is doing now, such as "Running analysis". */
   progress: string;
+  /** The agent's latest progress note, written for the user. */
+  note: string;
   error: string | null;
   files: FileView[];
+  /** When the message was sent, for the elapsed time while it works. */
+  startedAt: string;
 };
 // The public homepage; the app itself is served from its own subdomain.
 export const SITE = "https://secretsatoshis.com";

@@ -28,12 +28,16 @@ export type RunInput = {
 export type RunDisplay = {
   text?: string;
   progress?: string;
+  /** The agent's latest progress note (lib/agent21/progress.ts). */
+  note?: string;
   error?: string | null;
   files?: FileView[];
 };
 export type SessionSubmission = {
   kind: "session";
   body: Record<string, unknown>;
+  /** Files copied into a pre-warmed sandbox before the session was created. */
+  attached?: string[];
 };
 export type MessageSubmission = {
   kind: "message";
@@ -146,6 +150,12 @@ export interface SessionFilesTable {
   session_id: string;
   file_id: string;
 }
+export interface WarmEnvironmentsTable {
+  owner_id: string;
+  environment_id: string | null;
+  template_id: string;
+  created_at: DefaultTimestamp;
+}
 export interface Database {
   agent21_users: UsersTable;
   agent21_conversations: ConversationsTable;
@@ -157,6 +167,7 @@ export interface Database {
   agent21_file_deletions: FileDeletionsTable;
   agent21_messages: MessagesTable;
   agent21_session_files: SessionFilesTable;
+  agent21_warm_environments: WarmEnvironmentsTable;
 }
 export type Run = Selectable<RunsTable>;
 export type FileRow = Selectable<FilesTable>;

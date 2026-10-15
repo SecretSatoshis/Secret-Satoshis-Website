@@ -39,9 +39,15 @@ export const runView = (row: Run): RunView => ({
   id: row.id,
   state: row.state,
   text: row.display.text || "",
-  progress: row.display.progress || "",
+  progress:
+    row.display.progress ||
+    (row.state === "queued" || row.state === "submitting"
+      ? "Sending your message"
+      : ""),
+  note: row.display.note || "",
   error: row.display.error || null,
   files: row.display.files || [],
+  startedAt: new Date(row.created_at).toISOString(),
 });
 const conversationFiles = (conversation: string) =>
   db()

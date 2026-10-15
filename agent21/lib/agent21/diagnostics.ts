@@ -22,6 +22,9 @@ const events = [
   "webhook_failed",
   "landing_fallback",
   "answer_block_invalid",
+  // A pre-warmed sandbox could not take the conversation's files; the session
+  // started cold instead.
+  "warm_environment_unused",
 ] as const;
 type Event = (typeof events)[number];
 const codes = new Set([
