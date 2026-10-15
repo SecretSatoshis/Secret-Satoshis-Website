@@ -154,6 +154,8 @@ button:disabled {
   color: var(--a21-dim);
   font-size: 11px;
   align-items: center;
+  margin: 22px 0 6px;
+  padding-left: 9px;
 }
 .a21-history-head button {
   font-size: 10px;

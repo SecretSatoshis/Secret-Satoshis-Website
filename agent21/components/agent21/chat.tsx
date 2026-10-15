@@ -282,7 +282,7 @@ const fetchConversation = (id: string): Promise<Loaded> =>
  * Clerk's account button. Without a profile photo the account shows its
  * initial on an orange disc instead of Clerk's generated avatar.
  */
-function AccountButton() {
+function AccountButton({ onDeleteData }: { onDeleteData: () => void }) {
   const { user } = useUser();
   const initial = (
     user?.firstName ||
@@ -303,7 +303,17 @@ function AccountButton() {
             fontFamily: '"JetBrains Mono", monospace',
           },
         }}
-      />
+      >
+        {/* Deleting every Agent 21 chat and file lives in the account menu;
+            the page asks for confirmation first. */}
+        <UserButton.MenuItems>
+          <UserButton.Action
+            label="Delete my Agent 21 data"
+            labelIcon={<span aria-hidden="true">×</span>}
+            onClick={onDeleteData}
+          />
+        </UserButton.MenuItems>
+      </UserButton>
     </span>
   );
 }
@@ -855,10 +865,10 @@ export function Chat() {
               </nav>
             </ThreadListPrimitive.Root>
             <div className="a21-account">
-              <AccountButton />
+              <AccountButton onDeleteData={() => setConfirmingAccount(true)} />
               <span>Private beta</span>
               <a href={`${SITE}/privacy.html`}>Privacy</a>
-              {confirmingAccount ? (
+              {confirmingAccount && (
                 <div className="a21-confirm" role="alertdialog">
                   <p>Delete all your Agent 21 chats and files?</p>
                   <button
@@ -871,10 +881,6 @@ export function Chat() {
                     Cancel
                   </button>
                 </div>
-              ) : (
-                <button onClick={() => setConfirmingAccount(true)}>
-                  Delete my data
-                </button>
               )}
             </div>
           </aside>
