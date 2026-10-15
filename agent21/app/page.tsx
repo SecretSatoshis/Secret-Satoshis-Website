@@ -21,7 +21,7 @@ export const dynamic = "force-dynamic";
 // it is indexed and carries a share card (the homepage's).
 const { title: TITLE, url: URL, description: DESCRIPTION } = site;
 const CARD = {
-  url: "https://secretsatoshis.com/assets/images/agent21-social-card.jpg?v=2",
+  url: "https://secretsatoshis.com/assets/images/agent21-social-card.jpg?v=3",
   width: 1200,
   height: 630,
   alt: "Agent 21, the Bitcoin-native AI agent from Secret Satoshis",
