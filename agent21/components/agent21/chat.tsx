@@ -1,5 +1,14 @@
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useParams, useRouter } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
 import { uploadPresigned } from "@vercel/blob/client";
@@ -13,6 +22,7 @@ import {
   ComposerPrimitive,
   ActionBarPrimitive,
   AttachmentPrimitive,
+  MessageNotSentError,
   useAuiState,
 } from "@assistant-ui/react";
 import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
@@ -29,10 +39,23 @@ import type {
   RunView,
   FileView,
 } from "../../lib/agent21/types";
-import { SITE, isChartFile, terminal } from "../../lib/agent21/types";
+import {
+  SITE,
+  isChartFile,
+  sandboxFile,
+  terminal,
+} from "../../lib/agent21/types";
 import { AgentAvatar } from "./agent-avatar";
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
 async function api<T>(
   path: string,
   method = "GET",
@@ -51,7 +74,10 @@ async function api<T>(
       typeof data?.requestId === "string" && uuid.test(data.requestId)
         ? ` Reference: ${data.requestId}`
         : "";
-    throw new Error((data?.error || "Agent 21 is unavailable.") + reference);
+    throw new ApiError(
+      (data?.error || "Agent 21 is unavailable.") + reference,
+      response.status,
+    );
   }
   return data;
 }
@@ -140,21 +166,40 @@ function Files({ files }: { files: FileView[] }) {
     </div>
   );
 }
+// The conversation's files, so answers that link a sandbox path can point at
+// the owned download instead.
+const ConversationFiles = createContext<FileView[]>([]);
+function MarkdownLink({
+  href,
+  children,
+}: {
+  href?: string;
+  children?: ReactNode;
+}) {
+  const files = useContext(ConversationFiles);
+  if (href?.startsWith("https://"))
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer">
+        {children}
+      </a>
+    );
+  const file = sandboxFile(href, files);
+  if (file)
+    return (
+      <a
+        href={`/api/agent21/files/${file.id}`}
+        download={file.type !== "image/png"}
+      >
+        {children}
+      </a>
+    );
+  // Any other link has no safe target; show its text without a dead link.
+  return <span>{children}</span>;
+}
 const Markdown = () => (
   <MarkdownTextPrimitive
     className="a21-markdown"
-    components={{
-      img: () => null,
-      a: ({ href, children }) => (
-        <a
-          href={href?.startsWith("https://") ? href : undefined}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {children}
-        </a>
-      ),
-    }}
+    components={{ img: () => null, a: MarkdownLink }}
   />
 );
 function AssistantMessage() {
@@ -181,16 +226,27 @@ function AssistantMessage() {
     </MessagePrimitive.Root>
   );
 }
-const Attachment = ({ removable = false }: { removable?: boolean }) => (
-  <AttachmentPrimitive.Root className="a21-attachment">
-    <AttachmentPrimitive.Name />
-    {removable && (
-      <AttachmentPrimitive.Remove aria-label="Remove attachment">
-        ×
-      </AttachmentPrimitive.Remove>
-    )}
-  </AttachmentPrimitive.Root>
-);
+function Attachment({ removable = false }: { removable?: boolean }) {
+  const status = useAuiState((s) => s.attachment.status);
+  const failed = status.type === "incomplete";
+  return (
+    <AttachmentPrimitive.Root
+      className={
+        failed ? "a21-attachment a21-attachment-failed" : "a21-attachment"
+      }
+      title={failed ? status.message : undefined}
+    >
+      <AttachmentPrimitive.Name />
+      {status.type === "running" && <span>uploading…</span>}
+      {failed && <span>not uploaded</span>}
+      {removable && (
+        <AttachmentPrimitive.Remove aria-label="Remove attachment">
+          ×
+        </AttachmentPrimitive.Remove>
+      )}
+    </AttachmentPrimitive.Root>
+  );
+}
 function UserMessage() {
   return (
     <MessagePrimitive.Root className="a21-message a21-user">
@@ -242,6 +298,10 @@ export function Chat() {
   const [sending, setSending] = useState(false);
   const [deletion, setDeletion] = useState<string>();
   const [archivedView, setArchivedView] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [renaming, setRenaming] = useState<{ id: string; title: string }>();
+  const [confirming, setConfirming] = useState<string>();
+  const [confirmingAccount, setConfirmingAccount] = useState(false);
   const pendingCancel = useRef(false);
   const pendingRequest = useRef<{
     text: string;
@@ -272,7 +332,17 @@ export function Chat() {
     selection.current = id;
     setSelected(id);
     setError("");
+    setNotice("");
     window.history.pushState({}, "", id ? `/c/${id}` : "/");
+  }, []);
+  // A deleted conversation, or another account's, opens a new one instead.
+  const unavailable = useCallback(() => {
+    selection.current = null;
+    setSelected(null);
+    setNotice(
+      "That conversation is not available. It may have been deleted, or it belongs to another account.",
+    );
+    window.history.replaceState({}, "", "/");
   }, []);
   useEffect(() => {
     api<Conversation[]>("conversations").then(setThreads, (e) =>
@@ -284,18 +354,23 @@ export function Chat() {
     let stale = false;
     fetchConversation(selected).then(
       (value) => !stale && setLoaded(value),
-      (e) => !stale && setError(e.message),
+      (e) => {
+        if (stale) return;
+        if (e instanceof ApiError && e.status === 404) unavailable();
+        else setError(e.message);
+      },
     );
     return () => {
       stale = true;
     };
-  }, [selected]);
+  }, [selected, unavailable]);
   useEffect(() => {
     const changed = () => {
       const id = window.location.pathname.split("/")[2] || null;
       selection.current = id;
       setSelected(id);
       setError("");
+      setNotice("");
     };
     window.addEventListener("popstate", changed);
     return () => window.removeEventListener("popstate", changed);
@@ -392,9 +467,9 @@ export function Chat() {
       onRename: (id, title) => update(id, { title }),
       onArchive: (id) => update(id, { archived: true }),
       onUnarchive: (id) => update(id, { archived: false }),
+      // The menu asks for confirmation in the page before calling this.
       onDelete: async (id) => {
-        if (!confirm("Delete this conversation and all of its retained files?"))
-          return;
+        setConfirming(undefined);
         try {
           const receipt = await api<{ deletionId: string }>(
             `conversations/${id}`,
@@ -420,8 +495,12 @@ export function Chat() {
           : name.endsWith(".pdf")
             ? "application/pdf"
             : null;
-        if (!type || file.size > 10 * 1024 ** 2)
-          throw Error("Use CSV or PDF files up to 10 MiB.");
+        if (!type || file.size > 10 * 1024 ** 2) {
+          // A file refused here never reaches the composer, so say why.
+          const refusal = `${file.name} was not attached. Use CSV or PDF files up to 10 MiB.`;
+          setError(refusal);
+          throw Error(refusal);
+        }
         setError("");
         const conversation = selection.current || (await create());
         const authorization = await api<{ fileId: string; pathname: string }>(
@@ -454,11 +533,16 @@ export function Chat() {
           status: { type: "requires-action", reason: "composer-send" },
         };
       },
-      send: async (attachment) => ({
-        ...attachment,
-        status: { type: "complete" },
-        content: [],
-      }),
+      // A refused upload keeps its chip; sending with it returns the whole
+      // draft to the composer so nothing typed is lost.
+      send: async (attachment) => {
+        if (attachment.status.type !== "requires-action") {
+          const refusal = `Remove ${attachment.name}, which was not uploaded, then send again.`;
+          setError(refusal);
+          throw Error(refusal);
+        }
+        return { ...attachment, status: { type: "complete" }, content: [] };
+      },
       remove: async (attachment) => {
         await api(`files/${attachment.id}`, "DELETE").catch(() => undefined);
       },
@@ -489,6 +573,7 @@ export function Chat() {
       pendingCancel.current = false;
       setSending(true);
       setError("");
+      setNotice("");
       try {
         const text = input.content
           .filter((p) => p.type === "text")
@@ -528,8 +613,11 @@ export function Chat() {
         await load(id);
         await refreshThreads();
       } catch (e) {
-        setError(message(e, "Message could not be sent."));
-        throw e;
+        const reason = message(e, "Message could not be sent.");
+        setError(reason);
+        // Hands the text and attachments back to the composer; a resend
+        // keeps the request ID, so the server still answers it only once.
+        throw new MessageNotSentError(reason);
       } finally {
         setSending(false);
       }
@@ -539,6 +627,17 @@ export function Chat() {
       if (run) await api(`runs/${run.id}/cancel`, "POST", {});
     },
   });
+  // Files whose type the picker does not accept never reach the adapter.
+  useEffect(
+    () =>
+      runtime.thread.composer.unstable_on("attachmentAddError", (event) => {
+        if (event.reason === "not-accepted")
+          setError(
+            "That file was not attached. Use CSV or PDF files up to 10 MiB.",
+          );
+      }),
+    [runtime],
+  );
   const stop = async () => {
     if (!run) return;
     try {
@@ -560,7 +659,7 @@ export function Chat() {
     }
   };
   const deleteAccount = async () => {
-    if (!confirm("Delete all your Agent 21 chats and files?")) return;
+    setConfirmingAccount(false);
     try {
       const receipt = await api<{ deletionId: string }>(
         "account-data",
@@ -572,191 +671,282 @@ export function Chat() {
     }
   };
   const uploads = files.filter((f) => f.kind === "upload");
+  const linkable = useMemo(
+    () => [
+      ...(current?.files ?? []),
+      ...(current?.messages ?? []).flatMap((m) => m.files ?? []),
+    ],
+    [current],
+  );
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <div className="a21-shell">
-        <aside className="a21-sidebar">
-          <a className="a21-brand" href={SITE}>
-            {"// SECRET SATOSHIS"}
-          </a>
-          <ThreadListPrimitive.Root className="a21-threads">
-            <ThreadListPrimitive.New className="a21-new">
-              + New conversation
-            </ThreadListPrimitive.New>
-            <div className="a21-history-head">
-              <span>{archivedView ? "Archived" : "Conversations"}</span>
-              <button onClick={() => setArchivedView(!archivedView)}>
-                {archivedView ? "Active" : "Archived"}
-              </button>
-            </div>
-            <nav aria-label="Chat history">
-              <ThreadListPrimitive.Items archived={archivedView}>
-                {({ threadListItem }) => (
-                  <ThreadListItemPrimitive.Root className="a21-thread">
-                    <ThreadListItemPrimitive.Trigger>
-                      <ThreadListItemPrimitive.Title fallback="New conversation" />
-                    </ThreadListItemPrimitive.Trigger>
-                    <details>
-                      <summary aria-label={`Manage ${threadListItem.title}`}>
-                        ⋯
-                      </summary>
-                      <button
-                        onClick={() => {
-                          const title = prompt(
-                            "Conversation title",
-                            threadListItem.title,
-                          );
-                          if (title)
-                            void threadList.onRename?.(
-                              threadListItem.id,
-                              title,
-                            );
-                        }}
-                      >
-                        Rename
-                      </button>
-                      <ThreadListItemPrimitive.Archive>
-                        Archive
-                      </ThreadListItemPrimitive.Archive>
-                      <ThreadListItemPrimitive.Unarchive>
-                        Restore
-                      </ThreadListItemPrimitive.Unarchive>
-                      <ThreadListItemPrimitive.Delete>
-                        Delete
-                      </ThreadListItemPrimitive.Delete>
-                    </details>
-                  </ThreadListItemPrimitive.Root>
-                )}
-              </ThreadListPrimitive.Items>
-            </nav>
-          </ThreadListPrimitive.Root>
-          <div className="a21-account">
-            <UserButton />
-            <span>Private beta</span>
-            <a href={`${SITE}/privacy.html`}>Privacy</a>
-            <button onClick={() => void deleteAccount()}>Delete my data</button>
-          </div>
-        </aside>
-        <main className="a21-main">
-          <header>
-            <a href={SITE}>₿</a>
-            <div>
-              <strong>Agent 21</strong>
-              <span>Bitcoin research & analysis</span>
-            </div>
-          </header>
-          <ThreadPrimitive.Root className="a21-chat">
-            <ThreadPrimitive.Viewport className="a21-viewport">
-              <ThreadPrimitive.Empty>
-                <div className="a21-empty">
-                  <AgentAvatar size={88} followPointer float />
-                  <h1>What would you like to understand?</h1>
-                  <p>
-                    Explore Bitcoin with research, current data, and your own
-                    files.
-                  </p>
-                  <div className="a21-starters">
-                    {[
-                      "Explain Bitcoin's realized price.",
-                      "What are current Bitcoin transaction fees?",
-                      "Compare Bitcoin adoption scenarios.",
-                    ].map((text) => (
-                      <button
-                        key={text}
-                        onClick={() => runtime.thread.composer.setText(text)}
-                      >
-                        {text}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </ThreadPrimitive.Empty>
-              <ThreadPrimitive.Messages
-                components={{ UserMessage, AssistantMessage }}
-              />
-              {uploads.length > 0 && (
-                <details className="a21-sources">
-                  <summary>Files in this conversation</summary>
-                  <Files files={uploads} />
-                  <div className="a21-attachments">
-                    {uploads.map((f) => (
-                      <button
-                        key={f.id}
-                        disabled={active}
-                        onClick={() => void removeFile(f)}
-                      >
-                        Delete {f.name}
-                      </button>
-                    ))}
-                  </div>
-                </details>
-              )}
-            </ThreadPrimitive.Viewport>
-            <div className="a21-compose-area">
-              {deletion && (
-                <p role="status">
-                  Deletion requested.{" "}
-                  <a href={`/deletion/${deletion}`}>View deletion status</a>
-                </p>
-              )}
-              {run?.progress && (
-                <p role="status" aria-live="polite">
-                  {run.progress}
-                </p>
-              )}
-              {(error || run?.error) && (
-                <p className="a21-error" role="alert">
-                  {error || run?.error}
-                </p>
-              )}
-              {run?.state === "unknown" && (
-                <>
-                  <button onClick={() => selected && void load(selected)}>
-                    Check status
-                  </button>
-                  <button onClick={() => void stop()}>
-                    Stop this response
-                  </button>
-                </>
-              )}
-              <ComposerPrimitive.Root className="a21-composer-box">
-                <div className="a21-attachments">
-                  <ComposerPrimitive.Attachments>
-                    {() => <Attachment removable />}
-                  </ComposerPrimitive.Attachments>
-                </div>
-                <div className="a21-composer">
-                  <ComposerPrimitive.AddAttachment
-                    aria-label="Attach CSV or PDF"
-                    disabled={active}
-                    multiple
+      <ConversationFiles.Provider value={linkable}>
+        <div className="a21-shell">
+          <aside className="a21-sidebar">
+            <a className="a21-brand" href={SITE}>
+              {"// SECRET SATOSHIS"}
+            </a>
+            <ThreadListPrimitive.Root className="a21-threads">
+              <ThreadListPrimitive.New className="a21-new">
+                + New conversation
+              </ThreadListPrimitive.New>
+              <div className="a21-history-head">
+                <span>{archivedView ? "Archived" : "Conversations"}</span>
+                <button onClick={() => setArchivedView(!archivedView)}>
+                  {archivedView ? "Active" : "Archived"}
+                </button>
+              </div>
+              <nav aria-label="Chat history">
+                <ThreadListPrimitive.Items archived={archivedView}>
+                  {({ threadListItem }) => {
+                    const id = threadListItem.id;
+                    const title = threadListItem.title || "New conversation";
+                    if (renaming?.id === id)
+                      return (
+                        <form
+                          className="a21-thread a21-rename"
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            const next = renaming.title.trim();
+                            setRenaming(undefined);
+                            if (next && next !== threadListItem.title)
+                              void threadList.onRename?.(id, next);
+                          }}
+                        >
+                          <input
+                            aria-label="Conversation title"
+                            value={renaming.title}
+                            maxLength={100}
+                            autoFocus
+                            onFocus={(event) => event.currentTarget.select()}
+                            onChange={(event) =>
+                              setRenaming({ id, title: event.target.value })
+                            }
+                            onKeyDown={(event) => {
+                              if (event.key === "Escape")
+                                setRenaming(undefined);
+                            }}
+                          />
+                          <button type="submit">Save</button>
+                          <button
+                            type="button"
+                            onClick={() => setRenaming(undefined)}
+                          >
+                            Cancel
+                          </button>
+                        </form>
+                      );
+                    if (confirming === id)
+                      return (
+                        <div
+                          className="a21-thread a21-confirm"
+                          role="alertdialog"
+                          aria-label={`Delete ${title}`}
+                        >
+                          <p>Delete “{title}” and its files?</p>
+                          <button
+                            className="a21-danger"
+                            onClick={() => void threadList.onDelete?.(id)}
+                          >
+                            Delete
+                          </button>
+                          <button
+                            autoFocus
+                            onClick={() => setConfirming(undefined)}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      );
+                    // Rename and Delete replace the row itself, so the short,
+                    // scrolling history list cannot clip them.
+                    const closeMenu = (element: HTMLElement) =>
+                      element.closest("details")?.removeAttribute("open");
+                    return (
+                      <ThreadListItemPrimitive.Root className="a21-thread">
+                        <ThreadListItemPrimitive.Trigger>
+                          <ThreadListItemPrimitive.Title fallback="New conversation" />
+                        </ThreadListItemPrimitive.Trigger>
+                        <details>
+                          <summary aria-label={`Manage ${title}`}>⋯</summary>
+                          <button
+                            onClick={(event) => {
+                              closeMenu(event.currentTarget);
+                              setRenaming({
+                                id,
+                                title: threadListItem.title ?? "",
+                              });
+                            }}
+                          >
+                            Rename
+                          </button>
+                          <ThreadListItemPrimitive.Archive>
+                            Archive
+                          </ThreadListItemPrimitive.Archive>
+                          <ThreadListItemPrimitive.Unarchive>
+                            Restore
+                          </ThreadListItemPrimitive.Unarchive>
+                          <button
+                            onClick={(event) => {
+                              closeMenu(event.currentTarget);
+                              setConfirming(id);
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </details>
+                      </ThreadListItemPrimitive.Root>
+                    );
+                  }}
+                </ThreadListPrimitive.Items>
+              </nav>
+            </ThreadListPrimitive.Root>
+            <div className="a21-account">
+              <UserButton />
+              <span>Private beta</span>
+              <a href={`${SITE}/privacy.html`}>Privacy</a>
+              {confirmingAccount ? (
+                <div className="a21-confirm" role="alertdialog">
+                  <p>Delete all your Agent 21 chats and files?</p>
+                  <button
+                    className="a21-danger"
+                    onClick={() => void deleteAccount()}
                   >
-                    ＋
-                  </ComposerPrimitive.AddAttachment>
-                  <ComposerPrimitive.Input
-                    placeholder="Ask Agent 21 about Bitcoin…"
-                    aria-label="Message Agent 21"
-                    rows={2}
-                  />
-                  {active || sending ? (
-                    <ComposerPrimitive.Cancel aria-label="Stop response">
-                      Stop
-                    </ComposerPrimitive.Cancel>
-                  ) : (
-                    <ComposerPrimitive.Send aria-label="Send message">
-                      ↑
-                    </ComposerPrimitive.Send>
-                  )}
+                    Delete everything
+                  </button>
+                  <button onClick={() => setConfirmingAccount(false)}>
+                    Cancel
+                  </button>
                 </div>
-              </ComposerPrimitive.Root>
-              <p className="a21-disclaimer">
-                Verify important facts. Bitcoin education and research, not
-                personalized financial advice.
-              </p>
+              ) : (
+                <button onClick={() => setConfirmingAccount(true)}>
+                  Delete my data
+                </button>
+              )}
             </div>
-          </ThreadPrimitive.Root>
-        </main>
-      </div>
+          </aside>
+          <main className="a21-main">
+            <header>
+              <a href={SITE}>₿</a>
+              <div>
+                <strong>Agent 21</strong>
+                <span>Bitcoin research & analysis</span>
+              </div>
+            </header>
+            <ThreadPrimitive.Root className="a21-chat">
+              <ThreadPrimitive.Viewport className="a21-viewport">
+                <ThreadPrimitive.Empty>
+                  <div className="a21-empty">
+                    <AgentAvatar size={88} followPointer float />
+                    <h1>What would you like to understand?</h1>
+                    <p>
+                      Explore Bitcoin with research, current data, and your own
+                      files.
+                    </p>
+                    <div className="a21-starters">
+                      {[
+                        "Explain Bitcoin's realized price.",
+                        "What are current Bitcoin transaction fees?",
+                        "Compare Bitcoin adoption scenarios.",
+                      ].map((text) => (
+                        <button
+                          key={text}
+                          onClick={() => runtime.thread.composer.setText(text)}
+                        >
+                          {text}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </ThreadPrimitive.Empty>
+                <ThreadPrimitive.Messages
+                  components={{ UserMessage, AssistantMessage }}
+                />
+                {uploads.length > 0 && (
+                  <details className="a21-sources">
+                    <summary>Files in this conversation</summary>
+                    <Files files={uploads} />
+                    <div className="a21-attachments">
+                      {uploads.map((f) => (
+                        <button
+                          key={f.id}
+                          disabled={active}
+                          onClick={() => void removeFile(f)}
+                        >
+                          Delete {f.name}
+                        </button>
+                      ))}
+                    </div>
+                  </details>
+                )}
+              </ThreadPrimitive.Viewport>
+              <div className="a21-compose-area">
+                {deletion && (
+                  <p role="status">
+                    Deletion requested.{" "}
+                    <a href={`/deletion/${deletion}`}>View deletion status</a>
+                  </p>
+                )}
+                {notice && <p role="status">{notice}</p>}
+                {run?.progress && (
+                  <p role="status" aria-live="polite">
+                    {run.progress}
+                  </p>
+                )}
+                {(error || run?.error) && (
+                  <p className="a21-error" role="alert">
+                    {error || run?.error}
+                  </p>
+                )}
+                {run?.state === "unknown" && (
+                  <>
+                    <button onClick={() => selected && void load(selected)}>
+                      Check status
+                    </button>
+                    <button onClick={() => void stop()}>
+                      Stop this response
+                    </button>
+                  </>
+                )}
+                <ComposerPrimitive.Root className="a21-composer-box">
+                  <div className="a21-attachments">
+                    <ComposerPrimitive.Attachments>
+                      {() => <Attachment removable />}
+                    </ComposerPrimitive.Attachments>
+                  </div>
+                  <div className="a21-composer">
+                    <ComposerPrimitive.AddAttachment
+                      aria-label="Attach CSV or PDF"
+                      disabled={active}
+                      multiple
+                    >
+                      ＋
+                    </ComposerPrimitive.AddAttachment>
+                    <ComposerPrimitive.Input
+                      placeholder="Ask Agent 21 about Bitcoin…"
+                      aria-label="Message Agent 21"
+                      rows={2}
+                    />
+                    {active || sending ? (
+                      <ComposerPrimitive.Cancel aria-label="Stop response">
+                        Stop
+                      </ComposerPrimitive.Cancel>
+                    ) : (
+                      <ComposerPrimitive.Send aria-label="Send message">
+                        ↑
+                      </ComposerPrimitive.Send>
+                    )}
+                  </div>
+                </ComposerPrimitive.Root>
+                <p className="a21-disclaimer">
+                  Verify important facts. Bitcoin education and research, not
+                  personalized financial advice.
+                </p>
+              </div>
+            </ThreadPrimitive.Root>
+          </main>
+        </div>
+      </ConversationFiles.Provider>
     </AssistantRuntimeProvider>
   );
 }

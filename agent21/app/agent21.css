@@ -550,3 +550,52 @@ button:disabled {
   font-family: Syne, sans-serif;
   margin-top: 60px;
 }
+.a21-attachment-failed {
+  border-color: #ff9696;
+  color: #ff9696;
+}
+.a21-confirm {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+.a21-thread.a21-confirm {
+  padding: 6px;
+  background: #212131;
+}
+.a21-confirm button {
+  font-size: 10px;
+  text-align: left;
+}
+.a21-confirm p {
+  margin: 4px 4px 6px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.a21-account .a21-confirm {
+  flex-basis: 100%;
+}
+button.a21-danger {
+  color: #ff9696;
+}
+.a21-rename {
+  gap: 6px;
+  padding: 6px;
+  background: #212131;
+}
+.a21-rename input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 11px;
+  color: var(--a21-text);
+  background: var(--a21-bg);
+  border: 1px solid var(--a21-border);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+.a21-rename button {
+  font-size: 10px;
+  padding: 4px 6px;
+}

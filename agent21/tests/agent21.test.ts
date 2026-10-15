@@ -338,3 +338,38 @@ test("sessions pass through only reviewed tools, and only GitHub carries a crede
     Object.assign(process.env, { NODE_ENV: before });
   }
 });
+test("answer links to sandbox paths resolve to the conversation's own files", async () => {
+  const { sandboxFile } = await import("../lib/agent21/types");
+  const file = (id: string, name: string, kind: "upload" | "artifact") => ({
+    id,
+    name,
+    kind,
+    type: "text/csv",
+    bytes: 1,
+  });
+  const files = [
+    file("a", "note.pdf", "upload"),
+    file("b", "close_90d.csv", "artifact"),
+    file("c", "note.pdf", "upload"),
+    file("d", "my report.csv", "artifact"),
+  ];
+  assert.equal(sandboxFile("/workspace/outputs/close_90d.csv", files)?.id, "b");
+  assert.equal(
+    sandboxFile("sandbox:/workspace/inputs/note.pdf", files)?.id,
+    "c",
+  );
+  assert.equal(
+    sandboxFile("/workspace/outputs/my%20report.csv", files)?.id,
+    "d",
+  );
+  for (const href of [
+    undefined,
+    "https://example.com/close_90d.csv",
+    "/workspace/outputs/missing.csv",
+    "/workspace/outputs/../inputs/note.pdf",
+    "/etc/workspace/outputs/close_90d.csv",
+    "javascript:alert(1)",
+    "/workspace/outputs/%E0%A4%A",
+  ])
+    assert.equal(sandboxFile(href, files), undefined, String(href));
+});
