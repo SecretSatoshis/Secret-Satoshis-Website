@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -262,8 +263,18 @@ const fetchConversation = (id: string): Promise<Loaded> =>
  * Clerk's account button. Without a profile photo the account shows its
  * initial on an orange disc instead of Clerk's generated avatar.
  */
+// True only in the browser after hydration, so client-only widgets render
+// after the server's HTML has been matched.
+const noSubscribe = () => () => {};
+const useMounted = () =>
+  useSyncExternalStore(
+    noSubscribe,
+    () => true,
+    () => false,
+  );
 function AccountButton({ onDeleteData }: { onDeleteData: () => void }) {
   const { user } = useUser();
+  const mounted = useMounted();
   const initial = (
     user?.firstName ||
     user?.primaryEmailAddress?.emailAddress ||
@@ -271,6 +282,11 @@ function AccountButton({ onDeleteData }: { onDeleteData: () => void }) {
   )
     .charAt(0)
     .toUpperCase();
+  // Clerk's button is client-only; the server renders a placeholder its size.
+  if (!mounted)
+    return (
+      <span className="a21-account-button a21-account-ph" aria-hidden="true" />
+    );
   return (
     <span
       className="a21-account-button"

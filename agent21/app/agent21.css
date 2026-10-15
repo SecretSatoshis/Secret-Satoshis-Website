@@ -638,6 +638,12 @@ button.a21-danger {
   position: relative;
   display: inline-flex;
 }
+.a21-account-ph {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--a21-border);
+}
 .a21-account-button[data-initial] .cl-userButtonAvatarBox {
   background: var(--a21-orange);
 }
