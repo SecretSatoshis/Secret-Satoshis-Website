@@ -21,9 +21,18 @@ const events = [
   "deletion_failed",
   "webhook_failed",
   "landing_fallback",
+  "answer_block_invalid",
 ] as const;
 type Event = (typeof events)[number];
 const codes = new Set([
+  "invalid_block_step",
+  "invalid_block_figures",
+  "invalid_block_facts",
+  "invalid_block_table",
+  "invalid_block_ladder",
+  "invalid_block_chart",
+  "invalid_block_sources",
+  "invalid_block_unknown",
   "invalid_api_key",
   "insufficient_quota",
   "rate_limit_exceeded",

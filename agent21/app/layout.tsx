@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { headers } from "next/headers";
 import "./agent21.css";
+import "./answer.css";
 export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.APP_ORIGIN ?? "https://agent21.secretsatoshis.com",

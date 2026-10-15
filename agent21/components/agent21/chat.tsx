@@ -1,6 +1,5 @@
 "use client";
 import {
-  createContext,
   useCallback,
   useContext,
   useEffect,
@@ -46,6 +45,14 @@ import {
   terminal,
 } from "../../lib/agent21/types";
 import { AgentAvatar } from "./agent-avatar";
+import { AnswerBlock } from "./answer/blocks";
+import { ChartFrame } from "./answer/chart-card";
+import { ConversationFiles } from "./answer/context";
+import {
+  BLOCK_LANGUAGES,
+  placedCharts,
+  plainAnswer,
+} from "../../lib/agent21/blocks";
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 class ApiError extends Error {
@@ -83,63 +90,6 @@ async function api<T>(
 }
 const message = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback;
-/**
- * Draws a <id>.chart.json file with the Chart Library renderer. The viewer is a
- * same-origin static page that runs only its own scripts; the payload reaches
- * it as data through postMessage, and its height comes back the same way.
- */
-function ChartFrame({ file }: { file: FileView }) {
-  const frame = useRef<HTMLIFrameElement>(null);
-  const [payload, setPayload] = useState<{ title?: unknown } | null>(null);
-  const [loaded, setLoaded] = useState(false);
-  const [failed, setFailed] = useState(false);
-  useEffect(() => {
-    let active = true;
-    fetch(`/api/agent21/files/${file.id}`, { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : Promise.reject()))
-      .then((data) => active && setPayload(data))
-      .catch(() => active && setFailed(true));
-    return () => {
-      active = false;
-    };
-  }, [file.id]);
-  useEffect(() => {
-    const target = frame.current?.contentWindow;
-    if (loaded && payload && target)
-      target.postMessage(
-        { type: "ss-chart-payload", payload },
-        window.location.origin,
-      );
-  }, [loaded, payload]);
-  useEffect(() => {
-    const resize = (event: MessageEvent) => {
-      const element = frame.current;
-      if (
-        !element ||
-        event.origin !== window.location.origin ||
-        event.source !== element.contentWindow ||
-        event.data?.type !== "ss-chart-size" ||
-        typeof event.data.height !== "number"
-      )
-        return;
-      element.style.height = `${Math.min(Math.max(event.data.height, 320), 2400)}px`;
-    };
-    window.addEventListener("message", resize);
-    return () => window.removeEventListener("message", resize);
-  }, []);
-  if (failed)
-    return <p className="a21-chart-error">This chart could not be loaded.</p>;
-  return (
-    <iframe
-      ref={frame}
-      className="a21-chart"
-      src="/agent21-chart/viewer.html"
-      title={typeof payload?.title === "string" ? payload.title : file.name}
-      loading="lazy"
-      onLoad={() => setLoaded(true)}
-    />
-  );
-}
 function Files({ files }: { files: FileView[] }) {
   return (
     <div className="a21-files">
@@ -166,9 +116,6 @@ function Files({ files }: { files: FileView[] }) {
     </div>
   );
 }
-// The conversation's files, so answers that link a sandbox path can point at
-// the owned download instead.
-const ConversationFiles = createContext<FileView[]>([]);
 function MarkdownLink({
   href,
   children,
@@ -196,26 +143,59 @@ function MarkdownLink({
   // Any other link has no safe target; show its text without a dead link.
   return <span>{children}</span>;
 }
+// Each a21-* fence is an answer block, drawn by the shared components.
+const blockLanguages = Object.fromEntries(
+  BLOCK_LANGUAGES.map((language) => [
+    language,
+    { CodeHeader: () => null, SyntaxHighlighter: AnswerBlock },
+  ]),
+);
 const Markdown = () => (
   <MarkdownTextPrimitive
     className="a21-markdown"
     components={{ img: () => null, a: MarkdownLink }}
+    componentsByLanguage={blockLanguages}
   />
 );
+/** Copies the answer with each block as plain text, never its JSON. */
+function CopyAnswer({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      aria-label="Copy answer"
+      data-copied={copied || undefined}
+      onClick={() =>
+        void navigator.clipboard.writeText(plainAnswer(text)).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        })
+      }
+    >
+      {copied ? "Copied" : "Copy"}
+    </button>
+  );
+}
 function AssistantMessage() {
   const files = useAuiState((s) => s.message.metadata.custom.files) as
     FileView[] | undefined;
+  const text = useAuiState((s) =>
+    s.message.content
+      .map((part) => (part.type === "text" ? part.text : ""))
+      .join("\n"),
+  );
+  // Charts a block places in the text are not repeated under the answer.
+  const placed = useMemo(() => placedCharts(text), [text]);
+  const listed = files?.filter((file) => !placed.has(file.name));
   return (
     <MessagePrimitive.Root className="a21-message a21-assistant">
       <div className="a21-speaker">
         <AgentAvatar size={24} /> Agent 21
       </div>
       <MessagePrimitive.Parts components={{ Text: Markdown }} />
-      {files && <Files files={files} />}
+      {listed && listed.length > 0 && <Files files={listed} />}
       <ActionBarPrimitive.Root className="a21-actions" hideWhenRunning>
-        <ActionBarPrimitive.Copy aria-label="Copy answer">
-          Copy
-        </ActionBarPrimitive.Copy>
+        <CopyAnswer text={text} />
         <ActionBarPrimitive.FeedbackPositive aria-label="Helpful answer">
           Helpful
         </ActionBarPrimitive.FeedbackPositive>
