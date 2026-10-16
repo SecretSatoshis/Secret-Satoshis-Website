@@ -12,14 +12,17 @@ import { environmentId, isProviderError, mcpVaultId, openai } from "./openai";
 // handed to a session, whose creation can take a few seconds more.
 const WARM_MINUTES = 4;
 // pending: still installing (a session can attach and waits for setup);
-// ready: installed, unattached; connected: attached to a session.
+// ready: installed and idle, including one whose session finished its turn a
+// minute or more ago; connected: in use by a session.
 const LIVE = new Set(["pending", "ready", "connected"]);
+/** Whether a sandbox in this status can take a message (see LIVE). */
+export const liveStatus = (status: string) => LIVE.has(status);
 
 /** Whether a sandbox can still take work: expired and failed ones do not come back. */
 export async function liveEnvironment(id: string) {
   try {
     const environment = await openai().beta.agents.environments.retrieve(id);
-    return LIVE.has(environment.status);
+    return liveStatus(environment.status);
   } catch (error) {
     if (isProviderError(error, 404)) return false;
     throw error;

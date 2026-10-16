@@ -16,7 +16,12 @@ import {
   mcpVaultId,
   sessionTools,
 } from "./openai";
-import { claimWarmEnvironment, liveEnvironment, liveSession } from "./warm";
+import {
+  claimWarmEnvironment,
+  liveEnvironment,
+  liveSession,
+  liveStatus,
+} from "./warm";
 import {
   attachToEnvironment,
   boundedBytes,
@@ -430,7 +435,9 @@ async function submitMessage(run: Run) {
       environmentId(session),
     );
     if (environment.status === "pending") return;
-    if (environment.status !== "connected" || session.status === "failed") {
+    // An idle sandbox reports ready, so connected alone would replace the
+    // session of every follow-up sent a minute or more after the last answer.
+    if (!liveStatus(environment.status) || session.status === "failed") {
       // The sandbox ended after it was chosen; the next pass starts a new session.
       await updateRun(run.id, { session_id: null, state: "queued" });
       await db()

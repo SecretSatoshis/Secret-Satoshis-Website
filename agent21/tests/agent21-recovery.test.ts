@@ -153,10 +153,12 @@ const fakeFetch: typeof fetch = async (input, options) => {
     return response({ object: "agent.environment.file", path: body.path });
   }
   const env = url.pathname.match(/\/environments\/(env-session-\d+)$/);
+  // OpenAI reports an idle sandbox as ready, not connected, from about a
+  // minute after its session's last turn.
   if (env)
     return response({
       id: env[1],
-      status: expired.has(env[1]) ? "expired" : "connected",
+      status: expired.has(env[1]) ? "expired" : "ready",
     });
   const content = url.pathname.match(
     /\/sessions\/(session-\d+)\/artifacts\/([^/]+)\/content$/,
