@@ -135,7 +135,8 @@ export function checkAnswer(
     ok: visuals <= 4,
     detail: `${visuals}`,
   });
-  const body = prose(text);
+  // Links often carry ISO dates in their paths; only the words count.
+  const body = prose(text).replace(/https?:\/\/\S+/g, " ");
   const slips = [
     [/\b\d{4}-\d{2}-\d{2}\b/, "ISO date in text"],
     [
@@ -178,8 +179,10 @@ export function checkAnswer(
     });
   for (const value of expect.mustInclude ?? [])
     checks.push({ check: `includes "${value}"`, ok: text.includes(value) });
+  // What the reader sees: block data such as a source's asOf is ISO by design.
+  const shown = plainAnswer(text);
   for (const value of expect.mustNotInclude ?? [])
-    checks.push({ check: `leaves out "${value}"`, ok: !text.includes(value) });
+    checks.push({ check: `leaves out "${value}"`, ok: !shown.includes(value) });
   const read = readTrace(items);
   for (const host of expect.mustFetch ?? [])
     checks.push({ check: `read ${host}`, ok: read.includes(host) });

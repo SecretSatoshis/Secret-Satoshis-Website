@@ -311,3 +311,17 @@ test("the review sheet's steps show thinking, notes and tool calls in order", ()
     'Called github.get_file_contents: {"path":"README.md"}',
   ]);
 });
+
+test("dates in links and in block data are not counted as slips", () => {
+  const text = [
+    fence("step", { text: "Checked the transaction record." }),
+    "It confirmed on May 22, 2010 ([The Block](https://www.theblock.co/news/2026-10-14-story)).",
+    fence("sources", { items: [{ name: "BRK", asOf: "2010-05-22" }] }),
+  ].join("\n\n");
+  assert.deepEqual(
+    failed(
+      checkAnswer(text, [], { data: true, mustNotInclude: ["2010-05-22"] }),
+    ),
+    [],
+  );
+});
