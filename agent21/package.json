@@ -21,7 +21,8 @@
     "beta": "tsx scripts/beta.ts",
     "ops": "tsx scripts/ops.ts",
     "fixture": "NODE_ENV=development tsx --env-file=.env.local scripts/fixture-answers.ts",
-    "bench": "NODE_ENV=development tsx --env-file=.env.local scripts/bench.ts"
+    "bench": "NODE_ENV=development tsx --env-file=.env.local scripts/bench.ts",
+    "evals": "NODE_ENV=development tsx --env-file=.env.local scripts/evals.ts"
   },
   "dependencies": {
     "@assistant-ui/react": "0.15.22",
