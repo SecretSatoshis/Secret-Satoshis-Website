@@ -2,7 +2,10 @@
 
 # Vercel runs this from agent21: 0 skips the build; 1 continues it.
 # Keep the command in vercel.json below its 256-character limit.
+# A redeploy of the commit already deployed is deliberate, such as applying a
+# changed environment variable, so it builds; a push always brings a new commit.
 if [ -n "$VERCEL_GIT_PREVIOUS_SHA" ] &&
+  [ "$VERCEL_GIT_PREVIOUS_SHA" != "$VERCEL_GIT_COMMIT_SHA" ] &&
   git cat-file -e "$VERCEL_GIT_PREVIOUS_SHA^{commit}" 2>/dev/null &&
   git diff --quiet "$VERCEL_GIT_PREVIOUS_SHA" HEAD -- \
     . \
