@@ -1,8 +1,12 @@
 // Runs a conversation straight against the dashboard agent, the way the website
 // starts one (same agent, tools, vault and sandbox) but without the website, and
-// returns each answer with its timings, token use and a trimmed trace. Overrides
+// returns each answer with its timings, token use and its full trace: reasoning
+// summaries, progress notes, every tool call with its input and output, the
+// call timeline and the session's events. Overrides
 // apply to this session only and merge into the saved agent's settings; the
 // saved agent never changes. Used by `pnpm bench` and `pnpm evals`.
+import { execSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { basename } from "node:path";
 import type { AgentSessionItem } from "openai/resources/beta/agents/agents";
@@ -32,6 +36,8 @@ export type RunOptions = Overrides & {
   files?: string[];
   label: string;
   timeZone?: string;
+  /** Keep the session (and its sandbox until it expires) for later inspection. */
+  keepSession?: boolean;
 };
 
 type Span = {
@@ -127,17 +133,37 @@ async function agentOverrides(agentId: string, o: Overrides) {
   };
 }
 
-/** A trimmed copy of a turn's items: enough to check sources and failures. */
-function traceItems(items: AgentSessionItem[]) {
-  return items
-    .filter((item) => item.type !== "reasoning")
-    .map((item) => {
-      const copy = { ...(item as unknown as Record<string, unknown>) };
-      for (const key of ["output", "aggregated_output", "result"])
-        if (typeof copy[key] === "string")
-          copy[key] = (copy[key] as string).slice(0, 4000);
-      return copy;
-    });
+/**
+ * A turn's items in full: reasoning summaries, progress notes, the answer and
+ * every tool call with its input and output. Only encrypted reasoning, which
+ * cannot be read, is dropped.
+ */
+function fullItems(items: AgentSessionItem[]) {
+  return items.map((item) => {
+    const copy = { ...(item as unknown as Record<string, unknown>) };
+    delete copy.encrypted_content;
+    return copy;
+  });
+}
+/** An event without its streamed text: deltas are counted, items kept by reference. */
+type Event = { t: number; type: string; [key: string]: unknown };
+const DELTA = /\.delta$/;
+function keepEvent(event: Record<string, unknown>, t: number): Event {
+  const { item, ...rest } = event as { item?: Record<string, unknown> };
+  return {
+    t,
+    ...(rest as { type: string }),
+    ...(item
+      ? {
+          item: {
+            id: item.id,
+            type: item.type,
+            status: item.status,
+            ...(item.phase ? { phase: item.phase } : {}),
+          },
+        }
+      : {}),
+  };
 }
 
 /** Timing and token use for the session's nth turn, read from its traces. */
@@ -186,10 +212,8 @@ function turnStats(spans: Span[], index: number) {
         : String(attr(s, "gen_ai.tool.name") ?? "tool"),
       ...(s.name.startsWith("execute_tool")
         ? {
-            result: String(attr(s, "gen_ai.tool.call.result") ?? "").slice(
-              0,
-              2000,
-            ),
+            arguments: attr(s, "gen_ai.tool.call.arguments"),
+            result: attr(s, "gen_ai.tool.call.result"),
           }
         : {}),
     })),
@@ -250,7 +274,8 @@ export async function runConversation(options: RunOptions) {
 
   const t0 = Date.now();
   const at = () => round((Date.now() - t0) / 1000);
-  const events: { t: number; type: string; item?: string }[] = [];
+  const events: Event[] = [];
+  let deltas = 0;
   let session: string | undefined;
   let firstText: number | undefined;
   let ended: string | undefined;
@@ -263,15 +288,12 @@ export async function runConversation(options: RunOptions) {
       item?: { type?: string };
     };
     session ??= e.session_id ?? e.session?.id;
-    if (e.type === "agent.session.turn.output_text.delta") {
-      firstText ??= at();
+    if (e.type === "agent.session.turn.output_text.delta") firstText ??= at();
+    if (DELTA.test(e.type)) {
+      deltas++;
       continue;
     }
-    events.push({
-      t: at(),
-      type: e.type,
-      ...(e.item?.type ? { item: e.item.type } : {}),
-    });
+    events.push(keepEvent(e as unknown as Record<string, unknown>, at()));
     if (ENDED.test(e.type)) {
       ended = e.type;
       break;
@@ -287,6 +309,8 @@ export async function runConversation(options: RunOptions) {
     turnStartedSeconds: number | null;
     firstAnswerTextSeconds: number | null;
     environmentReadySeconds: number | null;
+    events: Event[];
+    deltas: number;
   };
   const turnLog: TurnLog[] = [
     {
@@ -299,6 +323,8 @@ export async function runConversation(options: RunOptions) {
       firstAnswerTextSeconds: firstText ?? null,
       environmentReadySeconds:
         events.find((e) => e.type.endsWith("environment.ready"))?.t ?? null,
+      events,
+      deltas,
     },
   ];
 
@@ -310,6 +336,33 @@ export async function runConversation(options: RunOptions) {
       ).data.map((t) => t.id),
     );
     const sent = Date.now();
+    const since = () => round((Date.now() - sent) / 1000);
+    // The session's events while the reply runs. A new subscription replays the
+    // current turn from its start; events of earlier turns are left out.
+    const followEvents: Event[] = [];
+    let followDeltas = 0;
+    let followText: number | undefined;
+    const listening = new AbortController();
+    const listen = openai()
+      .beta.agents.sessions.events.stream(session, {
+        signal: listening.signal,
+      })
+      .then(async (events) => {
+        for await (const event of events) {
+          const e = event as unknown as Record<string, unknown> & {
+            type: string;
+            turn_id?: string;
+            turn?: { id?: string };
+          };
+          const turn = e.turn_id ?? e.turn?.id;
+          if (turn && prior.has(turn)) continue;
+          if (e.type === "agent.session.turn.output_text.delta")
+            followText ??= since();
+          if (DELTA.test(e.type)) followDeltas++;
+          else followEvents.push(keepEvent(e, since()));
+        }
+      })
+      .catch(() => undefined);
     await openai().beta.agents.sessions.events.create(session, {
       events: [
         {
@@ -336,14 +389,21 @@ export async function runConversation(options: RunOptions) {
         break;
       }
     }
+    // Let the last events arrive before closing the subscription.
+    await sleep(3000);
+    listening.abort();
+    await listen;
     turnLog.push({
       message,
       ended: `agent.session.turn.${status}`,
-      totalSeconds: round((Date.now() - sent) / 1000),
-      firstEventSeconds: null,
-      turnStartedSeconds: null,
-      firstAnswerTextSeconds: null,
+      totalSeconds: since(),
+      firstEventSeconds: followEvents[0]?.t ?? null,
+      turnStartedSeconds:
+        followEvents.find((e) => e.type.endsWith("turn.created"))?.t ?? null,
+      firstAnswerTextSeconds: followText ?? null,
       environmentReadySeconds: null,
+      events: followEvents,
+      deltas: followDeltas,
     });
   }
 
@@ -370,12 +430,13 @@ export async function runConversation(options: RunOptions) {
       turnId: turn?.id ?? null,
       text: publicText(items),
       ...turnStats(spans, i),
-      items: traceItems(items),
+      items: fullItems(items),
     });
   }
-  await openai()
-    .beta.agents.sessions.delete(session)
-    .catch(() => undefined);
+  if (!options.keepSession)
+    await openai()
+      .beta.agents.sessions.delete(session)
+      .catch(() => undefined);
   for (const file of files)
     await openai()
       .files.delete(file.id)
@@ -392,6 +453,57 @@ export async function runConversation(options: RunOptions) {
     },
     prewarmReadySeconds: warm?.readySeconds ?? null,
     session,
+    sessionKept: Boolean(options.keepSession),
     answers,
+    spans,
+  };
+}
+
+/**
+ * The dashboard agent as tested: its settings, prompt, tools, skill versions
+ * and sandbox template, so a result can be tied to the setup that produced it.
+ */
+export async function agentSnapshot() {
+  const agentId = process.env.AGENT21_AGENT_ID!;
+  const templateId = process.env.AGENT21_ENVIRONMENT_TEMPLATE_ID!;
+  const agent = await openai().beta.agents.retrieve(agentId);
+  const skills = [];
+  for await (const skill of openai().skills.list())
+    if (skill.name.startsWith("agent21-"))
+      skills.push({
+        name: skill.name,
+        id: skill.id,
+        defaultVersion: skill.default_version,
+        latestVersion: skill.latest_version,
+      });
+  const template = await openai()
+    .beta.agents.environments.templates.retrieve(templateId)
+    .catch(() => null);
+  let websiteCommit: string | null = null;
+  try {
+    websiteCommit = execSync("git rev-parse HEAD", { encoding: "utf8" }).trim();
+  } catch {
+    // Not a git checkout.
+  }
+  return {
+    takenAt: new Date().toISOString(),
+    runtimeLabel: process.env.AGENT21_RUNTIME_VERSION ?? null,
+    websiteCommit,
+    agent: {
+      id: agent.id,
+      name: agent.name,
+      model: agent.model,
+      reasoning: agent.reasoning,
+      text: agent.text,
+      serviceTier: agent.service_tier,
+      instructionsChars: agent.instructions?.length ?? 0,
+      instructionsSha256: createHash("sha256")
+        .update(agent.instructions ?? "")
+        .digest("hex"),
+      tools: agent.tools,
+    },
+    skills,
+    template,
+    instructions: agent.instructions,
   };
 }

@@ -6,14 +6,16 @@
 //   pnpm bench "What is Bitcoin's block height?" [--model gpt-6.1-sol]
 //     [--effort low|medium|high] [--tier auto|default|flex]
 //     [--verbosity low|medium|high] [--size small|medium]
-//     [--bare] [--prewarm] [--repeat 3] [--label x]
+//     [--bare] [--prewarm] [--repeat 3] [--label x] [--keep-session]
 //
 // --prewarm starts a sandbox from the template first, waits until it is ready
 // (as if the user were still writing) and attaches it, so the timings start
 // with a warm sandbox. Pre-warmed sandboxes take no size and run as medium.
 //
-// Writes each answer's text, trace, event timeline, per-call model times and
-// token use to .exports/bench-*.json (git-ignored) and deletes each session.
+// Writes each answer's text, full trace (reasoning summaries, progress notes,
+// tool inputs and outputs, events and spans), per-call model times and token
+// use to .exports/bench-*.json (git-ignored), and deletes each session unless
+// --keep-session is given.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { runConversation } from "./agent-run";
@@ -28,6 +30,7 @@ const { values, positionals } = parseArgs({
     size: { type: "string" },
     bare: { type: "boolean", default: false },
     prewarm: { type: "boolean", default: false },
+    "keep-session": { type: "boolean", default: false },
     repeat: { type: "string", default: "1" },
     label: { type: "string", default: "baseline" },
     "time-zone": { type: "string", default: "America/New_York" },
@@ -54,6 +57,7 @@ for (let i = 1; i <= Number(values.repeat); i++) {
     size: values.size,
     bare: values.bare,
     prewarm: values.prewarm,
+    keepSession: values["keep-session"],
   });
   results.push({ run: i, ...r });
   const a = r.answers[0];

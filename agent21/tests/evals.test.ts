@@ -10,6 +10,7 @@ import {
   joinScores,
   passes,
   readScores,
+  steps,
   variantTable,
 } from "../scripts/evals";
 
@@ -244,4 +245,69 @@ test("the report joins scores with time and cost per variant, blind scores by ke
   assert.equal(sol.passRate, 1);
   assert.equal(sol.medianSeconds, 60);
   assert.ok(sol.totalUsd > base.totalUsd);
+});
+
+test("the review sheet's steps show thinking, notes and tool calls in order", () => {
+  const items = [
+    {
+      type: "reasoning",
+      summary: [
+        {
+          type: "summary_text",
+          text: "**Finding it** The user wants the pizza transaction.",
+        },
+      ],
+    },
+    {
+      type: "message",
+      role: "assistant",
+      phase: "commentary",
+      content: [
+        { type: "output_text", text: "Checking the transaction record." },
+      ],
+    },
+    {
+      type: "command_execution",
+      command:
+        "/bin/bash -lc \"python - <<'PY'\nimport json\nfrom x import y\ntx = download_public(url)\nPY\"",
+      exit_code: 0,
+      duration_ms: 1234,
+    },
+    {
+      type: "command_execution",
+      command: "bad()",
+      exit_code: 1,
+      output: "Traceback...\nNameError: name 'bad' is not defined",
+    },
+    {
+      type: "web_search_call",
+      action: {
+        type: "search",
+        query: null,
+        queries: ["bitcoin pizza day 2010", "laszlo txid"],
+      },
+    },
+    {
+      type: "mcp_call",
+      server_label: "github",
+      name: "get_file_contents",
+      arguments: { path: "README.md" },
+      output: "...",
+    },
+    {
+      type: "message",
+      role: "assistant",
+      phase: "final_answer",
+      content: [{ type: "output_text", text: "Answer" }],
+    },
+  ];
+  assert.deepEqual(steps(items), [
+    "Thought: Finding it The user wants the pizza transaction.",
+    "Note: Checking the transaction record.",
+    "Ran code (exit 0, 1.2s): tx = download_public(url)",
+    "Ran code (exit 1): bad()",
+    "  Error: Traceback... NameError: name 'bad' is not defined",
+    "Searched the web: bitcoin pizza day 2010 | laszlo txid",
+    'Called github.get_file_contents: {"path":"README.md"}',
+  ]);
 });

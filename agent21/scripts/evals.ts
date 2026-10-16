@@ -5,22 +5,26 @@
 //
 //   pnpm evals <cases.json> [--core] [--only SS-1,BRK-2] [--variant baseline]
 //     [--model m] [--effort e] [--tier t] [--verbosity v] [--size s] [--prewarm]
-//     [--repeat 2] [--concurrency 3]
+//     [--repeat 2] [--concurrency 3] [--keep-sessions]
 //   pnpm evals compare <run-a.json> <run-b.json> [...]
 //   pnpm evals report <run.json> [...] [--compare <compare prefix>] [--reconcile]
 //
-// A run writes .exports/evals-<variant>-<time>.json (every answer, its trace,
-// timings, tokens, estimated cost and check results) and a review sheet beside
-// it (.md) with each answer in its plain-text form, and a scores file (.csv) to
-// fill in. `compare` writes one sheet with the variants side by side under
+// A run writes .exports/evals-<variant>-<time>.json (every answer with its
+// timings, tokens, estimated cost, check results and steps), a review sheet
+// beside it (.md) with each answer in its plain-text form and how it worked, a
+// scores file (.csv) to fill in, the agent as tested (-agent.json: settings,
+// prompt, tools, skill versions, template) and one full trace per conversation
+// (-traces/<case>-<repeat>.json: reasoning summaries, progress notes, every
+// tool call with its input and output, the call timeline, events and spans).
+// --keep-sessions leaves the sessions on OpenAI instead of deleting them. `compare` writes one sheet with the variants side by side under
 // hidden labels, its own scores file and the key separately. `report` joins the
 // scores with time and estimated cost per variant and per case; --reconcile
 // sets the estimates against OpenAI's actual charges for the days of the runs.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { basename, dirname, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { extractBlocks, parseBlock, plainAnswer } from "../lib/agent21/blocks";
-import { runConversation, type Overrides } from "./agent-run";
+import { agentSnapshot, runConversation, type Overrides } from "./agent-run";
 import { dailyCosts } from "./costs";
 
 export type Expect = {
@@ -197,6 +201,69 @@ type Tokens = { input: number; cached: number; output: number };
 /** Web searches the agent ran, each billed as one call. */
 export const countSearches = (items: Item[]) =>
   items.filter((item) => item.type === "web_search_call").length;
+const oneLine = (text: unknown, max = 240) => {
+  const line = String(text ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return line.length > max ? `${line.slice(0, max - 1)}…` : line;
+};
+/** The code itself: without the shell wrapper or the import lines every run starts with. */
+const codeOf = (command: unknown) =>
+  String(command ?? "")
+    .replace(/^\/bin\/(ba)?sh -lc "?(python3? - <<'?PY'?\n)?/, "")
+    .replace(/\n?PY"?\s*$/, "")
+    .split("\n")
+    .filter((line) => !/^\s*(import |from \S+ import |sys\.path)/.test(line))
+    .join("\n");
+const messageText = (item: Item) =>
+  Array.isArray(item.content)
+    ? (item.content as { text?: string }[]).map((p) => p.text ?? "").join(" ")
+    : "";
+/**
+ * How the agent worked, step by step and in order: its reasoning summaries,
+ * progress notes and tool calls. The full inputs and outputs are in the trace.
+ */
+export function steps(items: Item[]) {
+  const out: string[] = [];
+  for (const item of items) {
+    if (item.type === "reasoning") {
+      const summary = ((item.summary as { text?: string }[]) ?? [])
+        .map((s) => s.text ?? "")
+        .join(" ");
+      if (summary.trim())
+        out.push(`Thought: ${oneLine(summary.replace(/\*\*/g, ""), 600)}`);
+    } else if (item.type === "message" && item.role === "assistant") {
+      if (item.phase === "commentary")
+        out.push(`Note: ${oneLine(messageText(item))}`);
+    } else if (item.type === "command_execution") {
+      const secs =
+        typeof item.duration_ms === "number"
+          ? `, ${Math.round(item.duration_ms / 100) / 10}s`
+          : "";
+      out.push(
+        `Ran code (exit ${item.exit_code ?? "?"}${secs}): ${oneLine(codeOf(item.command), 160)}`,
+      );
+      if (item.exit_code && item.output)
+        out.push(`  Error: ${oneLine(String(item.output).slice(-400), 300)}`);
+    } else if (item.type === "web_search_call") {
+      const action = (item.action ?? {}) as {
+        query?: string | null;
+        queries?: string[];
+        url?: string;
+        type?: string;
+      };
+      out.push(
+        `Searched the web: ${oneLine(action.query ?? action.queries?.join(" | ") ?? action.url ?? action.type)}`,
+      );
+    } else if (item.type === "mcp_call") {
+      out.push(
+        `Called ${item.server_label}.${item.name}${item.error ? " (failed)" : ""}: ${oneLine(JSON.stringify(item.arguments ?? {}), 160)}`,
+      );
+    }
+  }
+  return out;
+}
+
 /**
  * An estimate from token use, web searches and sandbox minutes; OpenAI's Costs
  * page is the record.
@@ -270,8 +337,14 @@ type Record_ = {
     modelCalls: number;
     tokens: Tokens & { reasoning: number };
     checks: Check[];
-    items: Item[];
+    searches?: number;
+    steps?: string[];
+    /** Only in older runs; newer runs keep items in the trace file. */
+    items?: Item[];
   }[];
+  /** The conversation's full trace file, relative to the run's JSON. */
+  trace?: string;
+  session?: string;
   passedChecks?: boolean;
   totalSeconds?: number;
   modelSeconds?: number;
@@ -282,6 +355,7 @@ type Summary = {
   variant: string;
   overrides: Overrides;
   model: string;
+  agent?: Record<string, unknown>;
   startedAt?: string;
   finishedAt?: string;
 };
@@ -304,7 +378,10 @@ function recordCost(record: Record_, summary: Summary) {
     seconds,
     summary.overrides,
     summary.model,
-    countSearches(record.answers.flatMap((a) => a.items)),
+    record.answers.reduce(
+      (n, a) => n + (a.searches ?? countSearches(a.items ?? [])),
+      0,
+    ),
   );
 }
 
@@ -338,8 +415,29 @@ async function runCases(
   console.log(
     `Running ${chosen.length} cases × ${repeat} (${jobs.length} conversations) as "${variant}", ${Number(values.concurrency ?? 3)} at a time.`,
   );
-  const savedModel = process.env.AGENT21_EVAL_MODEL ?? "gpt-6-luna";
   const startedAt = new Date().toISOString();
+  mkdirSync(".exports", { recursive: true });
+  const out = `.exports/evals-${variant}-${stamp()}`;
+  mkdirSync(`${out}-traces`, { recursive: true });
+  // The agent as tested, so results can be tied to its exact setup.
+  const snapshot = await agentSnapshot();
+  writeFileSync(`${out}-agent.json`, JSON.stringify(snapshot, null, 2), {
+    mode: 0o600,
+  });
+  const savedModel = snapshot.agent.model;
+  const agentSummary = {
+    model: overrides.model ?? snapshot.agent.model,
+    effort: overrides.effort ?? snapshot.agent.reasoning?.effort,
+    verbosity: overrides.verbosity ?? snapshot.agent.text?.verbosity,
+    serviceTier: overrides.tier ?? snapshot.agent.serviceTier,
+    instructionsSha256: snapshot.agent.instructionsSha256,
+    instructionsChars: snapshot.agent.instructionsChars,
+    skills: Object.fromEntries(
+      snapshot.skills.map((s) => [s.name, s.defaultVersion]),
+    ),
+    runtimeLabel: snapshot.runtimeLabel,
+    websiteCommit: snapshot.websiteCommit,
+  };
   const records = await pool(
     jobs,
     Number(values.concurrency ?? 3),
@@ -357,7 +455,17 @@ async function runCases(
           turns: c.turns,
           files: (c.files ?? []).map((f) => resolve(base, f)),
           label: `eval-${variant}-${c.id}`,
+          keepSession: Boolean(values["keep-sessions"]),
         });
+        // The full trace stays out of the run's JSON, one file per conversation.
+        const trace = `${out}-traces/${c.id}-${r}.json`;
+        writeFileSync(
+          trace,
+          JSON.stringify({ case: c.id, repeat: r, variant, ...run }, null, 2),
+          { mode: 0o600 },
+        );
+        record.trace = `${basename(out)}-traces/${c.id}-${r}.json`;
+        record.session = run.session;
         record.answers = run.answers.map((a, i) => ({
           text: a.text,
           ended: a.ended,
@@ -365,7 +473,8 @@ async function runCases(
           modelSeconds: a.modelSeconds,
           modelCalls: a.modelCalls,
           tokens: a.tokens,
-          items: a.items as Item[],
+          searches: countSearches(a.items as Item[]),
+          steps: steps(a.items as Item[]),
           checks: checkAnswer(
             a.text,
             a.items as Item[],
@@ -384,7 +493,10 @@ async function runCases(
           (s, a) => s + a.modelSeconds,
           0,
         );
-        record.searches = countSearches(record.answers.flatMap((a) => a.items));
+        record.searches = record.answers.reduce(
+          (n, a) => n + (a.searches ?? 0),
+          0,
+        );
         record.cost = recordCost(record, {
           variant,
           overrides,
@@ -407,6 +519,7 @@ async function runCases(
     variant,
     overrides,
     model: savedModel,
+    agent: agentSummary,
     startedAt,
     finishedAt: new Date().toISOString(),
     conversations: records.length,
@@ -420,8 +533,6 @@ async function runCases(
       Math.round(done.reduce((s, r) => s + (r.cost?.totalUsd ?? 0), 0) * 100) /
       100,
   };
-  mkdirSync(".exports", { recursive: true });
-  const out = `.exports/evals-${variant}-${stamp()}`;
   writeFileSync(`${out}.json`, JSON.stringify({ summary, records }, null, 2), {
     mode: 0o600,
   });
@@ -432,7 +543,9 @@ async function runCases(
     { mode: 0o600 },
   );
   console.log(summary);
-  console.log(`Saved ${out}.json, ${out}.md and ${out}-scores.csv`);
+  console.log(
+    `Saved ${out}.json, ${out}.md, ${out}-scores.csv, ${out}-agent.json and ${records.length} traces in ${out}-traces/`,
+  );
 }
 
 function answerSection(record: Record_) {
@@ -444,7 +557,7 @@ function answerSection(record: Record_) {
         record.turns.length > 1
           ? `**Message ${i + 1}:** ${record.turns[i]}\n`
           : "",
-        `${a.totalSeconds}s · model ${a.modelSeconds}s in ${a.modelCalls} calls · ${a.tokens.input} tokens in (${a.tokens.cached} cached), ${a.tokens.output} out · ${countSearches(a.items)} web searches`,
+        `${a.totalSeconds}s · model ${a.modelSeconds}s in ${a.modelCalls} calls · ${a.tokens.input} tokens in (${a.tokens.cached} cached), ${a.tokens.output} out · ${a.searches ?? countSearches(a.items ?? [])} web searches`,
         failed.length
           ? `Checks failed: ${failed.map((k) => `${k.check}${k.detail ? ` (${k.detail})` : ""}`).join("; ")}`
           : "Automatic checks pass.",
@@ -453,6 +566,20 @@ function answerSection(record: Record_) {
           .split("\n")
           .map((line) => `> ${line}`)
           .join("\n"),
+        a.steps?.length
+          ? [
+              "",
+              `<details><summary>How it worked (${a.steps.filter((x) => !x.startsWith("  ")).length} steps)</summary>`,
+              "",
+              ...a.steps.map((step, n) =>
+                step.startsWith("  ")
+                  ? `   ${step.trim()}`
+                  : `${n + 1}. ${step}`,
+              ),
+              "",
+              "</details>",
+            ].join("\n")
+          : "",
       ].join("\n");
     })
     .join("\n\n")
@@ -460,7 +587,8 @@ function answerSection(record: Record_) {
       record.cost
         ? `\n\nEstimated cost $${record.cost.totalUsd} (model $${record.cost.modelUsd} · web search $${record.cost.searchUsd} · sandbox $${record.cost.sandboxUsd})`
         : "",
-    );
+    )
+    .concat(record.trace ? `\n\nFull trace: \`${record.trace}\`` : "");
 }
 const SCORES =
   "Correct _ · Sourced and dated _ · Blocks _ · Scope and safety _ · Voice and length _ · Honest limits _ (0, 1 or 2 each)";
@@ -887,6 +1015,7 @@ if (process.argv[1]?.endsWith("evals.ts")) {
       repeat: { type: "string", default: "1" },
       concurrency: { type: "string", default: "3" },
       compare: { type: "string" },
+      "keep-sessions": { type: "boolean", default: false },
       reconcile: { type: "boolean", default: false },
     },
   });
