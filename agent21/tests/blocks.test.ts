@@ -341,3 +341,32 @@ test("months in an answer's text lose their period, code and blocks do not", () 
     ].join("\n\n"),
   );
 });
+
+test("ISO dates in table text cells and source details read as dates", () => {
+  const table = parseBlock(
+    "a21-table",
+    JSON.stringify({
+      caption: "Drawdowns",
+      columns: [
+        { label: "Cycle" },
+        { label: "Peak" },
+        { label: "Low", format: "date" },
+      ],
+      rows: [["2021 cycle", "2021-11-09", "2022-11-09"]],
+    }),
+  );
+  assert.ok(table.ok && table.type === "table");
+  assert.deepEqual(table.data.rows[0].slice(0, 2), [
+    "2021 cycle",
+    "Nov 9, 2021",
+  ]);
+  assert.equal(formatValue(table.data.rows[0][2], "date"), "Nov 9, 2022");
+  const sources = parseBlock(
+    "a21-sources",
+    JSON.stringify({
+      items: [{ name: "BRK", detail: "observed 2026-10-16T16:49:24Z" }],
+    }),
+  );
+  assert.ok(sources.ok && sources.type === "sources");
+  assert.doesNotMatch(sources.data.items[0].detail ?? "", /2026-10-16/);
+});

@@ -160,7 +160,7 @@ const schemas = {
         .array(
           z.array(
             z.union([
-              z.string().transform((value) => shorten(value, 80)),
+              z.string().transform((value) => shorten(tidyValue(value), 80)),
               finite,
               z.null(),
             ]),
@@ -262,7 +262,7 @@ const schemas = {
       z
         .object({
           name: text(60),
-          detail: optional(text(60)),
+          detail: optional(z.string().transform(tidyValue).pipe(text(60))),
           url: https().optional(),
           asOf: optional(when),
           published: optional(isoDate),

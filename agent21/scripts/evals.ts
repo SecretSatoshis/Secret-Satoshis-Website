@@ -109,6 +109,46 @@ const readTrace = (items: Item[]) =>
     .join("\n");
 
 /** The automatic checks for one answer; `last` applies the case's expectations. */
+/** Links an answer shows: Markdown links and block URLs, without duplicates. */
+export function answerLinks(text: string) {
+  const links = new Set<string>();
+  for (const m of text.matchAll(/\]\((https:\/\/[^)\s]+)\)/g)) links.add(m[1]);
+  for (const m of text.matchAll(/"(?:url|href|page)":"(https:\/\/[^"]+)"/g))
+    links.add(m[1]);
+  return [...links];
+}
+
+/** Each link must resolve: a 404 or 410 means it was mistyped or made up. Sites
+ * that refuse scripts (AP News answers 403 to every request) or time out cannot
+ * be checked; they are counted in the detail, not failed. */
+export async function linkChecks(
+  text: string,
+  get: (url: string) => Promise<number> = linkStatus,
+): Promise<Check[]> {
+  const broken: string[] = [];
+  let unchecked = 0;
+  for (const url of answerLinks(text)) {
+    const status = await get(url).catch(() => 0);
+    if (status === 404 || status === 410) broken.push(url);
+    else if (status === 0 || status >= 400) unchecked++;
+  }
+  const detail = [
+    ...broken,
+    ...(unchecked ? [`${unchecked} could not be checked`] : []),
+  ].join(" ");
+  return [{ check: "links resolve", ok: !broken.length, detail }];
+}
+
+async function linkStatus(url: string) {
+  const response = await fetch(url, {
+    redirect: "follow",
+    signal: AbortSignal.timeout(10_000),
+    headers: { "User-Agent": "Mozilla/5.0 (link check)" },
+  });
+  await response.body?.cancel();
+  return response.status;
+}
+
 export function checkAnswer(
   text: string,
   items: Item[],
@@ -485,6 +525,8 @@ async function runCases(
             i === run.answers.length - 1,
           ),
         }));
+        for (const answer of record.answers)
+          answer.checks.push(...(await linkChecks(answer.text)));
         record.passedChecks = record.answers.every(
           (a) => a.ended?.endsWith("completed") && a.checks.every((k) => k.ok),
         );

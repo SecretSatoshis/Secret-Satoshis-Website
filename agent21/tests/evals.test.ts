@@ -8,6 +8,7 @@ import {
   countSearches,
   estimateCost,
   joinScores,
+  linkChecks,
   passes,
   readScores,
   steps,
@@ -323,4 +324,26 @@ test("dates in links and in block data are not counted as slips", () => {
     ),
     [],
   );
+});
+
+test("links that come back not found are flagged, unreachable ones are not", async () => {
+  const text = [
+    "Per [AP](https://apnews.com/article/made-up) and [the Fed](https://www.federalreserve.gov/x).",
+    fence("sources", {
+      items: [{ name: "BRK", url: "https://bitview.space/api/v1/prices" }],
+    }),
+  ].join("\n\n");
+  const statuses: Record<string, number> = {
+    "https://apnews.com/article/made-up": 404,
+    "https://www.federalreserve.gov/x": 403,
+    "https://bitview.space/api/v1/prices": 200,
+  };
+  const [check] = await linkChecks(text, async (url) => statuses[url]);
+  assert.equal(check.ok, false);
+  assert.equal(
+    check.detail,
+    "https://apnews.com/article/made-up 1 could not be checked",
+  );
+  const [fine] = await linkChecks("No links here.", async () => 404);
+  assert.equal(fine.ok, true);
 });
