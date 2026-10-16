@@ -112,13 +112,10 @@ test("answer blocks accept every documented format", () => {
   });
 });
 
-test("answer blocks refuse what the website must not draw", () => {
+test("answer blocks refuse only what is unsafe or malformed", () => {
   refused("a21-banner", { text: "x" });
   refused("a21-step", "{not json");
-  refused("a21-step", { text: "x".repeat(121) });
-  refused("a21-step", { text: "ok", color: "red" });
   refused("a21-figures", { items: [] });
-  refused("a21-figures", { items: Array(5).fill({ label: "x", value: 1 }) });
   refused("a21-facts", {
     rows: [{ label: "x", value: "y", href: "javascript:alert(1)" }],
   });
@@ -129,19 +126,6 @@ test("answer blocks refuse what the website must not draw", () => {
     caption: "x",
     columns: [{ label: "a" }, { label: "b" }],
     rows: [["1", "2"], ["only one"]],
-  });
-  refused("a21-table", {
-    caption: "x",
-    columns: [{ label: "a" }, { label: "b" }],
-    rows: [["1", "2"]],
-  });
-  refused("a21-table", {
-    caption: "x",
-    columns: [{ label: "a", format: "html" }, { label: "b" }],
-    rows: [
-      ["1", "2"],
-      ["3", "4"],
-    ],
   });
   refused("a21-ladder", {
     title: "x",
@@ -181,11 +165,116 @@ test("answer blocks refuse what the website must not draw", () => {
     file: "a.chart.json",
     page: "https://example.com/a.html",
   });
-  refused("a21-sources", { items: [{ name: "x", asOf: "2026-13-40" }] });
-  refused("a21-sources", {
-    items: [{ name: "x", asOf: "2026-10-14", published: "2026-10-13" }],
-  });
   refused("a21-step", `{"text": "${"x".repeat(20_001)}"}`);
+  refused("a21-figures", { items: [{ label: "x", value: "12" }] });
+  refused("a21-ladder", {
+    title: "x",
+    now: { label: "Now", value: 1 },
+    measure: "odds",
+    levels: [{ value: 2, odds: 140 }],
+    market: {
+      name: "m",
+      url: "https://polymarket.com/event/x",
+      volume: 1,
+      liquidity: 1,
+    },
+  });
+  refused("a21-sources", {
+    items: [{ name: "x", url: "javascript:alert(1)" }],
+  });
+});
+
+const data = <T>(block: ReturnType<typeof ok>) =>
+  (block as unknown as { data: T }).data;
+
+test("answer blocks fit length, count and style instead of refusing", () => {
+  const step = data<{ text: string }>(
+    ok("a21-step", { text: `I checked the ${"very ".repeat(40)}price.`, x: 1 }),
+  );
+  assert.match(step.text, /^Checked the very/);
+  assert.ok(step.text.length <= 120 && step.text.endsWith("…"));
+  assert.doesNotMatch(step.text, / …$/);
+  assert.equal(
+    data<{ text: string }>(ok("a21-step", { text: "We've pulled blocks." }))
+      .text,
+    "Pulled blocks.",
+  );
+
+  const figures = data<{ items: { format?: string }[] }>(
+    ok("a21-figures", {
+      items: Array(6).fill({ label: "x", value: 1, format: "money" }),
+    }),
+  );
+  assert.equal(figures.items.length, 4);
+  assert.equal(figures.items[0].format, undefined);
+
+  const facts = data<{ rows: { label: string; value: string }[] }>(
+    ok("a21-facts", {
+      rows: [
+        { label: "First transaction confirmed on chain", value: "2010-05-22" },
+        { label: "Received", value: "0.99000000 BTC and 10.0 BTC" },
+        { label: "Seen", value: "2010-05-22T18:16:31Z" },
+        { label: "Hash", value: "2010-05-22 0.50 BTC", mono: true },
+        ...Array(14).fill({ label: "x", value: "y" }),
+      ],
+    }),
+  );
+  assert.equal(facts.rows.length, 14);
+  assert.ok(
+    facts.rows[0].label.length <= 30 && facts.rows[0].label.endsWith("…"),
+  );
+  assert.equal(facts.rows[0].value, "May 22, 2010");
+  assert.equal(facts.rows[1].value, "0.99 BTC and 10 BTC");
+  assert.match(facts.rows[2].value, /^May 22, 2010, 6:16 PM UTC$/);
+  assert.equal(facts.rows[3].value, "2010-05-22 0.50 BTC", "mono stays exact");
+
+  const table = data<{
+    columns: { format?: string }[];
+    rows: unknown[][];
+    note?: string;
+  }>(
+    ok("a21-table", {
+      caption: "Every day",
+      columns: Array(8).fill({ label: "c", format: "html" }),
+      rows: Array.from({ length: 25 }, (_, i) => Array(8).fill(i)),
+    }),
+  );
+  assert.equal(table.columns.length, 6);
+  assert.equal(table.columns[0].format, undefined);
+  assert.equal(table.rows.length, 20);
+  assert.equal(table.rows[0].length, 6);
+  assert.equal(table.note, "First 20 of 25 rows.");
+  ok("a21-table", {
+    caption: "One row",
+    columns: [{ label: "a" }, { label: "b" }],
+    rows: [["1", "2"]],
+  });
+
+  const ladder = data<{ levels: { value: number }[] }>(
+    ok("a21-ladder", {
+      title: "Levels",
+      now: { label: "Now", value: 100 },
+      measure: "distance",
+      levels: Array.from({ length: 30 }, (_, i) => ({ value: 50 + i * 5 })),
+    }),
+  );
+  assert.equal(ladder.levels.length, 24);
+  assert.ok(!ladder.levels.some((level) => level.value >= 170));
+  assert.ok(ladder.levels.some((level) => level.value === 50));
+
+  const sources = data<{ items: { asOf?: string; published?: string }[] }>(
+    ok("a21-sources", {
+      items: [
+        { name: "a", asOf: "2026-10-14", published: "2026-10-13" },
+        { name: "b", asOf: "2026-13-40" },
+        ...Array(9).fill({ name: "c" }),
+      ],
+    }),
+  );
+  assert.equal(sources.items.length, 8);
+  assert.equal(sources.items[0].published, undefined);
+  assert.equal(sources.items[0].asOf, "2026-10-14");
+  assert.equal(sources.items[1].asOf, undefined);
 });
 
 test("numbers, dates and times follow the visual standards", () => {

@@ -5,6 +5,12 @@ import { z } from "zod";
  * fenced code block whose language is `a21-<type>`, holding one JSON object.
  * The website validates it here and draws it with its own components; every
  * string is drawn as text, and links must be https.
+ *
+ * Only safety and structure refuse a block: links, chart files, numbers, odds
+ * and their market, and table rows that do not match their columns. Everything
+ * else is fitted rather than refused: long text is shortened at a word, extra
+ * items are dropped, unknown fields, formats and malformed optional dates are
+ * ignored, and fact values and step lines are tidied to the visual standards.
  */
 export const BLOCK_TYPES = [
   "step",
@@ -19,7 +25,19 @@ export type BlockType = (typeof BLOCK_TYPES)[number];
 export const BLOCK_LANGUAGES = BLOCK_TYPES.map((type) => `a21-${type}`);
 const MAX_BLOCK_CHARS = 20_000;
 
-const text = (max: number) => z.string().trim().min(1).max(max);
+/** Text cut to its space at a word, with an ellipsis. */
+export function shorten(value: string, max: number) {
+  if (value.length <= max) return value;
+  const cut = value.slice(0, max - 1);
+  const space = cut.lastIndexOf(" ");
+  return `${(space > max * 0.6 ? cut.slice(0, space) : cut).trimEnd()}…`;
+}
+const text = (max: number) =>
+  z
+    .string()
+    .trim()
+    .min(1)
+    .transform((value) => shorten(value, max));
 const https = (prefix = "https://") =>
   z
     .string()
@@ -42,6 +60,12 @@ const isoTime = z
   .refine((value) => !Number.isNaN(Date.parse(value)));
 const when = z.union([isoDate, isoTime]);
 const finite = z.number().finite();
+/** At least one item; the space shows the first `max`. */
+const list = <T extends z.ZodType>(item: T, max: number) =>
+  z
+    .array(item)
+    .min(1)
+    .transform((items) => items.slice(0, max));
 
 export const FORMATS = [
   "text",
@@ -59,53 +83,91 @@ export const FORMATS = [
 export type Format = (typeof FORMATS)[number];
 const format = z.enum(FORMATS);
 const numberFormat = format.exclude(["text", "date"]);
+// An unknown format, kind or malformed date only loses its styling.
+const optional = <T extends z.ZodType>(schema: T) =>
+  schema.optional().catch(undefined);
+
+const ISO_TIME_IN_TEXT =
+  /\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?Z\b/g;
+const ISO_DATE_IN_TEXT = /\b\d{4}-\d{2}-\d{2}\b/g;
+const PADDED_BTC = /\b(\d+)\.(\d*?)0+(?=\s*BTC\b)/g;
+/** A written value in the visual standards: readable dates, BTC without trailing zeros. */
+export function tidyValue(value: string) {
+  return value
+    .replace(ISO_TIME_IN_TEXT, (iso) =>
+      Number.isNaN(Date.parse(iso)) ? iso : formatTime(iso, "UTC"),
+    )
+    .replace(ISO_DATE_IN_TEXT, (iso) =>
+      Number.isNaN(Date.parse(`${iso}T00:00:00Z`)) ? iso : formatDate(iso),
+    )
+    .replace(PADDED_BTC, (_, whole: string, fraction: string) =>
+      fraction ? `${whole}.${fraction}` : whole,
+    );
+}
+/** A step line starting with what was checked: "I checked X" becomes "Checked X". */
+export function tidyStep(value: string) {
+  return value.replace(
+    /^(?:I|We)(?:'ve|’ve| have)?\s+(\p{L})/u,
+    (_, first: string) => first.toUpperCase(),
+  );
+}
+
+const TABLE_COLUMNS = 6;
+const TABLE_ROWS = 20;
+const LADDER_LEVELS = 24;
 
 const schemas = {
-  step: z.strictObject({ text: text(120) }),
-  figures: z.strictObject({
-    items: z
-      .array(
-        z.strictObject({
-          label: text(40),
-          value: finite,
-          format: numberFormat.optional(),
-          change: finite.optional(),
-          changeLabel: text(30).optional(),
-          asOf: when.optional(),
-          kind: z
-            .enum(["observed", "calculated", "outlook", "market"])
-            .optional(),
-        }),
-      )
-      .min(1)
-      .max(4),
+  step: z.object({ text: text(120).transform(tidyStep) }),
+  figures: z.object({
+    items: list(
+      z.object({
+        label: text(40),
+        value: finite,
+        format: optional(numberFormat),
+        change: optional(finite),
+        changeLabel: optional(text(30)),
+        asOf: optional(when),
+        kind: optional(z.enum(["observed", "calculated", "outlook", "market"])),
+      }),
+      4,
+    ),
   }),
-  facts: z.strictObject({
-    title: text(80).optional(),
-    rows: z
-      .array(
-        z.strictObject({
+  facts: z.object({
+    title: optional(text(80)),
+    rows: list(
+      z
+        .object({
           label: text(30),
-          value: text(160),
+          value: z.string().trim().min(1),
           href: https().optional(),
-          mono: z.boolean().optional(),
-        }),
-      )
-      .min(1)
-      .max(14),
+          mono: z.boolean().optional().catch(undefined),
+        })
+        .transform((row) => ({
+          ...row,
+          // Hashes and addresses are drawn exactly as written.
+          value: shorten(row.mono ? row.value : tidyValue(row.value), 160),
+        })),
+      14,
+    ),
   }),
   table: z
-    .strictObject({
+    .object({
       caption: text(80),
       columns: z
-        .array(z.strictObject({ label: text(40), format: format.optional() }))
-        .min(2)
-        .max(6),
+        .array(z.object({ label: text(40), format: optional(format) }))
+        .min(1),
       rows: z
-        .array(z.array(z.union([z.string().max(80), finite, z.null()])))
-        .min(2)
-        .max(20),
-      note: text(200).optional(),
+        .array(
+          z.array(
+            z.union([
+              z.string().transform((value) => shorten(value, 80)),
+              finite,
+              z.null(),
+            ]),
+          ),
+        )
+        .min(1),
+      note: optional(text(200)),
     })
     .superRefine((table, ctx) => {
       table.rows.forEach((row, i) => {
@@ -116,24 +178,40 @@ const schemas = {
             message: `Row ${i + 1} has ${row.length} cells for ${table.columns.length} columns`,
           });
       });
+    })
+    .transform((table) => {
+      const more = table.rows.length > TABLE_ROWS;
+      const note = [
+        table.note,
+        more ? `First ${TABLE_ROWS} of ${table.rows.length} rows.` : undefined,
+      ]
+        .filter(Boolean)
+        .join(" ");
+      return {
+        ...table,
+        columns: table.columns.slice(0, TABLE_COLUMNS),
+        rows: table.rows
+          .slice(0, TABLE_ROWS)
+          .map((row) => row.slice(0, TABLE_COLUMNS)),
+        note: note ? shorten(note, 240) : undefined,
+      };
     }),
   ladder: z
-    .strictObject({
+    .object({
       title: text(80),
-      now: z.strictObject({ label: text(30), value: finite.positive() }),
+      now: z.object({ label: text(30), value: finite.positive() }),
       measure: z.enum(["odds", "distance"]),
       levels: z
         .array(
-          z.strictObject({
+          z.object({
             value: finite.positive(),
-            label: text(50).optional(),
+            label: optional(text(50)),
             odds: z.number().min(0).max(100).optional(),
           }),
         )
-        .min(3)
-        .max(24),
+        .min(1),
       market: z
-        .strictObject({
+        .object({
           name: text(120),
           url: https("https://polymarket.com/"),
           volume: finite.nonnegative(),
@@ -159,30 +237,44 @@ const schemas = {
               : "Distance levels have no odds",
           });
       });
-    }),
-  chart: z.strictObject({
+    })
+    .transform((ladder) => ({
+      ...ladder,
+      // The levels nearest the current value, when there are too many.
+      levels:
+        ladder.levels.length > LADDER_LEVELS
+          ? [...ladder.levels]
+              .sort(
+                (a, b) =>
+                  Math.abs(a.value - ladder.now.value) -
+                  Math.abs(b.value - ladder.now.value),
+              )
+              .slice(0, LADDER_LEVELS)
+          : ladder.levels,
+    })),
+  chart: z.object({
     file: z.string().regex(/^[A-Za-z0-9_.-]{1,180}\.chart\.json$/),
     page: https("https://charts.secretsatoshis.com/").optional(),
-    caption: text(120).optional(),
+    caption: optional(text(120)),
   }),
-  sources: z.strictObject({
-    items: z
-      .array(
-        z
-          .strictObject({
-            name: text(60),
-            detail: text(60).optional(),
-            url: https().optional(),
-            asOf: when.optional(),
-            published: isoDate.optional(),
-          })
-          .refine((item) => !(item.asOf && item.published), {
-            message:
-              "A source has an as-of date or a publication date, not both",
-          }),
-      )
-      .min(1)
-      .max(8),
+  sources: z.object({
+    items: list(
+      z
+        .object({
+          name: text(60),
+          detail: optional(text(60)),
+          url: https().optional(),
+          asOf: optional(when),
+          published: optional(isoDate),
+        })
+        // A source shows one date: its as-of date when it has both.
+        .transform((item) =>
+          item.asOf && item.published
+            ? { ...item, published: undefined }
+            : item,
+        ),
+      8,
+    ),
   }),
 } satisfies Record<BlockType, z.ZodType>;
 
