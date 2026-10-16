@@ -9,6 +9,7 @@ import {
 } from "../lib/agent21/config";
 import { logDiagnostic, storedDiagnostic } from "../lib/agent21/diagnostics";
 import { sessionReport } from "./ops-session";
+import { costReport } from "./ops-costs";
 import { dailyCosts } from "./costs";
 
 const args = process.argv.slice(2);
@@ -256,12 +257,35 @@ try {
     );
     console.table(timing);
     console.log(`Session items, turns and traces saved to ${file}`);
+  } else if (args[0] === "costs") {
+    // Estimated spend per account, conversation and session; owner IDs are
+    // shown because the allowance is per account.
+    const flag = (name: string) => {
+      const i = args.indexOf(name);
+      return i > 0 ? args[i + 1] : undefined;
+    };
+    const report = await costReport({
+      user: flag("--user"),
+      conversation: flag("--conversation"),
+    });
+    if (json) console.log(JSON.stringify(report, null, 2));
+    else {
+      console.log(
+        `Estimated Agent 21 spend (allowance $${report.limitUsd} per account). Check against actual charges with ops report.`,
+      );
+      console.log("Per account:");
+      console.table(report.users);
+      console.log("Per conversation (top 50):");
+      console.table(report.conversations);
+      console.log("Per session (latest):");
+      console.table(report.sessions);
+    }
   } else if (
     args[0] !== "report" ||
     args.some((a, i) => i > 0 && a !== "--json")
   ) {
     console.error(
-      "Use ops report [--json], or ops session <conversation-id>. Load the private environment first.",
+      "Use ops report [--json], ops costs [--user <id>] [--conversation <id>] [--json], or ops session <conversation-id>. Load the private environment first.",
     );
     process.exitCode = 1;
   } else {

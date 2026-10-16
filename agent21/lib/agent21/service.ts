@@ -13,6 +13,7 @@ import { requestDeletion } from "./deletion";
 import { logDiagnostic } from "./diagnostics";
 import type { Run } from "./schema";
 import type { Conversation, RunView } from "./types";
+import { assertWithinAllowance } from "./usage";
 export const idSchema = z.uuid();
 const messageSchema = z
   .object({
@@ -232,6 +233,7 @@ export async function submitMessage(owner: string, id: string, body: unknown) {
     );
   const input = messageSchema.parse(body);
   await ownedConversation(owner, id);
+  await assertWithinAllowance(owner);
   const files = input.fileIds.length
     ? await db()
         .selectFrom("agent21_files")

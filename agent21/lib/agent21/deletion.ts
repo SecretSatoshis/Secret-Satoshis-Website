@@ -4,7 +4,17 @@ import { db, settle, userTransaction } from "./db";
 import { isProviderError, openai } from "./openai";
 import { removeFile } from "./files";
 import { AppError } from "./errors";
-export async function requestDeletion(owner: string, conversation?: string) {
+import { recordSessionUsage } from "./usage";
+/**
+ * Starts deleting one conversation, or every conversation and file of the
+ * account. Usage rows stay, so the beta allowance survives "Delete my Agent 21
+ * data"; `removeUsage` (a deleted Clerk account) removes them as well.
+ */
+export async function requestDeletion(
+  owner: string,
+  conversation?: string,
+  { removeUsage = false } = {},
+) {
   return userTransaction(owner, async (trx) => {
     const existing = await trx
       .selectFrom("agent21_deletions")
@@ -44,7 +54,12 @@ export async function requestDeletion(owner: string, conversation?: string) {
     const id = randomUUID();
     await trx
       .insertInto("agent21_deletions")
-      .values({ id, owner_id: owner, conversation_id: conversation ?? null })
+      .values({
+        id,
+        owner_id: owner,
+        conversation_id: conversation ?? null,
+        remove_usage: removeUsage,
+      })
       .execute();
     return id;
   });
@@ -155,6 +170,16 @@ export async function performDeletion(id: string): Promise<boolean> {
       .where("conversation_id", "=", conversation.id)
       .execute())
       await removeFile(file);
+    // Final counts first: a deleted session reports nothing more, and its
+    // spend stays on the account's allowance.
+    for (const session of await db()
+      .selectFrom("agent21_sessions")
+      .select("id")
+      .where("conversation_id", "=", conversation.id)
+      .execute())
+      await recordSessionUsage(job.owner_id, conversation.id, session.id).catch(
+        () => undefined,
+      );
     await removeSessions(conversation.id);
     await db()
       .deleteFrom("agent21_runs")
@@ -169,6 +194,11 @@ export async function performDeletion(id: string): Promise<boolean> {
     await db()
       .deleteFrom("agent21_users")
       .where("id", "=", job.owner_id)
+      .execute();
+  if (!job.conversation_id && job.remove_usage)
+    await db()
+      .deleteFrom("agent21_usage")
+      .where("owner_id", "=", job.owner_id)
       .execute();
   // Retain a non-content receipt so status checks can confirm completion after account deletion.
   await db()

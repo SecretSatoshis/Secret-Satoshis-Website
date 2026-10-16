@@ -259,6 +259,36 @@ button:disabled {
   color: var(--a21-dim);
   font-size: 10px;
 }
+/* The beta spend tracker, top right of the conversation. */
+.a21-spend {
+  margin: 0 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--a21-dim);
+  white-space: nowrap;
+}
+.a21-spend b {
+  color: var(--a21-text);
+  font-weight: 600;
+}
+.a21-spend-bar {
+  width: 96px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--a21-border);
+  overflow: hidden;
+}
+.a21-spend-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--a21-orange);
+}
+.a21-spend[data-full] b {
+  color: var(--a21-orange);
+}
 .a21-chat {
   flex: 1;
   min-height: 0;

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { enabled, required } from "./config";
 import { db, ownedConversation } from "./db";
 import { environmentId, isProviderError, mcpVaultId, openai } from "./openai";
+import { recordWarmSandbox, withinAllowance } from "./usage";
 
 // The environment template installs its packages at every boot, so a cold
 // sandbox takes 30 to 50 seconds before the agent can run anything. A sandbox
@@ -57,6 +58,8 @@ export async function warmEnvironment(owner: string, body: unknown) {
     if (conversation.session_id && (await liveSession(conversation.session_id)))
       return { status: "running" as const };
   }
+  // A sandbox bills from creation, so none starts once the allowance is used.
+  if (!(await withinAllowance(owner))) return { status: "limit" as const };
   const template = required("AGENT21_ENVIRONMENT_TEMPLATE_ID");
   // One pre-warmed sandbox per account: claim the slot unless a fresh one for
   // this template holds it, so repeated requests start nothing new.
@@ -99,6 +102,7 @@ export async function warmEnvironment(owner: string, body: unknown) {
       .set({ environment_id: environment.id })
       .where("owner_id", "=", owner)
       .execute();
+    await recordWarmSandbox(owner, environment.id);
   } catch (error) {
     await db()
       .deleteFrom("agent21_warm_environments")

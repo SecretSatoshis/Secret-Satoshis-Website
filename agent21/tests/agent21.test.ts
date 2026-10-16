@@ -9,6 +9,7 @@ import {
   environmentId,
 } from "../lib/agent21/openai";
 import { PDFDocument } from "pdf-lib";
+import { priceUsage } from "../lib/agent21/usage";
 import {
   credentialNames,
   missingCredentials,
@@ -372,4 +373,55 @@ test("answer links to sandbox paths resolve to the conversation's own files", as
     "/workspace/outputs/%E0%A4%A",
   ])
     assert.equal(sandboxFile(href, files), undefined, String(href));
+});
+
+test("spend is priced from tokens, searches and sandbox minutes with a five-minute minimum", () => {
+  const tokens = { input: 300_000, cached: 260_000, output: 4_000 };
+  assert.deepEqual(
+    priceUsage({
+      model: "gpt-6-luna",
+      tier: "auto",
+      ...tokens,
+      searches: 2,
+      size: "small",
+      seconds: 90,
+    }),
+    {
+      model_usd: 0.0096,
+      search_usd: 0.02,
+      sandbox_usd: 0.0075,
+      cost_usd: 0.0371,
+    },
+  );
+  // A pre-warmed (medium) sandbox for 12 minutes, on Flex.
+  assert.equal(
+    priceUsage({
+      model: "gpt-6-luna",
+      tier: "flex",
+      ...tokens,
+      searches: 0,
+      size: "medium",
+      seconds: 720,
+    }).sandbox_usd,
+    0.072,
+  );
+  // An unknown model is priced as the dearest one.
+  assert.equal(
+    priceUsage({
+      model: "gpt-7",
+      tier: "auto",
+      ...tokens,
+      searches: 0,
+      size: "small",
+      seconds: 0,
+    }).model_usd,
+    priceUsage({
+      model: "gpt-6.1-sol",
+      tier: "auto",
+      ...tokens,
+      searches: 0,
+      size: "small",
+      seconds: 0,
+    }).model_usd,
+  );
 });

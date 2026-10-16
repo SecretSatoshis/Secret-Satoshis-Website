@@ -16,7 +16,9 @@ export const POST = handler(async (request) => {
       .where("id", "=", event.data.id)
       .executeTakeFirst();
     if (user) {
-      const id = await requestDeletion(user.id);
+      const id = await requestDeletion(user.id, undefined, {
+        removeUsage: true,
+      });
       const job = await start(agent21Deletion, [id]);
       await db()
         .updateTable("agent21_deletions")

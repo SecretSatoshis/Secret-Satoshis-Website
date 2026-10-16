@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { reserveRun } from "../lib/agent21/db";
 import { reconcileRun, markUncertain } from "../lib/agent21/runner";
 import { requestDeletion, performDeletion } from "../lib/agent21/deletion";
+import { assertWithinAllowance, spendSummary } from "../lib/agent21/usage";
 import { fakeOpenAI, testDatabase } from "./support";
 const GITHUB_MCP_URL = "https://api.githubcopilot.com/mcp/";
 const VAULT = "vault-test";
@@ -43,6 +44,7 @@ const usage = {
   output_tokens: 100,
   total_tokens: 200,
   input_tokens_details: { cached_tokens: 0 },
+  output_tokens_details: { reasoning_tokens: 0 },
 };
 function startTurn(session: string) {
   const turn = {
@@ -111,6 +113,8 @@ const fakeFetch: typeof fetch = async (input, options) => {
       required_actions: [],
       metadata: body.metadata,
       created_at: Math.floor(Date.now() / 1000),
+      agent: { model: "gpt-6-luna", service_tier: "auto" },
+      usage,
     };
     sessions.set(id, session);
     turns.set(id, []);
@@ -495,6 +499,17 @@ test("deletion recovers an uncertain sandbox and resumes cleanup after a provide
       .state,
     "completed",
   );
+  const spend = await query(
+    "SELECT kind,input_tokens,sandbox_size,cost_usd FROM agent21_usage WHERE conversation_id=$1",
+    [conversation],
+  );
+  assert(spend.length > 0, "Each session's spend outlives its conversation");
+  for (const row of spend) {
+    assert.equal(row.kind, "session");
+    assert.equal(Number(row.input_tokens), 100);
+    assert.equal(row.sandbox_size, "small");
+    assert(Number(row.cost_usd) >= 0.0075, "At least the sandbox minimum");
+  }
 });
 
 async function freshConversation() {
@@ -828,4 +843,19 @@ test("a message carries the user's local time and mentions files only when there
     input,
     /\nCurrent time: \d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC \(the user's local time: \d{4}-\d{2}-\d{2} \d{2}:\d{2} E[DS]T, America\/New_York\)\.$/,
   );
+});
+
+test("the account's spend gates new answers and pre-warmed sandboxes at its allowance", async () => {
+  const before = await spendSummary(owner);
+  assert.equal(before.limitUsd, 10);
+  await assertWithinAllowance(owner);
+  const now = new Date().toISOString();
+  await query(
+    "INSERT INTO agent21_usage(id,kind,owner_id,sandbox_size,sandbox_started_at,sandbox_last_at,cost_usd) VALUES('usage-test','session',$1,'small',$2,$2,$3)",
+    [owner, now, 10 - before.spentUsd],
+  );
+  assert.equal((await spendSummary(owner)).spentUsd, 10);
+  await assert.rejects(assertWithinAllowance(owner), /\$10 allowance/);
+  await query("DELETE FROM agent21_usage WHERE id='usage-test'");
+  await assertWithinAllowance(owner);
 });

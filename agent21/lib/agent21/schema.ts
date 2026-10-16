@@ -123,6 +123,7 @@ export interface DeletionsTable {
   owner_id: string;
   conversation_id: string | null;
   state: Generated<string>;
+  remove_usage: Generated<boolean>;
   workflow_id: string | null;
   created_at: DefaultTimestamp;
 }
@@ -156,6 +157,29 @@ export interface WarmEnvironmentsTable {
   template_id: string;
   created_at: DefaultTimestamp;
 }
+export interface UsageTable {
+  id: string;
+  kind: "session" | "warm";
+  owner_id: string;
+  conversation_id: string | null;
+  model: string | null;
+  service_tier: string | null;
+  input_tokens: ColumnType<string | number, number | undefined, number>;
+  cached_tokens: ColumnType<string | number, number | undefined, number>;
+  output_tokens: ColumnType<string | number, number | undefined, number>;
+  reasoning_tokens: ColumnType<string | number, number | undefined, number>;
+  web_searches: ColumnType<number, number | undefined, number>;
+  sandbox_size: string;
+  sandbox_started_at: Timestamp;
+  sandbox_last_at: Timestamp;
+  model_usd: Numeric;
+  search_usd: Numeric;
+  sandbox_usd: Numeric;
+  cost_usd: Numeric;
+  usage_pending: ColumnType<boolean, boolean | undefined, boolean>;
+  created_at: DefaultTimestamp;
+  updated_at: DefaultTimestamp;
+}
 export interface Database {
   agent21_users: UsersTable;
   agent21_conversations: ConversationsTable;
@@ -168,6 +192,7 @@ export interface Database {
   agent21_messages: MessagesTable;
   agent21_session_files: SessionFilesTable;
   agent21_warm_environments: WarmEnvironmentsTable;
+  agent21_usage: UsageTable;
 }
 export type Run = Selectable<RunsTable>;
 export type FileRow = Selectable<FilesTable>;

@@ -358,6 +358,38 @@ function AccountButton({ onDeleteData }: { onDeleteData: () => void }) {
     </span>
   );
 }
+type Spend = { spentUsd: number; limitUsd: number };
+/** The account's estimated spend against its beta allowance, refreshed whenever an answer starts or ends. */
+function SpendMeter({ refresh }: { refresh: string }) {
+  const [spend, setSpend] = useState<Spend | null>(null);
+  useEffect(() => {
+    let live = true;
+    api<Spend>("usage")
+      .then((value) => live && setSpend(value))
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [refresh]);
+  if (!spend) return null;
+  const used = Math.min(1, spend.spentUsd / spend.limitUsd);
+  const spent = `$${spend.spentUsd.toFixed(2)}`;
+  const limit = `$${spend.limitUsd.toLocaleString("en-US")}`;
+  return (
+    <p
+      className="a21-spend"
+      data-full={used >= 1 || undefined}
+      title="Estimated Agent 21 spend during the beta"
+    >
+      <span>
+        <b>{spent}</b> of {limit}
+      </span>
+      <span className="a21-spend-bar" aria-hidden="true">
+        <span style={{ width: `${used * 100}%` }} />
+      </span>
+    </p>
+  );
+}
 export function Chat() {
   const params = useParams<{ conversation?: string }>();
   const router = useRouter();
@@ -989,6 +1021,7 @@ export function Chat() {
                 <strong>Agent 21</strong>
                 <span>Bitcoin-native AI agent</span>
               </div>
+              <SpendMeter refresh={`${run?.id ?? ""}:${run?.state ?? ""}`} />
             </header>
             <ThreadPrimitive.Root className="a21-chat">
               <ThreadPrimitive.Viewport className="a21-viewport">

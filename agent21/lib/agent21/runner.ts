@@ -36,6 +36,7 @@ import {
 import { isLoopbackDevelopment, LIMITS } from "./config";
 import { extractBlocks, parseBlock } from "./blocks";
 import { logDiagnostic, warnDiagnostic } from "./diagnostics";
+import { recordSessionUsage } from "./usage";
 import { AppError } from "./errors";
 import { terminal, type FileView, type Message } from "./types";
 import type {
@@ -646,6 +647,15 @@ async function finishRun(run: Run, turn: Turn, text: string) {
       ? `\n\n_Not shown because the website could not accept ${notShown.length > 1 ? "them" : "it"}: ${notShown.join(", ")}. Files must be PNG, CSV, Markdown, PDF, Python or a valid chart, up to 20 MiB._`
       : "");
   await saveAnswer(run, answer, files);
+  // Spend is recorded for every turn the provider ran, answered or not; a
+  // failure here never holds up the answer.
+  await recordSessionUsage(
+    run.owner_id,
+    run.conversation_id,
+    run.session_id!,
+  ).catch((error) =>
+    logDiagnostic(error, "usage_not_recorded", { runId: run.id }),
+  );
   // Answer blocks that fail the schema show a fallback line; log their type
   // (never their content) so a pattern of failures shows in the logs.
   for (const found of extractBlocks(answer)) {
