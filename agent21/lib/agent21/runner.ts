@@ -647,15 +647,6 @@ async function finishRun(run: Run, turn: Turn, text: string) {
       ? `\n\n_Not shown because the website could not accept ${notShown.length > 1 ? "them" : "it"}: ${notShown.join(", ")}. Files must be PNG, CSV, Markdown, PDF, Python or a valid chart, up to 20 MiB._`
       : "");
   await saveAnswer(run, answer, files);
-  // Spend is recorded for every turn the provider ran, answered or not; a
-  // failure here never holds up the answer.
-  await recordSessionUsage(
-    run.owner_id,
-    run.conversation_id,
-    run.session_id!,
-  ).catch((error) =>
-    logDiagnostic(error, "usage_not_recorded", { runId: run.id }),
-  );
   // Answer blocks that fail the schema show a fallback line; log their type
   // (never their content) so a pattern of failures shows in the logs.
   for (const found of extractBlocks(answer)) {
@@ -671,6 +662,16 @@ async function finishRun(run: Run, turn: Turn, text: string) {
     display: JSON.stringify({ text: answer, files, error, progress: "" }),
   });
   await settle(run.id, state);
+  // Spend is recorded for every turn the provider ran, answered or not, once
+  // the answer is shown: reading the session's usage and items takes seconds
+  // that grow with the conversation, and a failure here never affects it.
+  await recordSessionUsage(
+    run.owner_id,
+    run.conversation_id,
+    run.session_id!,
+  ).catch((error) =>
+    logDiagnostic(error, "usage_not_recorded", { runId: run.id }),
+  );
 }
 // The hard stop for every phase. A run that cannot finish (a rejected
 // submission, a provider or storage failure) must not hold the user's only
