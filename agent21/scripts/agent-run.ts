@@ -166,17 +166,15 @@ function keepEvent(event: Record<string, unknown>, t: number): Event {
   };
 }
 
-/** Timing and token use for the session's nth turn, read from its traces. */
-function turnStats(spans: Span[], index: number) {
-  const turnSpan = spans.filter((s) => s.name.startsWith("invoke_agent"))[
-    index
-  ];
+/** Timing and token use for one turn, read from the spans tagged with its ID. */
+function turnStats(spans: Span[], turnId: string) {
+  const inTurn = (s: Span) =>
+    attr(s, "openai.managed_agents.turn.id") === turnId;
+  const turnSpan = spans.find(
+    (s) => s.name.startsWith("invoke_agent") && inTurn(s),
+  );
   const start = turnSpan ? BigInt(turnSpan.startTimeUnixNano) : 0n;
-  const end = turnSpan ? BigInt(turnSpan.endTimeUnixNano) : 0n;
-  const within = (s: Span) =>
-    turnSpan &&
-    BigInt(s.startTimeUnixNano) >= start &&
-    BigInt(s.startTimeUnixNano) <= end;
+  const within = (s: Span) => Boolean(turnSpan) && inTurn(s);
   const chats = spans.filter((s) => s.name.startsWith("chat") && within(s));
   const tools = spans.filter(
     (s) => s.name.startsWith("execute_tool") && within(s),
@@ -188,6 +186,8 @@ function turnStats(spans: Span[], index: number) {
       ? Number(attr(turnSpan, `openai.managed_agents.usage.total.${key}`) ?? 0)
       : 0;
   return {
+    /** False when OpenAI had not published this turn's timeline in time. */
+    traceFound: Boolean(turnSpan),
     modelCalls: chats.length,
     firstModelCallSeconds: chats[0] ? round(dur(chats[0])) : null,
     modelSeconds: round(chats.reduce((sum, s) => sum + dur(s), 0)),
@@ -407,20 +407,25 @@ export async function runConversation(options: RunOptions) {
     });
   }
 
-  // Traces appear a few seconds after the turn ends.
-  let spans: Span[] = [];
-  for (let i = 0; i < 8; i++) {
-    spans = await traces(session).catch(() => []);
-    const done = spans.filter((s) => s.name.startsWith("invoke_agent"));
-    if (done.length >= options.turns.length) break;
-    await sleep(3000);
-  }
   const turns = (
     await openai().beta.agents.sessions.turns.list(session, {
       order: "asc",
       limit: 20,
     })
   ).data.filter((t) => !t.subagent_id);
+  // Each turn's timeline is published some time after it ends, an earlier
+  // turn's sometimes after a later one's: wait up to 90 seconds for all.
+  let spans: Span[] = [];
+  for (let i = 0; i < 18; i++) {
+    spans = await traces(session).catch(() => []);
+    const published = new Set(
+      spans
+        .filter((s) => s.name.startsWith("invoke_agent"))
+        .map((s) => attr(s, "openai.managed_agents.turn.id")),
+    );
+    if (turns.every((t) => published.has(t.id))) break;
+    await sleep(5000);
+  }
   const answers = [];
   for (const [i, log] of turnLog.entries()) {
     const turn = turns[i];
@@ -429,7 +434,7 @@ export async function runConversation(options: RunOptions) {
       ...log,
       turnId: turn?.id ?? null,
       text: publicText(items),
-      ...turnStats(spans, i),
+      ...turnStats(spans, turn?.id ?? ""),
       items: fullItems(items),
     });
   }

@@ -339,6 +339,8 @@ type Record_ = {
     checks: Check[];
     searches?: number;
     steps?: string[];
+    /** False when the turn's timeline (and so its tokens) was not published. */
+    traceFound?: boolean;
     /** Only in older runs; newer runs keep items in the trace file. */
     items?: Item[];
   }[];
@@ -473,6 +475,7 @@ async function runCases(
           modelSeconds: a.modelSeconds,
           modelCalls: a.modelCalls,
           tokens: a.tokens,
+          traceFound: a.traceFound,
           searches: countSearches(a.items as Item[]),
           steps: steps(a.items as Item[]),
           checks: checkAnswer(
@@ -485,14 +488,14 @@ async function runCases(
         record.passedChecks = record.answers.every(
           (a) => a.ended?.endsWith("completed") && a.checks.every((k) => k.ok),
         );
-        record.totalSeconds = record.answers.reduce(
-          (s, a) => s + a.totalSeconds,
-          0,
-        );
-        record.modelSeconds = record.answers.reduce(
-          (s, a) => s + a.modelSeconds,
-          0,
-        );
+        record.totalSeconds =
+          Math.round(
+            record.answers.reduce((s, a) => s + a.totalSeconds, 0) * 10,
+          ) / 10;
+        record.modelSeconds =
+          Math.round(
+            record.answers.reduce((s, a) => s + a.modelSeconds, 0) * 10,
+          ) / 10;
         record.searches = record.answers.reduce(
           (n, a) => n + (a.searches ?? 0),
           0,
@@ -561,6 +564,9 @@ function answerSection(record: Record_) {
         failed.length
           ? `Checks failed: ${failed.map((k) => `${k.check}${k.detail ? ` (${k.detail})` : ""}`).join("; ")}`
           : "Automatic checks pass.",
+        a.traceFound === false
+          ? "Timeline missing: OpenAI had not published this turn's trace, so its model time, tokens and cost are understated."
+          : "",
         "",
         plainAnswer(a.text)
           .split("\n")
