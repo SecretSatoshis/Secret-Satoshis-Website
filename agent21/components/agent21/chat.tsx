@@ -524,15 +524,17 @@ export function Chat() {
     );
     return () => clearInterval(timer);
   }, [run?.state, selected, load]);
-  // The sandbox starts while the user writes: a new conversation, or one whose
-  // sandbox has expired, otherwise waits 30 to 50 seconds for it after sending.
-  // The server keeps at most one pre-warmed sandbox per account.
+  // A new conversation, or one whose sandbox has expired, otherwise waits 30
+  // to 50 seconds for its sandbox after sending. One starts when the page or
+  // conversation opens, and again when the user returns or writes after the
+  // last one has expired (five minutes unused); it costs nothing until a
+  // message uses it. The server keeps at most one per account.
   const warmed = useRef<{ key: string; at: number } | null>(null);
   const warm = useCallback(() => {
     if (active) return;
     const key = selection.current ?? "new";
     const last = warmed.current;
-    if (last?.key === key && Date.now() - last.at < 3 * 60_000) return;
+    if (last?.key === key && Date.now() - last.at < 60_000) return;
     warmed.current = { key, at: Date.now() };
     void api(
       "warm",
@@ -542,6 +544,14 @@ export function Chat() {
       warmed.current = null;
     });
   }, [active]);
+  useEffect(() => {
+    warm();
+    const back = () => {
+      if (document.visibilityState === "visible") warm();
+    };
+    document.addEventListener("visibilitychange", back);
+    return () => document.removeEventListener("visibilitychange", back);
+  }, [selected, warm]);
   const create = useCallback(async () => {
     const { id } = await api<{ id: string }>("conversations", "POST", {
       requestId: crypto.randomUUID(),

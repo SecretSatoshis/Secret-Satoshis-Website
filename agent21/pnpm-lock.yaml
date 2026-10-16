@@ -38,8 +38,8 @@ importers:
         specifier: 16.3.8
         version: 16.3.8(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       openai:
-        specifier: 7.32.0
-        version: 7.32.0(@smithy/signature-v4@5.7.4)(undici@7.30.0)(ws@8.22.0)(zod@4.3.6)
+        specifier: 7.34.0
+        version: 7.34.0(@smithy/signature-v4@5.7.4)(undici@7.30.0)(ws@8.22.0)(zod@4.3.6)
       pdf-lib:
         specifier: 1.17.1
         version: 1.17.1
@@ -4304,8 +4304,8 @@ packages:
     resolution: {integrity: sha512-XgFPPM+B28FtCCgSb9I+s9szOC1vZRSwgWsRUA5ylIxRTgKozqjOCrVOqGsYABPYK5qnfqClxZTFBa8PKt2v6Q==}
     engines: {node: '>=12'}
 
-  openai@7.32.0:
-    resolution: {integrity: sha512-avqxu/jl1gsVBCBgFNPr9sTh+wZppQphuhhFy1zEvAJxEaJ4t0ery6hZdOT9kws/EcNTARoQcZs2IT3bliE1SA==}
+  openai@7.34.0:
+    resolution: {integrity: sha512-PMwuTQ/3cVyWZJOVpb6bzlrQj17uImlnUGQWqh5zHlN/snwK5ww4ZUHW8NYGtH6f9PQOEPxyD/f8WJVIHp1q2A==}
     engines: {node: '>=22.0.0'}
     peerDependencies:
       '@aws-sdk/credential-provider-node': '>=3.972.0 <4'
@@ -9960,7 +9960,7 @@ snapshots:
       is-docker: 2.2.1
       is-wsl: 2.2.0
 
-  openai@7.32.0(@smithy/signature-v4@5.7.4)(undici@7.30.0)(ws@8.22.0)(zod@4.3.6):
+  openai@7.34.0(@smithy/signature-v4@5.7.4)(undici@7.30.0)(ws@8.22.0)(zod@4.3.6):
     optionalDependencies:
       '@smithy/signature-v4': 5.7.4
       undici: 7.30.0

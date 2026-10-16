@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { sql } from "kysely";
 import { z } from "zod";
 import { enabled, required } from "./config";
@@ -87,6 +88,8 @@ export async function warmEnvironment(owner: string, body: unknown) {
     const environment = await openai().beta.agents.environments.create({
       environment: { type: "openai_hosted", environment_template_id: template },
       ...(mcpVaultId() ? { vault_ids: [mcpVaultId()!] } : {}),
+      // The SDK retries a lost response with the same key, so it creates one.
+      "Idempotency-Key": `warm-${randomUUID()}`,
     });
     await db()
       .updateTable("agent21_warm_environments")
