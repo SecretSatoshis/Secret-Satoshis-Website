@@ -102,7 +102,18 @@ export async function loadConversation(owner: string, id: string) {
     .orderBy("created_at", "desc")
     .limit(1)
     .executeTakeFirst();
-  if (run?.input && !run.user_message_id)
+  // The runner saves the message, then records its ID on the run: a load
+  // between the two finds the saved message by its key, not a second copy.
+  const saved =
+    run?.input &&
+    !run.user_message_id &&
+    (await db()
+      .selectFrom("agent21_messages")
+      .select("id")
+      .where("conversation_id", "=", id)
+      .where("external_id", "=", `user-${run.id}`)
+      .executeTakeFirst());
+  if (run?.input && !run.user_message_id && !saved)
     history.push({
       id: `pending-user-${run.id}`,
       role: "user",
