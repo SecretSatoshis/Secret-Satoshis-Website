@@ -504,15 +504,38 @@ export function plainBlock(block: Block, timeZone?: string): string {
   }
 }
 
+// Code fences, including one still streaming in, and inline code stay as written.
+const CODE = /```[\s\S]*?(?:```|$)|`[^`\n]*`/g;
+const MONTH_PERIOD =
+  /\b(Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\.(?= \d)/g;
+
+/** Writes months as the blocks do ("Oct 14", "Sep 16"), not "Oct. 14" or
+ * "Sept. 16", in an answer's text; code and blocks are left alone. */
+export function tidyProse(markdown: string) {
+  let out = "";
+  let at = 0;
+  for (const match of markdown.matchAll(CODE)) {
+    out += tidyMonths(markdown.slice(at, match.index)) + match[0];
+    at = match.index + match[0].length;
+  }
+  return out + tidyMonths(markdown.slice(at));
+}
+const tidyMonths = (text: string) =>
+  text.replace(MONTH_PERIOD, (_, month: string) =>
+    month === "Sept" ? "Sep" : month,
+  );
+
 /** An answer's Markdown with each block replaced by its plain-text form. */
 export function plainAnswer(markdown: string, timeZone?: string) {
   let out = "";
   let at = 0;
   for (const found of extractBlocks(markdown)) {
-    out += markdown.slice(at, found.start);
+    out += tidyProse(markdown.slice(at, found.start));
     const block = parseBlock(found.language, found.code);
     out += block.ok ? plainBlock(block, timeZone) : "";
     at = found.end;
   }
-  return (out + markdown.slice(at)).replace(/\n{3,}/g, "\n\n").trim();
+  return (out + tidyProse(markdown.slice(at)))
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }

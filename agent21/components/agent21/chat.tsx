@@ -53,6 +53,7 @@ import {
   BLOCK_LANGUAGES,
   placedCharts,
   plainAnswer,
+  tidyProse,
 } from "../../lib/agent21/blocks";
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -154,6 +155,7 @@ const blockLanguages = Object.fromEntries(
 const Markdown = () => (
   <MarkdownTextPrimitive
     className="a21-markdown"
+    preprocess={tidyProse}
     components={{ img: () => null, a: MarkdownLink }}
     componentsByLanguage={blockLanguages}
   />

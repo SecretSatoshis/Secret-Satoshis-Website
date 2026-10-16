@@ -8,6 +8,7 @@ import {
   parseBlock,
   placedCharts,
   plainAnswer,
+  tidyProse,
 } from "../lib/agent21/blocks";
 
 const ok = (language: string, value: unknown) => {
@@ -323,4 +324,20 @@ test("answers keep their blocks findable, copyable and their charts placed", () 
   assert.match(plain, /Sources: BRK, Oct 14, 2026$/);
   assert.doesNotMatch(plain, /a21-|\{|not json/);
   assert.match(plain, /```python\nprint\(1\)\n```/);
+});
+
+test("months in an answer's text lose their period, code and blocks do not", () => {
+  const text = [
+    "The Fed meets Oct. 27–28 after its Sept. 16 hike; markets close Dec. 31.",
+    "`Oct. 1` stays, and so does Dec. at the end of a sentence.",
+    '```a21-step\n{"text":"Checked Oct. 14 data."}\n```',
+  ].join("\n\n");
+  assert.equal(
+    tidyProse(text),
+    [
+      "The Fed meets Oct 27–28 after its Sep 16 hike; markets close Dec 31.",
+      "`Oct. 1` stays, and so does Dec. at the end of a sentence.",
+      '```a21-step\n{"text":"Checked Oct. 14 data."}\n```',
+    ].join("\n\n"),
+  );
 });

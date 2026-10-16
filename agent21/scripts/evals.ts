@@ -135,14 +135,11 @@ export function checkAnswer(
     ok: visuals <= 4,
     detail: `${visuals}`,
   });
-  // Links often carry ISO dates in their paths; only the words count.
+  // Links often carry ISO dates in their paths; only the words count. The
+  // website drops a month's period itself, so "Oct. 14" is no slip.
   const body = prose(text).replace(/https?:\/\/\S+/g, " ");
   const slips = [
     [/\b\d{4}-\d{2}-\d{2}\b/, "ISO date in text"],
-    [
-      /\b(Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\.\s/,
-      "abbreviated month with a period",
-    ],
     [/\b\d+\.\d*0\s*BTC\b/, "BTC with trailing zeros"],
   ] as const;
   for (const [pattern, name] of slips) {

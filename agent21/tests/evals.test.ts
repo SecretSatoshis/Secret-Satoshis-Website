@@ -78,7 +78,6 @@ test("slips, missing blocks, failures and leaks are caught", () => {
     [
       "blocks draw",
       "no ISO date in text",
-      "no abbreviated month with a period",
       "no BTC with trailing zeros",
       "no failed code runs",
       "step first, sources last",
