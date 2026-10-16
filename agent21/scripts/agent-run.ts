@@ -28,6 +28,10 @@ export type Overrides = {
   size?: string;
   bare?: boolean;
   prewarm?: boolean;
+  /** Benchmark only: the template's sandbox with just these Python packages (by
+   * name, at the template's pinned versions), to time what each group costs at
+   * start-up. The template itself is never changed. */
+  packages?: string[];
 };
 export type RunOptions = Overrides & {
   /** The user's messages, sent one after another in the same session. */
@@ -99,6 +103,26 @@ const attr = (span: Span, key: string) => {
   const found = span.attributes?.find((a) => a.key === key)?.value;
   return found ? Object.values(found)[0] : undefined;
 };
+
+/** The template's settings inline, with only the named Python packages. */
+async function withPackages(names: string[], size?: string) {
+  const template = await openai().beta.agents.environments.templates.retrieve(
+    process.env.AGENT21_ENVIRONMENT_TEMPLATE_ID!,
+  );
+  const pinned = template.packages?.python ?? [];
+  const python = names.map((name) => {
+    const pin = pinned.find((p) => p.split("==")[0] === name);
+    if (!pin) throw new Error(`${name} is not one of the template's packages`);
+    return pin;
+  });
+  return {
+    type: "openai_hosted",
+    container_size: size ?? "small",
+    network: template.network,
+    skills: template.skills,
+    packages: { python, system: template.packages?.system ?? [] },
+  };
+}
 
 /** A sandbox from the template, ready before the question is sent. */
 async function prewarmed() {
@@ -247,21 +271,23 @@ export async function runConversation(options: RunOptions) {
     : "";
   const environment = warm
     ? { type: "openai_hosted", environment_id: warm.id }
-    : {
-        // --bare: a hosted sandbox without the template (no packages or
-        // skills), to time the template's own start-up cost.
-        ...(options.bare
-          ? { type: "openai_hosted", container_size: "small" }
-          : hostedEnvironment(
-              process.env.AGENT21_ENVIRONMENT_TEMPLATE_ID!,
-              files.map((f) => ({
-                type: "file_id" as const,
-                file_id: f.id,
-                path: f.path,
-              })),
-            )),
-        ...(options.size ? { container_size: options.size } : {}),
-      };
+    : options.packages
+      ? await withPackages(options.packages, options.size)
+      : {
+          // --bare: a hosted sandbox without the template (no packages or
+          // skills), to time the template's own start-up cost.
+          ...(options.bare
+            ? { type: "openai_hosted", container_size: "small" }
+            : hostedEnvironment(
+                process.env.AGENT21_ENVIRONMENT_TEMPLATE_ID!,
+                files.map((f) => ({
+                  type: "file_id" as const,
+                  file_id: f.id,
+                  path: f.path,
+                })),
+              )),
+          ...(options.size ? { container_size: options.size } : {}),
+        };
   const body = {
     agent_id: agentId,
     agent: await agentOverrides(agentId, options),

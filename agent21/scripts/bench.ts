@@ -6,11 +6,14 @@
 //   pnpm bench "What is Bitcoin's block height?" [--model gpt-6.1-sol]
 //     [--effort low|medium|high] [--tier auto|default|flex]
 //     [--verbosity low|medium|high] [--size small|medium]
-//     [--bare] [--prewarm] [--repeat 3] [--label x] [--keep-session]
+//     [--bare] [--prewarm] [--packages numpy,pandas] [--repeat 3] [--label x]
+//     [--keep-session]
 //
 // --prewarm starts a sandbox from the template first, waits until it is ready
 // (as if the user were still writing) and attaches it, so the timings start
 // with a warm sandbox. Pre-warmed sandboxes take no size and run as medium.
+// --packages runs the template's sandbox with only those Python packages (empty
+// for none), to time each group's start-up cost; the template is unchanged.
 //
 // Writes each answer's text, full trace (reasoning summaries, progress notes,
 // tool inputs and outputs, events and spans), per-call model times and token
@@ -30,6 +33,7 @@ const { values, positionals } = parseArgs({
     size: { type: "string" },
     bare: { type: "boolean", default: false },
     prewarm: { type: "boolean", default: false },
+    packages: { type: "string" },
     "keep-session": { type: "boolean", default: false },
     repeat: { type: "string", default: "1" },
     label: { type: "string", default: "baseline" },
@@ -57,6 +61,10 @@ for (let i = 1; i <= Number(values.repeat); i++) {
     size: values.size,
     bare: values.bare,
     prewarm: values.prewarm,
+    packages:
+      values.packages === undefined
+        ? undefined
+        : values.packages.split(",").filter(Boolean),
     keepSession: values["keep-session"],
   });
   results.push({ run: i, ...r });
