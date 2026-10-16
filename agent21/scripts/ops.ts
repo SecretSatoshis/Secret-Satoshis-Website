@@ -9,6 +9,7 @@ import {
 } from "../lib/agent21/config";
 import { logDiagnostic, storedDiagnostic } from "../lib/agent21/diagnostics";
 import { sessionReport } from "./ops-session";
+import { dailyCosts } from "./costs";
 
 const args = process.argv.slice(2);
 const json = args.includes("--json");
@@ -77,52 +78,19 @@ function configuration() {
 
 /** Real charges from the OpenAI Costs API for the current UTC month. */
 async function providerCosts() {
-  const key = process.env.OPENAI_ADMIN_KEY;
-  if (!key) return { status: "not_configured" as const };
   const now = new Date();
-  const start = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1) / 1000;
-  const days = new Map<string, Record<string, number>>();
-  let page: string | undefined;
-  do {
-    const url = new URL("https://api.openai.com/v1/organization/costs");
-    url.searchParams.set("start_time", String(start));
-    url.searchParams.set("bucket_width", "1d");
-    url.searchParams.set("limit", "31");
-    url.searchParams.append("group_by", "line_item");
-    if (process.env.OPENAI_PROJECT_ID)
-      url.searchParams.append("project_ids", process.env.OPENAI_PROJECT_ID);
-    if (page) url.searchParams.set("page", page);
-    const response = await fetch(url, {
-      headers: { Authorization: `Bearer ${key}` },
-    });
-    if (!response.ok)
-      return { status: "unavailable" as const, httpStatus: response.status };
-    const body = (await response.json()) as {
-      data: {
-        start_time: number;
-        results: { amount: { value: number }; line_item: string | null }[];
-      }[];
-      has_more: boolean;
-      next_page: string | null;
-    };
-    for (const bucket of body.data) {
-      const day = new Date(bucket.start_time * 1000).toISOString().slice(0, 10);
-      const items = days.get(day) ?? {};
-      for (const result of bucket.results)
-        items[result.line_item ?? "other"] =
-          (items[result.line_item ?? "other"] ?? 0) + result.amount.value;
-      days.set(day, items);
-    }
-    page = body.has_more ? (body.next_page ?? undefined) : undefined;
-  } while (page);
-  const rows = [...days].map(([day, items]) => ({
+  const costs = await dailyCosts(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1) / 1000,
+  );
+  if (costs.status !== "available") return costs;
+  const rows = [...costs.days].map(([day, items]) => ({
     day,
     usd: Object.values(items).reduce((sum, value) => sum + value, 0),
     ...items,
   }));
   return {
     status: "available" as const,
-    scope: process.env.OPENAI_PROJECT_ID ? "project" : "organization",
+    scope: costs.scope,
     monthUsd: rows.reduce((sum, row) => sum + row.usd, 0),
     days: rows.filter((row) => row.usd > 0),
   };
