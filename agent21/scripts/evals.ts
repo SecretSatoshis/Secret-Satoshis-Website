@@ -7,7 +7,7 @@
 //     [--model m] [--effort e] [--tier t] [--verbosity v] [--size s] [--prewarm]
 //     [--repeat 2] [--concurrency 3] [--keep-sessions]
 //     [--engine responses [--paths B|C|BC] [--prompt-file f] [--background]
-//      [--programmatic]]
+//      [--programmatic] [--state conversation|chain]]
 //   pnpm evals compare <run-a.json> <run-b.json> [...]
 //   pnpm evals report <run.json> [...] [--compare <compare prefix>] [--reconcile]
 //
@@ -468,6 +468,7 @@ async function runCases(
     promptFile: values["prompt-file"] as string | undefined,
     background: Boolean(values.background),
     programmatic: Boolean(values.programmatic),
+    state: values.state as "conversation" | "chain" | undefined,
   };
   const responses = overrides.engine === "responses";
   const variant = String(values.variant ?? "baseline");
@@ -549,6 +550,7 @@ async function runCases(
               promptFile: overrides.promptFile,
               background: overrides.background,
               programmatic: overrides.programmatic,
+              state: overrides.state,
               outDir: `${out}-traces/${c.id}-${r}-files`,
             })
           : await runConversation({ ...overrides, ...shared });
@@ -1125,6 +1127,7 @@ if (process.argv[1]?.endsWith("evals.ts")) {
       "prompt-file": { type: "string" },
       background: { type: "boolean", default: false },
       programmatic: { type: "boolean", default: false },
+      state: { type: "string" },
       repeat: { type: "string", default: "1" },
       concurrency: { type: "string", default: "3" },
       compare: { type: "string" },

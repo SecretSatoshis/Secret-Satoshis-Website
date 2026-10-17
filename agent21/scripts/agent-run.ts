@@ -38,6 +38,7 @@ export type Overrides = {
   promptFile?: string;
   background?: boolean;
   programmatic?: boolean;
+  state?: "conversation" | "chain";
 };
 export type RunOptions = Overrides & {
   /** The user's messages, sent one after another in the same session. */

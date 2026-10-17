@@ -9,7 +9,7 @@
 //     [--bare] [--prewarm] [--packages numpy,pandas] [--repeat 3] [--label x]
 //     [--keep-session]
 //   pnpm bench "..." --engine responses [--paths B|C|BC] [--prompt-file f]
-//     [--background] [--programmatic] [--model m] [--effort e] [--tier t] [--verbosity v]
+//     [--background] [--programmatic] [--state conversation|chain] [--model m] [--effort e] [--tier t] [--verbosity v]
 //
 // --prewarm starts a sandbox from the template first, waits until it is ready
 // (as if the user were still writing) and attaches it, so the timings start
@@ -46,6 +46,7 @@ const { values, positionals } = parseArgs({
     "prompt-file": { type: "string" },
     background: { type: "boolean", default: false },
     programmatic: { type: "boolean", default: false },
+    state: { type: "string" },
   },
 });
 const question = positionals.join(" ").trim();
@@ -72,6 +73,7 @@ for (let i = 1; i <= Number(values.repeat); i++) {
           promptFile: values["prompt-file"],
           background: values.background,
           programmatic: values.programmatic,
+          state: values.state as never,
           keepSession: values["keep-session"],
           outDir: `.exports/bench-files-${values.label}`,
         })

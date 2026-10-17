@@ -636,3 +636,34 @@ test("calls from a program go back to it with their caller", async () => {
   ]);
   assert.equal(result.rounds[0].toolRuns[0].fromProgram, true);
 });
+
+test("rounds in a conversation pass the conversation, never a chain", async () => {
+  const { client, sent } = fakeClient([
+    {
+      output: [
+        {
+          type: "function_call",
+          call_id: "call_1",
+          name: "read_upload",
+          arguments: '{"name":null}',
+        },
+      ],
+    },
+    { output: [message("Done.")] },
+  ]);
+  await runRounds({
+    client,
+    params: { model: "m" },
+    input: "Q",
+    conversationId: "conv_1",
+    previousResponseId: "resp_old",
+    context: context(),
+  });
+  assert.deepEqual(
+    sent.map((p) => [p.conversation, p.previous_response_id]),
+    [
+      ["conv_1", undefined],
+      ["conv_1", undefined],
+    ],
+  );
+});

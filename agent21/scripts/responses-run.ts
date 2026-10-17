@@ -36,6 +36,8 @@ export type ResponsesOptions = {
   background?: boolean;
   /** The data tools can be called from a model-written program. */
   programmatic?: boolean;
+  /** "conversation" (the Conversations API, default) or "chain" (previous_response_id). */
+  state?: "conversation" | "chain";
   /** Keep stored responses for inspection. */
   keepSession?: boolean;
   /** Where files the answer saved are written. */
@@ -164,6 +166,17 @@ export async function runResponsesConversation(options: ResponsesOptions) {
   const responseIds: string[] = [];
   let previous: string | undefined;
   let containerId: string | undefined;
+  const state = options.state ?? "conversation";
+  // One conversation per chat, as the website would keep one per Agent 21
+  // conversation; it is deleted with the responses made in it.
+  const conversationId =
+    state === "conversation"
+      ? (
+          await openai().conversations.create({
+            metadata: { benchmark: options.label },
+          })
+        ).id
+      : undefined;
   for (const [i, turn] of options.turns.entries()) {
     const fileNote =
       i === 0 && local.size
@@ -191,7 +204,9 @@ export async function runResponsesConversation(options: ResponsesOptions) {
       client: openai(),
       params,
       input: messageText(turn, timeZone, fileNote),
-      previousResponseId: previous,
+      ...(conversationId
+        ? { conversationId }
+        : { previousResponseId: previous }),
       context,
       background: options.background,
       repairBlocks: true,
@@ -277,7 +292,13 @@ export async function runResponsesConversation(options: ResponsesOptions) {
     for (const [name, bytes] of saved)
       writeFileSync(join(options.outDir, name), bytes, { mode: 0o600 });
   }
-  if (!options.keepSession)
+  // Deleting a conversation removes its items but not the responses made in
+  // it, which stay retrievable until deleted: both go.
+  if (!options.keepSession) {
+    if (conversationId)
+      await openai()
+        .conversations.delete(conversationId)
+        .catch(() => undefined);
     await Promise.all(
       responseIds.map((id) =>
         openai()
@@ -285,6 +306,7 @@ export async function runResponsesConversation(options: ResponsesOptions) {
           .catch(() => undefined),
       ),
     );
+  }
   for (const file of uploaded)
     await openai()
       .files.delete(file.id)
@@ -301,11 +323,12 @@ export async function runResponsesConversation(options: ResponsesOptions) {
       programmatic: Boolean(settings.programmatic),
       github: Boolean(settings.githubToken),
       compactThreshold: settings.compactThreshold,
+      state,
       background: Boolean(options.background),
       prompt: prompt.label,
     },
     prewarmReadySeconds: null,
-    session: responseIds[0] ?? null,
+    session: conversationId ?? responseIds[0] ?? null,
     sessionKept: Boolean(options.keepSession),
     files: [...saved.entries()].map(([name, bytes]) => ({
       name,

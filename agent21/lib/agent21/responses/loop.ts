@@ -18,7 +18,9 @@ import {
 } from "./tools";
 
 // One answer: rounds of `responses.create`, each streamed, with the data tools
-// run here between rounds and the next round chained on the previous response.
+// run here between rounds. Each round continues the conversation: in a
+// Conversations API conversation, which keeps every item without expiry, or
+// chained on the previous response (stored for 30 days).
 // Hosted tools (web search, the shell) run inside a round. The sink sees
 // progress and answer text as they arrive; the website and the bench differ
 // only in their sinks.
@@ -100,6 +102,9 @@ export async function runRounds(options: {
   client: OpenAI;
   params: ResponseCreateParamsBase;
   input: ResponseInput | string;
+  /** The Conversations API conversation the answer belongs to. */
+  conversationId?: string;
+  /** Or: the response to chain on, when there is no conversation. */
   previousResponseId?: string;
   context: ToolContext;
   sink?: (event: LoopEvent) => void;
@@ -129,7 +134,11 @@ export async function runRounds(options: {
     const stream = await options.client.responses.create({
       ...options.params,
       input,
-      ...(previous ? { previous_response_id: previous } : {}),
+      ...(options.conversationId
+        ? { conversation: options.conversationId }
+        : previous
+          ? { previous_response_id: previous }
+          : {}),
       ...(options.background ? { background: true } : {}),
       stream: true,
     });
