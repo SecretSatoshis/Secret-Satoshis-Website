@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import OpenAI from "openai";
 
 const providers = [
   "application",
@@ -87,9 +88,18 @@ export type Diagnostic = {
   provider: Provider;
   code: string;
   status?: number;
+  /** OpenAI's own error code and the request field it names: identifiers, never content. */
+  providerCode?: string;
+  param?: string;
   requestId?: string;
   runId?: string;
 };
+
+// OpenAI's error codes and field names are short identifiers such as
+// "invalid_request_error" or "environment.files[0].file_id".
+const identifier = /^[A-Za-z0-9_.[\]-]{1,80}$/;
+const safeIdentifier = (value: unknown) =>
+  typeof value === "string" && identifier.test(value) ? value : undefined;
 
 /** Deliberately never reads message, stack, body, details, headers, URLs or arguments. */
 export function diagnostic(
@@ -111,7 +121,8 @@ export function diagnostic(
       ? context.provider
       : name === "AppError" || name === "ZodError"
         ? "application"
-        : openaiErrors.has(name)
+        : // A production build renames error classes, so the type is checked too.
+          error instanceof OpenAI.APIError || openaiErrors.has(name)
           ? "openai"
           : ["23505", "42P01", "42703", "57014"].includes(code)
             ? "neon"
@@ -128,6 +139,12 @@ export function diagnostic(
     value.status >= 100 &&
     value.status <= 599
       ? { status: value.status }
+      : {}),
+    ...(error instanceof OpenAI.APIError && safeIdentifier(error.code)
+      ? { providerCode: safeIdentifier(error.code) }
+      : {}),
+    ...(error instanceof OpenAI.APIError && safeIdentifier(error.param)
+      ? { param: safeIdentifier(error.param) }
       : {}),
     ...(context.requestId && uuid.test(context.requestId)
       ? { requestId: context.requestId }
@@ -187,6 +204,10 @@ export function storedDiagnostic(value: unknown): Diagnostic | null {
     row.status <= 599
       ? { status: row.status }
       : {}),
+    ...(safeIdentifier(row.providerCode)
+      ? { providerCode: safeIdentifier(row.providerCode) }
+      : {}),
+    ...(safeIdentifier(row.param) ? { param: safeIdentifier(row.param) } : {}),
     ...(typeof row.requestId === "string" && uuid.test(row.requestId)
       ? { requestId: row.requestId }
       : {}),

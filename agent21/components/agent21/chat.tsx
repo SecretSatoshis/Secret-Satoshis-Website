@@ -521,23 +521,24 @@ export function Chat() {
           note: event.note,
         }));
       if (event.type === "snapshot") {
+        if (terminal(event.run.state) || event.run.state === "unknown") {
+          // The saved conversation replaces the live answer in one update:
+          // ending the run first would remove the answer until it loads.
+          events.close();
+          void load(conversation)
+            .then(refreshThreads)
+            .catch(() => setRun(id, () => event.run));
+          return;
+        }
         // A reconnect's snapshot comes before the replayed events, so it
         // keeps the progress and text already shown while the run works,
         // unless the server has a message of its own (sending, retrying).
-        setRun(id, (previous) =>
-          terminal(event.run.state) || event.run.state === "unknown"
-            ? event.run
-            : {
-                ...event.run,
-                text: event.run.text || previous.text,
-                progress: event.run.progress || previous.progress,
-                note: event.run.note || previous.note,
-              },
-        );
-        if (terminal(event.run.state) || event.run.state === "unknown") {
-          events.close();
-          void load(conversation).then(refreshThreads);
-        }
+        setRun(id, (previous) => ({
+          ...event.run,
+          text: event.run.text || previous.text,
+          progress: event.run.progress || previous.progress,
+          note: event.run.note || previous.note,
+        }));
       }
     };
     events.onerror = () => {
@@ -1056,7 +1057,9 @@ export function Chat() {
                   <Working
                     progress={
                       (run && active && run.progress) ||
-                      (sending ? "Sending your message" : "Starting")
+                      (sending
+                        ? "Sending your message"
+                        : "Starting a workspace")
                     }
                     note={(run && active && run.note) || ""}
                     since={run && active ? Date.parse(run.startedAt) : sentAt}

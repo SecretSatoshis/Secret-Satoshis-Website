@@ -294,6 +294,7 @@ async function sessionEnvironment(
     prewarmed && (await claimWarmEnvironment(run.owner_id, run.template_id));
   if (warm) {
     try {
+      if (files.length) await untilProvisioned(run, warm);
       for (const file of files) {
         await keepLease(run);
         await attachToEnvironment(file, warm);
@@ -319,6 +320,22 @@ async function sessionEnvironment(
     environment: hostedEnvironment(run.template_id, environmentFiles),
     attached: [],
   };
+}
+// A pre-warmed sandbox refuses files while it is still provisioning ("wait
+// until it is connected before accessing files"). It finishes booting sooner
+// than a cold sandbox would start, so the files wait for it.
+const PROVISION_WAIT_MS = 60_000;
+async function untilProvisioned(run: Run, environment: string) {
+  const deadline = Date.now() + PROVISION_WAIT_MS;
+  for (;;) {
+    const { status } =
+      await openai().beta.agents.environments.retrieve(environment);
+    if (status !== "pending") return;
+    if (Date.now() > deadline)
+      throw new Error("The pre-warmed sandbox is still provisioning");
+    await keepLease(run);
+    await new Promise((resolve) => setTimeout(resolve, 2_000));
+  }
 }
 // A submission is resent unchanged only while its pre-warmed sandbox is alive.
 const prewarmedId = (submission: SessionSubmission) =>
@@ -386,14 +403,25 @@ async function sendCreation(run: Run, submission: SessionSubmission) {
     prior_turn_ids: "[]",
     session_creation_started_at: new Date(),
   });
-  // Session tools are resolved here and never stored; MCP credentials stay in the OpenAI vault.
-  return openai().beta.agents.sessions.create(
-    {
-      ...submission.body,
-      agent: { tools: await sessionTools(run.agent_id) },
-    } as unknown as SessionCreateParamsNonStreaming,
-    { maxRetries: 0 },
-  );
+  try {
+    // Session tools are resolved here and never stored; MCP credentials stay in the OpenAI vault.
+    return await openai().beta.agents.sessions.create(
+      {
+        ...submission.body,
+        agent: { tools: await sessionTools(run.agent_id) },
+      } as unknown as SessionCreateParamsNonStreaming,
+      { maxRetries: 0 },
+    );
+  } catch (error) {
+    // A request the provider answered with a refusal created nothing, so the
+    // next pass sends again at once; only a lost response (a timeout, a
+    // dropped connection, a 5xx) waits for the provider's session listing.
+    if (isProviderError(error, 400, 401, 403, 404, 409, 422, 429)) {
+      await updateRun(run.id, { session_creation_started_at: null });
+      run.session_creation_started_at = null;
+    }
+    throw error;
+  }
 }
 /** A created session already holds the message and the files listed in its body. */
 async function acceptCreated(run: Run, submission: SessionSubmission) {

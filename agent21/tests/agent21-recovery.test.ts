@@ -536,7 +536,7 @@ const activeRuns = async () =>
       [owner],
     )
   ).length;
-test("a rate-limited sandbox creation is sent again once the provider listing confirms it is absent", async () => {
+test("a sandbox creation the provider refused (a rate limit) is sent again on the next pass", async () => {
   const id = await freshConversation();
   const run = await reserveRun(owner, id, randomUUID(), {
     text: "Explain the halving",
@@ -546,15 +546,14 @@ test("a rate-limited sandbox creation is sent again once the provider listing co
   rejectCreation = 1;
   await assert.rejects(reconcileRun(run.id));
   assert.equal(createCount, count, "The rejected request created nothing");
-  assert.equal(
-    await reconcileRun(run.id),
-    false,
-    "A fresh creation is not retried before the provider listing settles",
-  );
-  assert.equal(createCount, count);
-  await query(
-    "UPDATE agent21_runs SET session_creation_started_at=now()-interval '2 minutes' WHERE id=$1",
+  const [cleared] = await query(
+    "SELECT session_creation_started_at FROM agent21_runs WHERE id=$1",
     [run.id],
+  );
+  assert.equal(
+    cleared.session_creation_started_at,
+    null,
+    "A refusal needs no wait for the provider's session listing",
   );
   assert.equal(await reconcileRun(run.id), false);
   assert.equal(createCount, count + 1);
