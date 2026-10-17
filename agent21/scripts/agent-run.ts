@@ -32,6 +32,11 @@ export type Overrides = {
    * name, at the template's pinned versions), to time what each group costs at
    * start-up. The template itself is never changed. */
   packages?: string[];
+  /** Evals only: the Responses engine and its settings (scripts/responses-run.ts). */
+  engine?: "agents" | "responses";
+  paths?: string;
+  promptFile?: string;
+  background?: boolean;
 };
 export type RunOptions = Overrides & {
   /** The user's messages, sent one after another in the same session. */

@@ -6,6 +6,7 @@
 //   pnpm evals <cases.json> [--core] [--only SS-1,BRK-2] [--variant baseline]
 //     [--model m] [--effort e] [--tier t] [--verbosity v] [--size s] [--prewarm]
 //     [--repeat 2] [--concurrency 3] [--keep-sessions]
+//     [--engine responses [--paths B|C|BC] [--prompt-file f] [--background]]
 //   pnpm evals compare <run-a.json> <run-b.json> [...]
 //   pnpm evals report <run.json> [...] [--compare <compare prefix>] [--reconcile]
 //
@@ -25,6 +26,7 @@ import { basename, dirname, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { extractBlocks, parseBlock, plainAnswer } from "../lib/agent21/blocks";
 import { agentSnapshot, runConversation, type Overrides } from "./agent-run";
+import { responsesSnapshot, runResponsesConversation } from "./responses-run";
 import { dailyCosts } from "./costs";
 
 export type Expect = {
@@ -77,6 +79,8 @@ const PRICES: Record<
 const SANDBOX = { small: 0.03 / 20, medium: 0.12 / 20 };
 // USD per web search call; its content tokens are already in the token counts.
 const SEARCH_USD = 10 / 1000;
+// USD per hosted shell container (1 GB, billed per 20-minute session).
+const CONTAINER_USD = 0.03;
 
 const FENCED = /```[\s\S]*?```/g;
 const prose = (text: string) => text.replace(FENCED, " ");
@@ -314,6 +318,8 @@ export function estimateCost(
   o: Overrides,
   model: string,
   searches = 0,
+  /** Responses engine: hosted shell containers used (no sandbox otherwise). */
+  containers = 0,
 ) {
   const price =
     PRICES[o.model ?? model]?.[o.tier === "flex" ? "flex" : "standard"];
@@ -324,7 +330,10 @@ export function estimateCost(
       1e6
     : NaN;
   const size = o.prewarm || o.size === "medium" ? "medium" : "small";
-  const sandboxUsd = Math.max(5, seconds / 60) * SANDBOX[size];
+  const sandboxUsd =
+    o.engine === "responses"
+      ? containers * CONTAINER_USD
+      : Math.max(5, seconds / 60) * SANDBOX[size];
   const searchUsd = searches * SEARCH_USD;
   const round = (n: number) => Math.round(n * 10000) / 10000;
   return {
@@ -391,6 +400,8 @@ type Record_ = {
   totalSeconds?: number;
   modelSeconds?: number;
   searches?: number;
+  /** Responses engine: hosted shell containers the conversation used. */
+  containers?: number;
   cost?: ReturnType<typeof estimateCost>;
 };
 type Summary = {
@@ -424,6 +435,7 @@ function recordCost(record: Record_, summary: Summary) {
       (n, a) => n + (a.searches ?? countSearches(a.items ?? [])),
       0,
     ),
+    record.containers ?? 0,
   );
 }
 
@@ -448,7 +460,12 @@ async function runCases(
     verbosity: values.verbosity as string | undefined,
     size: values.size as string | undefined,
     prewarm: Boolean(values.prewarm),
+    engine: values.engine === "responses" ? "responses" : "agents",
+    paths: values.paths as string | undefined,
+    promptFile: values["prompt-file"] as string | undefined,
+    background: Boolean(values.background),
   };
+  const responses = overrides.engine === "responses";
   const variant = String(values.variant ?? "baseline");
   const repeat = Number(values.repeat ?? 1);
   const jobs = chosen.flatMap((c) =>
@@ -462,24 +479,42 @@ async function runCases(
   const out = `.exports/evals-${variant}-${stamp()}`;
   mkdirSync(`${out}-traces`, { recursive: true });
   // The agent as tested, so results can be tied to its exact setup.
-  const snapshot = await agentSnapshot();
-  writeFileSync(`${out}-agent.json`, JSON.stringify(snapshot, null, 2), {
-    mode: 0o600,
-  });
-  const savedModel = snapshot.agent.model;
-  const agentSummary = {
-    model: overrides.model ?? snapshot.agent.model,
-    effort: overrides.effort ?? snapshot.agent.reasoning?.effort,
-    verbosity: overrides.verbosity ?? snapshot.agent.text?.verbosity,
-    serviceTier: overrides.tier ?? snapshot.agent.serviceTier,
-    instructionsSha256: snapshot.agent.instructionsSha256,
-    instructionsChars: snapshot.agent.instructionsChars,
-    skills: Object.fromEntries(
-      snapshot.skills.map((s) => [s.name, s.defaultVersion]),
-    ),
-    runtimeLabel: snapshot.runtimeLabel,
-    websiteCommit: snapshot.websiteCommit,
-  };
+  let savedModel: string;
+  let agentSummary: Record<string, unknown>;
+  if (responses) {
+    const engine = responsesSnapshot({
+      promptFile: overrides.promptFile,
+      model: overrides.model,
+      effort: overrides.effort as never,
+      verbosity: overrides.verbosity as never,
+      tier: overrides.tier as never,
+      paths: overrides.paths as never,
+    });
+    writeFileSync(`${out}-agent.json`, JSON.stringify(engine, null, 2), {
+      mode: 0o600,
+    });
+    savedModel = engine.model;
+    agentSummary = engine;
+  } else {
+    const snapshot = await agentSnapshot();
+    writeFileSync(`${out}-agent.json`, JSON.stringify(snapshot, null, 2), {
+      mode: 0o600,
+    });
+    savedModel = snapshot.agent.model;
+    agentSummary = {
+      model: overrides.model ?? snapshot.agent.model,
+      effort: overrides.effort ?? snapshot.agent.reasoning?.effort,
+      verbosity: overrides.verbosity ?? snapshot.agent.text?.verbosity,
+      serviceTier: overrides.tier ?? snapshot.agent.serviceTier,
+      instructionsSha256: snapshot.agent.instructionsSha256,
+      instructionsChars: snapshot.agent.instructionsChars,
+      skills: Object.fromEntries(
+        snapshot.skills.map((s) => [s.name, s.defaultVersion]),
+      ),
+      runtimeLabel: snapshot.runtimeLabel,
+      websiteCommit: snapshot.websiteCommit,
+    };
+  }
   const records = await pool(
     jobs,
     Number(values.concurrency ?? 3),
@@ -492,13 +527,25 @@ async function runCases(
         notes: c.notes,
       };
       try {
-        const run = await runConversation({
-          ...overrides,
+        const shared = {
           turns: c.turns,
           files: (c.files ?? []).map((f) => resolve(base, f)),
           label: `eval-${variant}-${c.id}`,
           keepSession: Boolean(values["keep-sessions"]),
-        });
+        };
+        const run = responses
+          ? await runResponsesConversation({
+              ...shared,
+              model: overrides.model,
+              effort: overrides.effort as never,
+              tier: overrides.tier as never,
+              verbosity: overrides.verbosity as never,
+              paths: overrides.paths as never,
+              promptFile: overrides.promptFile,
+              background: overrides.background,
+              outDir: `${out}-traces/${c.id}-${r}-files`,
+            })
+          : await runConversation({ ...overrides, ...shared });
         // The full trace stays out of the run's JSON, one file per conversation.
         const trace = `${out}-traces/${c.id}-${r}.json`;
         writeFileSync(
@@ -538,6 +585,13 @@ async function runCases(
           Math.round(
             record.answers.reduce((s, a) => s + a.modelSeconds, 0) * 10,
           ) / 10;
+        record.containers = responses
+          ? new Set(
+              run.answers.flatMap(
+                (a) => (a as { containerIds?: string[] }).containerIds ?? [],
+              ),
+            ).size
+          : 0;
         record.searches = record.answers.reduce(
           (n, a) => n + (a.searches ?? 0),
           0,
@@ -1060,6 +1114,10 @@ if (process.argv[1]?.endsWith("evals.ts")) {
       verbosity: { type: "string" },
       size: { type: "string" },
       prewarm: { type: "boolean", default: false },
+      engine: { type: "string", default: "agents" },
+      paths: { type: "string" },
+      "prompt-file": { type: "string" },
+      background: { type: "boolean", default: false },
       repeat: { type: "string", default: "1" },
       concurrency: { type: "string", default: "3" },
       compare: { type: "string" },
