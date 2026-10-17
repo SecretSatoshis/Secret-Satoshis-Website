@@ -667,3 +667,28 @@ test("rounds in a conversation pass the conversation, never a chain", async () =
     ],
   );
 });
+
+test("a round refused while the conversation is busy is retried", async () => {
+  const { client, sent } = fakeClient([{ output: [message("Done.")] }]);
+  const create = client.responses.create.bind(client.responses);
+  let refused = 0;
+  (client.responses as unknown as { create: unknown }).create = async (
+    params: Record<string, unknown>,
+  ) => {
+    if (refused++ < 2)
+      throw new Error(
+        "400 Another process is currently operating on this conversation. Please retry in a few seconds.",
+      );
+    return create(params as never);
+  };
+  const result = await runRounds({
+    client,
+    params: { model: "m" },
+    input: "Q",
+    conversationId: "conv_1",
+    context: context(),
+  });
+  assert.equal(result.text, "Done.");
+  assert.equal(sent.length, 1);
+  assert.equal(refused, 3);
+});

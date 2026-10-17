@@ -98,6 +98,28 @@ function containersIn(output: ResponseOutputItem[]) {
   return [...ids];
 }
 
+const BUSY = /Another process is currently operating on this conversation/;
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * One round's request. A conversation stays busy for a moment after the
+ * previous round's stream ends, so a refusal for that is retried briefly.
+ */
+async function createRound(
+  client: OpenAI,
+  body: Parameters<OpenAI["responses"]["create"]>[0],
+) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await client.responses.create(body);
+    } catch (error) {
+      if (attempt >= 6 || !BUSY.test(String((error as Error).message)))
+        throw error;
+      await sleep(500 * attempt);
+    }
+  }
+}
+
 export async function runRounds(options: {
   client: OpenAI;
   params: ResponseCreateParamsBase;
@@ -131,7 +153,7 @@ export async function runRounds(options: {
     let roundFirstText: number | null = null;
     let response: Response | undefined;
     const phases = new Map<string, string | null>();
-    const stream = await options.client.responses.create({
+    const stream = await createRound(options.client, {
       ...options.params,
       input,
       ...(options.conversationId
