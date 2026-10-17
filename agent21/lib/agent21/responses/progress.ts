@@ -11,7 +11,12 @@ export function progressFor(item: ResponseOutputItem): string | undefined {
     case "web_search_call":
       return "Searching the web";
     case "shell_call":
+    case "program":
       return "Running analysis";
+    case "mcp_call":
+      return item.server_label === "github"
+        ? "Reading Secret Satoshis code"
+        : "Checking a data source";
     case "message":
       return "phase" in item && item.phase === "commentary"
         ? "Thinking"

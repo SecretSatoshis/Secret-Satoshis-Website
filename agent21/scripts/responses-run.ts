@@ -34,6 +34,8 @@ export type ResponsesOptions = {
   paths?: Paths;
   promptFile?: string;
   background?: boolean;
+  /** The data tools can be called from a model-written program. */
+  programmatic?: boolean;
   /** Keep stored responses for inspection. */
   keepSession?: boolean;
   /** Where files the answer saved are written. */
@@ -67,6 +69,7 @@ export function evalItems(result: LoopResult): Item[] {
         items.push({
           type: "mcp_call",
           server_label: "agent21",
+          ...(run?.fromProgram ? { from_program: true } : {}),
           name: item.name,
           arguments: args,
           urls: run?.urls ?? [],
@@ -99,6 +102,14 @@ export function evalItems(result: LoopResult): Item[] {
         });
       } else if (item.type === "shell_call_output") {
         continue;
+      } else if (item.type === "program") {
+        items.push({ type: "program", code: item.code });
+      } else if (item.type === "program_output") {
+        items.push({
+          type: "program_output",
+          status: item.status,
+          result: String(item.result).slice(0, 6000),
+        });
       } else if (item.type === "reasoning") {
         items.push({ type: "reasoning", summary: item.summary });
       } else {
@@ -144,6 +155,9 @@ export async function runResponsesConversation(options: ResponsesOptions) {
     ...(options.effort ? { effort: options.effort } : {}),
     ...(options.tier ? { tier: options.tier } : {}),
     ...(options.verbosity ? { verbosity: options.verbosity } : {}),
+    ...(options.programmatic !== undefined
+      ? { programmatic: options.programmatic }
+      : {}),
   });
   const saved = new Map<string, Buffer>();
   const answers = [];
@@ -284,6 +298,9 @@ export async function runResponsesConversation(options: ResponsesOptions) {
       tier: settings.tier,
       verbosity: settings.verbosity,
       paths,
+      programmatic: Boolean(settings.programmatic),
+      github: Boolean(settings.githubToken),
+      compactThreshold: settings.compactThreshold,
       background: Boolean(options.background),
       prompt: prompt.label,
     },
@@ -303,13 +320,22 @@ export async function runResponsesConversation(options: ResponsesOptions) {
 export function responsesSnapshot(
   options: Pick<
     ResponsesOptions,
-    "promptFile" | "model" | "effort" | "verbosity" | "tier" | "paths"
+    | "promptFile"
+    | "model"
+    | "effort"
+    | "verbosity"
+    | "tier"
+    | "paths"
+    | "programmatic"
   >,
 ) {
   const prompt = promptSource(options.promptFile);
   const settings = engineSettings({
     prompt,
     ...(options.paths ? { paths: options.paths } : {}),
+    ...(options.programmatic !== undefined
+      ? { programmatic: options.programmatic }
+      : {}),
   });
   let websiteCommit: string | null = null;
   try {
@@ -327,6 +353,9 @@ export function responsesSnapshot(
     verbosity: options.verbosity ?? settings.verbosity ?? null,
     tier: options.tier ?? settings.tier ?? null,
     paths: settings.paths,
+    programmatic: Boolean(settings.programmatic),
+    github: Boolean(settings.githubToken),
+    compactThreshold: settings.compactThreshold ?? null,
     prompt: prompt.label,
     instructionsChars: text.length,
     instructionsSha256: text

@@ -46,15 +46,21 @@ const timeoutFor = (t: Tool) =>
   t.timeoutMs ?? (SLOW.has(t.name) ? 45_000 : 15_000);
 /** About 3k tokens: enough for a summary and a few hundred rows. */
 export const OUTPUT_CAP = 12_000;
+/** For calls from a model-written program, which filters before the model reads. */
+export const PROGRAM_OUTPUT_CAP = 48_000;
 
 /** The function tools in the Responses API's strict form. */
-export function functionTools(names?: string[]) {
+export function functionTools(
+  names?: string[],
+  callers?: ("direct" | "programmatic")[],
+) {
   return TOOLS.filter((t) => !names || names.includes(t.name)).map((t) => ({
     type: "function" as const,
     name: t.name,
     description: t.description,
     parameters: t.parameters,
     strict: true,
+    ...(callers ? { allowed_callers: callers } : {}),
   }));
 }
 
@@ -114,6 +120,8 @@ export async function runTool(
   name: string,
   rawArgs: string,
   context: ToolContext,
+  /** A program reads the result, not the model, so it may take more rows. */
+  cap = OUTPUT_CAP,
 ): Promise<ToolRun> {
   const started = Date.now();
   const before = context.log.length;
@@ -153,7 +161,7 @@ export async function runTool(
         );
       }),
     ]);
-    return done(capOutput(sourceItems(result)), true);
+    return done(capOutput(sourceItems(result), cap), true);
   } catch (error) {
     const known = error instanceof SourceError || error instanceof BlockError;
     const message = known

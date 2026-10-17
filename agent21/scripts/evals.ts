@@ -6,7 +6,8 @@
 //   pnpm evals <cases.json> [--core] [--only SS-1,BRK-2] [--variant baseline]
 //     [--model m] [--effort e] [--tier t] [--verbosity v] [--size s] [--prewarm]
 //     [--repeat 2] [--concurrency 3] [--keep-sessions]
-//     [--engine responses [--paths B|C|BC] [--prompt-file f] [--background]]
+//     [--engine responses [--paths B|C|BC] [--prompt-file f] [--background]
+//      [--programmatic]]
 //   pnpm evals compare <run-a.json> <run-b.json> [...]
 //   pnpm evals report <run.json> [...] [--compare <compare prefix>] [--reconcile]
 //
@@ -289,6 +290,8 @@ export function steps(items: Item[]) {
       );
       if (item.exit_code && item.output)
         out.push(`  Error: ${oneLine(String(item.output).slice(-400), 300)}`);
+    } else if (item.type === "program") {
+      out.push(`Ran a program: ${oneLine(item.code, 200)}`);
     } else if (item.type === "web_search_call") {
       const action = (item.action ?? {}) as {
         query?: string | null;
@@ -464,6 +467,7 @@ async function runCases(
     paths: values.paths as string | undefined,
     promptFile: values["prompt-file"] as string | undefined,
     background: Boolean(values.background),
+    programmatic: Boolean(values.programmatic),
   };
   const responses = overrides.engine === "responses";
   const variant = String(values.variant ?? "baseline");
@@ -489,6 +493,7 @@ async function runCases(
       verbosity: overrides.verbosity as never,
       tier: overrides.tier as never,
       paths: overrides.paths as never,
+      programmatic: overrides.programmatic,
     });
     writeFileSync(`${out}-agent.json`, JSON.stringify(engine, null, 2), {
       mode: 0o600,
@@ -543,6 +548,7 @@ async function runCases(
               paths: overrides.paths as never,
               promptFile: overrides.promptFile,
               background: overrides.background,
+              programmatic: overrides.programmatic,
               outDir: `${out}-traces/${c.id}-${r}-files`,
             })
           : await runConversation({ ...overrides, ...shared });
@@ -1118,6 +1124,7 @@ if (process.argv[1]?.endsWith("evals.ts")) {
       paths: { type: "string" },
       "prompt-file": { type: "string" },
       background: { type: "boolean", default: false },
+      programmatic: { type: "boolean", default: false },
       repeat: { type: "string", default: "1" },
       concurrency: { type: "string", default: "3" },
       compare: { type: "string" },

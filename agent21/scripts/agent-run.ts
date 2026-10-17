@@ -37,6 +37,7 @@ export type Overrides = {
   paths?: string;
   promptFile?: string;
   background?: boolean;
+  programmatic?: boolean;
 };
 export type RunOptions = Overrides & {
   /** The user's messages, sent one after another in the same session. */

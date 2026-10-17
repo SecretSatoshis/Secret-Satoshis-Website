@@ -543,3 +543,96 @@ test("the loop asks once for broken blocks to be fixed", async () => {
     "answer",
   );
 });
+
+test("requests add programmatic calling, compaction and GitHub when set", () => {
+  const prompt = { kind: "file" as const, instructions: "x", label: "f" };
+  const params = createParams(
+    engineSettings({
+      prompt,
+      paths: "C",
+      programmatic: true,
+      compactThreshold: 50_000,
+      githubToken: "token",
+    }),
+  );
+  const list = (params.tools ?? []) as unknown as Record<string, unknown>[];
+  assert.ok(list.some((t) => t.type === "programmatic_tool_calling"));
+  assert.ok(
+    list
+      .filter((t) => t.type === "function")
+      .every(
+        (t) =>
+          JSON.stringify(t.allowed_callers) ===
+          JSON.stringify(["direct", "programmatic"]),
+      ),
+  );
+  const github = list.find((t) => t.type === "mcp")!;
+  assert.equal(github.require_approval, "never");
+  assert.deepEqual([...(github.allowed_tools as string[])].sort(), [
+    "get_commit",
+    "get_file_contents",
+    "list_commits",
+    "search_code",
+  ]);
+  assert.deepEqual(params.context_management, [
+    { type: "compaction", compact_threshold: 50_000 },
+  ]);
+  const plain = createParams(
+    engineSettings({
+      prompt,
+      paths: "C",
+      programmatic: false,
+      githubToken: undefined,
+    }),
+  );
+  const plainTools = (plain.tools ?? []) as unknown as Record<
+    string,
+    unknown
+  >[];
+  assert.ok(
+    !plainTools.some(
+      (t) => t.type === "programmatic_tool_calling" || t.type === "mcp",
+    ),
+  );
+  assert.ok(plainTools.every((t) => t.allowed_callers === undefined));
+});
+
+test("calls from a program go back to it with their caller", async () => {
+  const caller = { type: "program", caller_id: "call_prog" };
+  const { client, sent } = fakeClient([
+    {
+      output: [
+        {
+          type: "program",
+          id: "p1",
+          call_id: "call_prog",
+          code: "await read_upload({name:null})",
+        },
+        {
+          type: "function_call",
+          call_id: "call_1",
+          name: "read_upload",
+          arguments: '{"name":null}',
+          caller,
+        },
+      ],
+    },
+    { output: [message("Done.")] },
+  ]);
+  const result = await runRounds({
+    client,
+    params: { model: "m" },
+    input: "Q",
+    context: context({ uploads: ["a.csv"] }),
+  });
+  assert.equal(result.text, "Done.");
+  assert.deepEqual(sent[1].input, [
+    {
+      type: "function_call_output",
+      call_id: "call_1",
+      output: '{"files":["a.csv"]}',
+      caller,
+    },
+  ]);
+  assert.equal(result.rounds[0].toolRuns[0].fromProgram, true);
+});

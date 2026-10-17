@@ -78,7 +78,7 @@ export const BRK_MCP_URL = "https://mcp.bitview.space/";
  * lives in the OpenAI vault attached to each session.
  */
 export const GITHUB_MCP_URL = "https://api.githubcopilot.com/mcp/";
-const GITHUB_READONLY_MCP_URL =
+export const GITHUB_READONLY_MCP_URL =
   "https://api.githubcopilot.com/mcp/x/repos/readonly";
 export const GITHUB_READ_TOOLS: ReadonlySet<string> = new Set([
   "get_commit",

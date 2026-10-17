@@ -9,7 +9,13 @@ import type {
 } from "openai/resources/responses/responses";
 import { extractBlocks, parseBlock } from "../blocks";
 import { progressFor } from "./progress";
-import { runTool, type ToolContext, type ToolRun } from "./tools";
+import {
+  OUTPUT_CAP,
+  PROGRAM_OUTPUT_CAP,
+  runTool,
+  type ToolContext,
+  type ToolRun,
+} from "./tools";
 
 // One answer: rounds of `responses.create`, each streamed, with the data tools
 // run here between rounds and the next round chained on the previous response.
@@ -31,7 +37,7 @@ export type RoundLog = {
   endedMs: number;
   usage: ResponseUsage | null;
   output: ResponseOutputItem[];
-  toolRuns: (ToolRun & { callId?: string })[];
+  toolRuns: (ToolRun & { callId?: string; fromProgram?: boolean })[];
   repair?: boolean;
 };
 export type LoopResult = {
@@ -111,7 +117,8 @@ export async function runRounds(options: {
   let previous = options.previousResponseId;
   let firstTextMs: number | null = null;
   let repaired = false;
-  const maxRounds = options.maxRounds ?? 8;
+  // A program pauses once per batch of calls, so rounds run higher with it.
+  const maxRounds = options.maxRounds ?? 12;
 
   for (let round = 1; round <= maxRounds + 1; round++) {
     const startedMs = since();
@@ -221,9 +228,18 @@ export async function runRounds(options: {
     if (round > maxRounds) return finish("incomplete", "Too many tool rounds");
     const runs = await Promise.all(
       calls.map(async (call) => {
+        // A call from a model-written program goes back to that program,
+        // tagged with its caller unchanged, and the program resumes.
+        const fromProgram = call.caller?.type === "program";
         const run = {
-          ...(await runTool(call.name, call.arguments, options.context)),
+          ...(await runTool(
+            call.name,
+            call.arguments,
+            options.context,
+            fromProgram ? PROGRAM_OUTPUT_CAP : OUTPUT_CAP,
+          )),
           callId: call.call_id,
+          ...(fromProgram ? { fromProgram } : {}),
         };
         log.toolRuns.push(run);
         sink({ type: "tool", run });
@@ -231,6 +247,7 @@ export async function runRounds(options: {
           type: "function_call_output" as const,
           call_id: call.call_id,
           output: run.output,
+          ...(call.caller ? { caller: call.caller } : {}),
         };
       }),
     );
