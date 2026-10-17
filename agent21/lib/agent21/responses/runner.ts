@@ -489,8 +489,24 @@ export async function reconcileResponses(run: CoreRun): Promise<boolean> {
     input = messageText(
       run,
       {
-        selected: uploads.filter((f) => selected.has(f.id)).map((f) => f.name),
-        others: uploads.filter((f) => !selected.has(f.id)).map((f) => f.name),
+        selected: [
+          ...new Set(
+            uploads.filter((f) => selected.has(f.id)).map((f) => f.name),
+          ),
+        ],
+        // An earlier upload with the same name as this message's is not
+        // listed twice.
+        others: [
+          ...new Set(
+            uploads
+              .filter(
+                (f) =>
+                  !selected.has(f.id) &&
+                  !uploads.some((s) => selected.has(s.id) && s.name === f.name),
+              )
+              .map((f) => f.name),
+          ),
+        ],
       },
       shell,
       // A new OpenAI conversation for a conversation with history (one begun
