@@ -18,6 +18,7 @@ import {
   type EngineSettings,
   type Paths,
 } from "../lib/agent21/responses/request";
+import { needsShell } from "../lib/agent21/responses/runner";
 import { harvest, skillRefs } from "../lib/agent21/responses/shell";
 import { TOOLS, type ToolContext } from "../lib/agent21/responses/tools";
 import { messageText } from "./agent-run";
@@ -31,7 +32,8 @@ export type ResponsesOptions = {
   effort?: EngineSettings["effort"];
   tier?: EngineSettings["tier"];
   verbosity?: EngineSettings["verbosity"];
-  paths?: Paths;
+  /** "auto" chooses per turn with the website's own rule (needsShell). */
+  paths?: Paths | "auto";
   promptFile?: string;
   background?: boolean;
   /** The data tools can be called from a model-written program. */
@@ -142,14 +144,19 @@ export async function runResponsesConversation(options: ResponsesOptions) {
   const prompt = promptSource(options.promptFile);
   const paths = options.paths ?? "BC";
   const local = new Map((options.files ?? []).map((p) => [basename(p), p]));
+  const attached = [...local.keys()].map((name) => ({ name })) as never[];
+  // The website's routing: the shell joins only when a turn needs it.
+  const turnPaths = (text: string, files: never[], live: boolean): Paths =>
+    paths === "auto" ? (needsShell({ text, files }, live) ? "BC" : "C") : paths;
   // The shell reads uploads from its container; the data tools read them here.
   const uploaded =
-    paths.includes("B") && local.size
+    turnPaths(options.turns[0] ?? "", attached, false).includes("B") &&
+    local.size
       ? await uploadFiles([...local.values()])
       : [];
   const settings = engineSettings({
     prompt,
-    paths,
+    paths: paths === "auto" ? "C" : paths,
     fileIds: uploaded.map((f) => f.id),
     cacheKey: `bench-${options.label}`,
     metadata: { benchmark: options.label },
@@ -178,9 +185,14 @@ export async function runResponsesConversation(options: ResponsesOptions) {
         ).id
       : undefined;
   for (const [i, turn] of options.turns.entries()) {
+    const current = turnPaths(
+      turn,
+      i === 0 ? attached : [],
+      Boolean(containerId),
+    );
     const fileNote =
       i === 0 && local.size
-        ? `Files attached to this message: ${[...local.keys()].join(", ")}${paths.includes("B") ? " (in /mnt/data for the shell)" : ""}.\n`
+        ? `Files attached to this message: ${[...local.keys()].join(", ")}${current.includes("B") ? " (in /mnt/data for the shell)" : ""}.\n`
         : "";
     const context: ToolContext = {
       log: [],
@@ -196,9 +208,11 @@ export async function runResponsesConversation(options: ResponsesOptions) {
       },
     };
     // The container stays with the conversation while it lives.
-    const params = createParams(
-      containerId ? { ...settings, containerId } : settings,
-    );
+    const params = createParams({
+      ...settings,
+      paths: current,
+      ...(containerId ? { containerId } : {}),
+    });
     const started = Date.now();
     const result = await runRounds({
       client: openai(),
@@ -355,7 +369,9 @@ export function responsesSnapshot(
   const prompt = promptSource(options.promptFile);
   const settings = engineSettings({
     prompt,
-    ...(options.paths ? { paths: options.paths } : {}),
+    ...(options.paths && options.paths !== "auto"
+      ? { paths: options.paths }
+      : {}),
     ...(options.programmatic !== undefined
       ? { programmatic: options.programmatic }
       : {}),
@@ -375,7 +391,7 @@ export function responsesSnapshot(
     effort: options.effort ?? settings.effort,
     verbosity: options.verbosity ?? settings.verbosity ?? null,
     tier: options.tier ?? settings.tier ?? null,
-    paths: settings.paths,
+    paths: options.paths ?? settings.paths,
     programmatic: Boolean(settings.programmatic),
     github: Boolean(settings.githubToken),
     compactThreshold: settings.compactThreshold ?? null,
