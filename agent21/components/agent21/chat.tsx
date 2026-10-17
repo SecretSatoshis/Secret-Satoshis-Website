@@ -1059,7 +1059,7 @@ export function Chat() {
                       (run && active && run.progress) ||
                       (sending
                         ? "Sending your message"
-                        : "Starting a workspace")
+                        : "Preparing your answer")
                     }
                     note={(run && active && run.note) || ""}
                     since={run && active ? Date.parse(run.startedAt) : sentAt}

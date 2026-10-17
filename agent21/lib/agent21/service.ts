@@ -40,10 +40,12 @@ export const runView = (row: Run): RunView => ({
   id: row.id,
   state: row.state,
   text: row.display.text || "",
+  // Once the run exists the message has arrived; what remains before the
+  // agent starts is starting or reaching its session.
   progress:
     row.display.progress ||
     (row.state === "queued" || row.state === "submitting"
-      ? "Sending your message"
+      ? "Preparing your answer"
       : ""),
   note: row.display.note || "",
   error: row.display.error || null,
