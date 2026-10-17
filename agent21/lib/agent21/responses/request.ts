@@ -94,6 +94,7 @@ export function tools(settings: EngineSettings): Tool[] {
         containerId: settings.containerId,
         fileIds: settings.fileIds,
         skills: skillRefs(),
+        ...(process.env.AGENT21_SHELL_NETWORK === "off" ? { domains: [] } : {}),
       }),
     );
   return list;

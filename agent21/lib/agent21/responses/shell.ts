@@ -56,10 +56,15 @@ export function shellTool(options: {
     environment: {
       type: "container_auto",
       ...(options.fileIds?.length ? { file_ids: options.fileIds } : {}),
-      network_policy: {
-        type: "allowlist",
-        allowed_domains: options.domains ?? SHELL_DOMAINS,
-      },
+      // No domains means no internet: the organization can still run the
+      // shell before its allowlist is set, for work on the user's files.
+      network_policy:
+        options.domains?.length === 0
+          ? { type: "disabled" }
+          : {
+              type: "allowlist",
+              allowed_domains: options.domains ?? SHELL_DOMAINS,
+            },
       ...(options.skills?.length ? { skills: options.skills } : {}),
     },
   };
