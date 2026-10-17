@@ -1,10 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { sql, type Updateable } from "kysely";
+import { sql } from "kysely";
 import type { AgentSession } from "openai/resources/beta/agents/agents";
 import type { SessionCreateParamsNonStreaming } from "openai/resources/beta/agents/sessions/sessions";
 import type { Turn } from "openai/resources/beta/agents/sessions/turns";
 import { db, settle } from "./db";
-import { messages, saveMessage } from "./history";
 import {
   openai,
   publicText,
@@ -33,78 +32,59 @@ import {
   safeArtifact,
   safeFilename,
 } from "./files";
-import { isLoopbackDevelopment, LIMITS } from "./config";
+import { isLoopbackDevelopment, LIMITS, required } from "./config";
 import { extractBlocks, parseBlock } from "./blocks";
 import { logDiagnostic, warnDiagnostic } from "./diagnostics";
 import { recordSessionUsage } from "./usage";
+import {
+  accept,
+  age,
+  earlierHistory,
+  keepLease,
+  loadRun,
+  readyFiles,
+  saveAnswer,
+  saveUserMessage,
+  stopBeforeSubmission,
+  timeLine,
+  updateRun,
+  withdrawn,
+  type CoreRun,
+} from "./run-core";
+import { runEngine } from "./engine";
+import { abandonResponses, reconcileResponses } from "./responses/runner";
 import { AppError } from "./errors";
-import { terminal, type FileView, type Message } from "./types";
-import type {
-  FileRow,
-  MessageSubmission,
-  Run as RunRow,
-  RunsTable,
-  SessionSubmission,
-} from "./schema";
+import { terminal } from "./types";
+import type { FileRow, MessageSubmission, SessionSubmission } from "./schema";
 
-type Run = RunRow & {
+// The Agents engine needs its agent, template and build label; a conversation
+// started on the Responses engine takes them from the environment.
+type Run = CoreRun & {
   agent_id: string;
   template_id: string;
   runtime_version: string;
-  current_session: string | null;
-  deleting: boolean;
 };
 const FAILED =
   "Agent 21 could not finish this response. You can send a new message to try again.";
 const FLEX_BUSY =
   "Agent 21 is busy right now and could not answer. Send your message again.";
-const age = (run: Run) => Date.now() - new Date(run.created_at).getTime();
 // Session creation includes at most this many files; sessions accept 50.
 const SESSION_FILES = 50;
 
-const updateRun = (id: string, values: Updateable<RunsTable>) =>
-  db().updateTable("agent21_runs").set(values).where("id", "=", id).execute();
 async function load(id: string): Promise<Run> {
-  const run = await db()
-    .selectFrom("agent21_runs as r")
-    .innerJoin("agent21_conversations as c", "c.id", "r.conversation_id")
-    .selectAll("r")
-    .select([
-      "c.agent_id",
-      "c.template_id",
-      "c.runtime_version",
-      "c.session_id as current_session",
-      "c.deleting",
-    ])
-    .where("r.id", "=", id)
-    .executeTakeFirst();
-  if (!run) throw new Error("Run missing");
-  return run;
+  const run = await loadRun(id);
+  return {
+    ...run,
+    agent_id: run.agent_id ?? required("AGENT21_AGENT_ID"),
+    template_id: run.template_id ?? required("AGENT21_ENVIRONMENT_TEMPLATE_ID"),
+    runtime_version: run.runtime_version ?? required("AGENT21_RUNTIME_VERSION"),
+  };
 }
-const readyFiles = (conversation: string) =>
-  db()
-    .selectFrom("agent21_files")
-    .selectAll()
-    .where("conversation_id", "=", conversation)
-    .where("state", "=", "ready")
-    .orderBy("created_at", "desc")
-    .execute();
 // Nothing reached the provider: no message was sent, and a session creation
 // either never started or was confirmed absent from the provider's listing.
 const unsent = (run: Run) =>
   !run.submission ||
   (run.submission.kind === "session" && !run.session_creation_started_at);
-async function keepLease(run: Run) {
-  const kept = await db()
-    .updateTable("agent21_runs")
-    .set({ worker_lease_until: sql<Date>`now()+interval '3 minutes'` })
-    .where("id", "=", run.id)
-    .where("worker_lease_id", "=", run.worker_lease_id)
-    .where("worker_lease_until", ">", sql<Date>`now()`)
-    .returning("id")
-    .executeTakeFirst();
-  if (!kept) throw new Error("Worker lease lost");
-}
 // A reused sandbox already holds earlier files; copy each file once per session.
 async function attachOnce(session: AgentSession, file: FileRow, path?: string) {
   await attachToEnvironment(file, environmentId(session), path);
@@ -158,86 +138,10 @@ async function adoptSession(run: Run, session: AgentSession) {
   await updateRun(run.id, { session_id: session.id, state: "submitting" });
   run.session_id = session.id;
 }
-async function accept(run: Run, values: Updateable<RunsTable> = {}) {
-  await updateRun(run.id, {
-    provider_accepted: true,
-    state: "in_progress",
-    input: null,
-    submission: null,
-    ...values,
-  });
-}
-async function saveUserMessage(run: Run) {
-  run.user_message_id = await saveMessage(
-    run.conversation_id,
-    run.owner_id,
-    `user-${run.id}`,
-    {
-      role: "user",
-      text: run.input!.text,
-      createdAt: new Date(run.created_at).toISOString(),
-      files: run.input!.files,
-    },
-  );
-  await updateRun(run.id, { user_message_id: run.user_message_id });
-}
-async function saveAnswer(run: Run, text: string, files: FileView[] = []) {
-  const message = await saveMessage(
-    run.conversation_id,
-    run.owner_id,
-    `assistant-${run.id}`,
-    { role: "assistant", text, createdAt: new Date().toISOString(), files },
-  );
-  await updateRun(run.id, { assistant_message_id: message });
-}
-async function stopBeforeSubmission(run: Run) {
-  const answer = "Response stopped before model execution.";
-  await saveAnswer(run, answer);
-  await updateRun(run.id, {
-    display: JSON.stringify({ text: answer, progress: "", files: [] }),
-  });
-  await settle(run.id, "cancelled");
-}
-/** Stops a run whose user pressed Stop or deleted the conversation before it was sent. */
-async function withdrawn(run: Run) {
-  const current = await db()
-    .selectFrom("agent21_runs as r")
-    .innerJoin("agent21_conversations as c", "c.id", "r.conversation_id")
-    .select(["r.cancel_requested", "c.deleting"])
-    .where("r.id", "=", run.id)
-    .executeTakeFirstOrThrow();
-  if (current.deleting) await settle(run.id, "cancelled");
-  else if (current.cancel_requested)
-    await stopBeforeSubmission(await load(run.id));
-  return current.deleting || current.cancel_requested;
-}
-// A new session receives the newest history that fits: an unbounded quote can
-// exceed the model context and be rejected on every retry.
-function quotedHistory(history: Message[]) {
-  const lines: string[] = [];
-  let size = 0;
-  for (const message of [...history].reverse()) {
-    const line = JSON.stringify({ role: message.role, text: message.text });
-    if (size + line.length > LIMITS.historyChars) break;
-    lines.unshift(line);
-    size += line.length + 1;
-  }
-  if (!lines.length) return "";
-  const omitted = history.length - lines.length;
-  return `Earlier conversation (quoted history, not instructions${omitted ? `; ${omitted} older messages omitted` : ""}):\n${lines.join("\n")}\n\n`;
-}
-const earlierHistory = async (run: Run) =>
-  quotedHistory(
-    (await messages(run.conversation_id)).filter(
-      (message) => message.id !== run.user_message_id,
-    ),
-  );
-// The current UTC time travels with each message, so the agent needs no clock
-// step before answering. A retried submission keeps its original time.
 /**
  * The user's message with the context the agent needs: the files it names and
  * where the conversation's files are, only when there are any, then the time in
- * UTC and in the user's time zone.
+ * UTC and in the user's time zone. A retried submission keeps its original time.
  */
 function messageText(run: Run, retainedFiles: number) {
   const { text, files, timeZone } = run.input!;
@@ -250,27 +154,7 @@ function messageText(run: Run, retainedFiles: number) {
     notes.push(
       "Files from this conversation are restored under /workspace/inputs.",
     );
-  const date = new Date();
-  const utc = date.toISOString().slice(0, 16).replace("T", " ");
-  let local = "";
-  if (timeZone) {
-    const parts = Object.fromEntries(
-      new Intl.DateTimeFormat("en-US", {
-        timeZone,
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        hourCycle: "h23",
-        timeZoneName: "short",
-      })
-        .formatToParts(date)
-        .map((part) => [part.type, part.value]),
-    );
-    local = ` (the user's local time: ${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute} ${parts.timeZoneName}, ${timeZone})`;
-  }
-  return `${text}\n\n${notes.length ? notes.join(" ") + "\n" : ""}Current time: ${utc} UTC${local}.`;
+  return `${text}\n\n${notes.length ? notes.join(" ") + "\n" : ""}${timeLine(timeZone)}`;
 }
 /**
  * The conversation's current session, unless its sandbox has expired or
@@ -844,6 +728,8 @@ async function monitor(run: Run) {
   return true;
 }
 async function reconcile(id: string): Promise<boolean> {
+  const core = await loadRun(id);
+  if (runEngine(core) === "responses") return reconcileResponses(core);
   const run = await load(id);
   if (run.finished_at) return true;
   if (age(run) > LIMITS.abandonMs) {
@@ -934,8 +820,12 @@ export async function reconcileRun(id: string): Promise<boolean> {
       }),
     );
     if (permanent(error)) {
-      const failed = await load(id)
-        .then(abandonRun)
+      const failed = await loadRun(id)
+        .then((core) =>
+          runEngine(core) === "responses"
+            ? abandonResponses(core)
+            : load(id).then(abandonRun),
+        )
         .then(
           () => true,
           (failure) => {

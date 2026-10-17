@@ -51,6 +51,8 @@ type Case = {
   core?: boolean;
   turns: string[];
   files?: string[];
+  /** Needs the hosted shell (files on request, spreadsheets, PDFs). */
+  shell?: boolean;
   expect: Expect;
   notes?: string;
 };
@@ -582,6 +584,20 @@ async function runCases(
         }));
         for (const answer of record.answers)
           answer.checks.push(...(await linkChecks(answer.text)));
+        record.containers = responses
+          ? new Set(
+              run.answers.flatMap(
+                (a) => (a as { containerIds?: string[] }).containerIds ?? [],
+              ),
+            ).size
+          : 0;
+        // The Responses engine opens the shell only for cases that need it.
+        if (responses && overrides.paths !== "C")
+          record.answers.at(-1)!.checks.push({
+            check: c.shell ? "used the shell" : "no shell",
+            ok: Boolean(record.containers) === Boolean(c.shell),
+            detail: `${record.containers} container(s)`,
+          });
         record.passedChecks = record.answers.every(
           (a) => a.ended?.endsWith("completed") && a.checks.every((k) => k.ok),
         );
@@ -593,13 +609,6 @@ async function runCases(
           Math.round(
             record.answers.reduce((s, a) => s + a.modelSeconds, 0) * 10,
           ) / 10;
-        record.containers = responses
-          ? new Set(
-              run.answers.flatMap(
-                (a) => (a as { containerIds?: string[] }).containerIds ?? [],
-              ),
-            ).size
-          : 0;
         record.searches = record.answers.reduce(
           (n, a) => n + (a.searches ?? 0),
           0,

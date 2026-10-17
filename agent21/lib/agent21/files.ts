@@ -18,10 +18,20 @@ export const fileView = (row: FileRow): FileView => ({
 export function safeFilename(name: string) {
   return name.replace(/[^a-zA-Z0-9_.-]/g, "_").slice(-120) || "file";
 }
-export function safeArtifact(path: string, bytes: Buffer) {
+/** Where each engine's sandbox keeps deliverables: Agents, then the hosted shell. */
+export const OUTPUT_ROOTS = [
+  "/workspace/outputs",
+  "/mnt/data/outputs",
+] as const;
+export function safeArtifact(
+  path: string,
+  bytes: Buffer,
+  root: (typeof OUTPUT_ROOTS)[number] = "/workspace/outputs",
+) {
   if (
-    !/^\/workspace\/outputs\/[a-zA-Z0-9_.-]+\.(png|csv|md|pdf|py|chart\.json)$/.test(
-      path,
+    !path.startsWith(`${root}/`) ||
+    !/^[a-zA-Z0-9_.-]+\.(png|csv|md|pdf|py|chart\.json)$/.test(
+      path.slice(root.length + 1),
     )
   )
     return false;

@@ -8,6 +8,7 @@ import { db, ownedConversation, ownedRun, reserveRun } from "./db";
 import { messages, recordFeedback } from "./history";
 import { AppError } from "./errors";
 import { enabled, required, LIMITS } from "./config";
+import { engine } from "./engine";
 import { fileView, blobBytes, reserveFile } from "./files";
 import { requestDeletion } from "./deletion";
 import { logDiagnostic } from "./diagnostics";
@@ -69,9 +70,14 @@ export async function createConversation(owner: string, body: unknown) {
     .values({
       id: requestId,
       owner_id: owner,
-      agent_id: required("AGENT21_AGENT_ID"),
-      template_id: required("AGENT21_ENVIRONMENT_TEMPLATE_ID"),
-      runtime_version: required("AGENT21_RUNTIME_VERSION"),
+      // The Agents engine pins a conversation to its agent and build label.
+      ...(engine() === "agents"
+        ? {
+            agent_id: required("AGENT21_AGENT_ID"),
+            template_id: required("AGENT21_ENVIRONMENT_TEMPLATE_ID"),
+            runtime_version: required("AGENT21_RUNTIME_VERSION"),
+          }
+        : {}),
     })
     .onConflict((oc) => oc.doNothing())
     .execute();

@@ -1,3 +1,5 @@
+import { engine } from "./engine";
+
 export const LIMITS = {
   turnMs: 600_000,
   // Hard stop for every phase: an unfinished run is settled as failed after this.
@@ -20,7 +22,10 @@ export function required(name: string) {
   if (!value) throw new Error(`Missing ${name}`);
   return value;
 }
-export const credentialNames = [
+// Credentials by engine. The Agents engine (dormant) needs its dashboard
+// agent, sandbox template, build label, MCP vault and session webhooks; the
+// Responses engine needs the skill versions its shell mounts.
+const AGENTS_CREDENTIALS = [
   "OPENAI_API_KEY",
   "CLERK_SECRET_KEY",
   "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
@@ -33,6 +38,22 @@ export const credentialNames = [
   "OPENAI_WEBHOOK_SECRET",
   "CLERK_WEBHOOK_SIGNING_SECRET",
 ] as const;
+const RESPONSES_CREDENTIALS = [
+  "OPENAI_API_KEY",
+  "CLERK_SECRET_KEY",
+  "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+  "DATABASE_URL",
+  "AGENT21_SKILLS",
+  "APP_ORIGIN",
+  "CLERK_WEBHOOK_SIGNING_SECRET",
+] as const;
+/** Every credential either engine reads. */
+export const credentialNames = [
+  ...new Set([...AGENTS_CREDENTIALS, ...RESPONSES_CREDENTIALS]),
+];
+/** The credentials the configured engine needs. */
+export const engineCredentials = (): readonly string[] =>
+  engine() === "agents" ? AGENTS_CREDENTIALS : RESPONSES_CREDENTIALS;
 export function configured() {
   return missingCredentials().length === 0;
 }
@@ -55,7 +76,7 @@ export function missingCredentials() {
   // signed lifecycle webhooks. This exception never applies to production.
   const local = isLoopbackDevelopment();
   return [
-    ...credentialNames.filter(
+    ...engineCredentials().filter(
       (name) =>
         !process.env[name] &&
         !(local && webhookCredentials.some((webhook) => webhook === name)),

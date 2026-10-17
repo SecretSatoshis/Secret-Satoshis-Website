@@ -1,4 +1,6 @@
 import { missingCredentials, required } from "../lib/agent21/config";
+import { engine } from "../lib/agent21/engine";
+import { skillRefs } from "../lib/agent21/responses/shell";
 import { isGitHubServer, openai, sessionTools } from "../lib/agent21/openai";
 import { closeDatabase, db } from "../lib/agent21/db";
 import { migrator } from "../lib/agent21/migrations";
@@ -14,30 +16,57 @@ if (missing.length) {
 } else {
   try {
     const api = openai();
-    const agentId = required("AGENT21_AGENT_ID");
-    const agent = await api.beta.agents.retrieve(agentId);
-    // The dashboard agent chooses the model; confirm this project can use it.
-    await api.models.retrieve(agent.model);
-    assert.equal(agent.reasoning.effort, "medium");
-    assert.equal(agent.multi_agent.enabled, false);
-    // Sessions accept only reviewed tools: hosted search, BRK's keyless server
-    // and GitHub's server limited to read tools.
-    const tools = await sessionTools(agentId);
-    const github = tools.find(
-      (tool) =>
-        tool.type === "mcp" &&
-        tool.transport.type === "http" &&
-        isGitHubServer(tool.transport.server_url),
-    );
-    assert(
-      !github || (github.type === "mcp" && github.credential_id),
-      "The GitHub MCP server needs its vault credential",
-    );
-    const template = await api.beta.agents.environments.templates.retrieve(
-      required("AGENT21_ENVIRONMENT_TEMPLATE_ID"),
-    );
-    assert.equal(template.network.access, "enabled");
-    assert.equal(template.desktop?.enabled, false);
+    if (engine() === "responses") {
+      // The Responses engine: its model, the skill versions its shell mounts
+      // and a published prompt.
+      await api.models.retrieve(
+        process.env.AGENT21_RESPONSES_MODEL ?? "gpt-6-luna",
+      );
+      for (const skill of skillRefs()) {
+        const found = await api.skills.retrieve(skill.skill_id);
+        assert(
+          !skill.version ||
+            Number(skill.version) <= Number(found.latest_version),
+          `Skill ${found.name} has no version ${skill.version}`,
+        );
+      }
+      const prompt = await db()
+        .selectFrom("agent21_prompts")
+        .select("version")
+        .where("active", "=", true)
+        .executeTakeFirst()
+        .catch(() => undefined);
+      assert(prompt, "Publish the prompt (pnpm ops prompt publish) first.");
+      if (!process.env.GITHUB_MCP_TOKEN)
+        console.warn(
+          "GITHUB_MCP_TOKEN is not set: answers cannot read Secret Satoshis code.",
+        );
+    } else {
+      const agentId = required("AGENT21_AGENT_ID");
+      const agent = await api.beta.agents.retrieve(agentId);
+      // The dashboard agent chooses the model; confirm this project can use it.
+      await api.models.retrieve(agent.model);
+      assert.equal(agent.reasoning.effort, "medium");
+      assert.equal(agent.multi_agent.enabled, false);
+      // Sessions accept only reviewed tools: hosted search, BRK's keyless server
+      // and GitHub's server limited to read tools.
+      const tools = await sessionTools(agentId);
+      const github = tools.find(
+        (tool) =>
+          tool.type === "mcp" &&
+          tool.transport.type === "http" &&
+          isGitHubServer(tool.transport.server_url),
+      );
+      assert(
+        !github || (github.type === "mcp" && github.credential_id),
+        "The GitHub MCP server needs its vault credential",
+      );
+      const template = await api.beta.agents.environments.templates.retrieve(
+        required("AGENT21_ENVIRONMENT_TEMPLATE_ID"),
+      );
+      assert.equal(template.network.access, "enabled");
+      assert.equal(template.desktop?.enabled, false);
+    }
     const pending = (await migrator(db()).getMigrations()).filter(
       (migration) => !migration.executedAt,
     );

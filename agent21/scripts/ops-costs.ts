@@ -26,6 +26,8 @@ export async function costReport(filter: {
       "owner_id",
       sql<string>`count(*) filter (where kind='session')`.as("sessions"),
       sql<string>`count(*) filter (where kind='warm')`.as("unused_warm"),
+      sql<string>`count(*) filter (where kind='response')`.as("answers"),
+      sql<string>`count(*) filter (where kind='container')`.as("containers"),
       sql<string>`count(distinct conversation_id)`.as("conversations"),
       totals.model.as("model"),
       totals.search.as("search"),
@@ -46,7 +48,7 @@ export async function costReport(filter: {
       sql<string>`coalesce(sum(web_searches),0)`.as("searches"),
       totals.total.as("total"),
     ])
-    .where("kind", "=", "session")
+    .where("kind", "in", ["session", "response", "container"])
     .groupBy(["owner_id", "conversation_id"])
     .orderBy("total", "desc")
     .limit(50)
@@ -54,6 +56,7 @@ export async function costReport(filter: {
   const sessions = await rows
     .select([
       "id",
+      "kind",
       "conversation_id",
       "model",
       "service_tier",
@@ -71,7 +74,7 @@ export async function costReport(filter: {
       "cost_usd",
       "usage_pending",
     ])
-    .where("kind", "=", "session")
+    .where("kind", "in", ["session", "response", "container"])
     .orderBy("updated_at", "desc")
     .limit(filter.conversation || filter.user ? 100 : 25)
     .execute();
@@ -82,6 +85,8 @@ export async function costReport(filter: {
       conversations: Number(u.conversations),
       sessions: Number(u.sessions),
       unusedWarmSandboxes: Number(u.unused_warm),
+      answers: Number(u.answers),
+      shellContainers: Number(u.containers),
       modelUsd: usd(u.model),
       searchUsd: usd(u.search),
       sandboxUsd: usd(u.sandbox),
@@ -100,6 +105,7 @@ export async function costReport(filter: {
     })),
     sessions: sessions.map((s) => ({
       session: s.id,
+      kind: s.kind,
       conversation: s.conversation_id,
       model: s.model,
       tier: s.service_tier,

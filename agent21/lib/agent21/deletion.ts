@@ -89,6 +89,44 @@ async function removeSessions(conversation: string) {
     .where("conversation_id", "=", conversation)
     .execute();
 }
+/**
+ * Removes what the Responses engine kept at OpenAI for a conversation: the
+ * conversation (its items), every response made in it, which deleting the
+ * conversation leaves behind, and its shell containers.
+ */
+async function removeResponses(conversation: string) {
+  const row = await db()
+    .selectFrom("agent21_conversations")
+    .select("openai_conversation_id")
+    .where("id", "=", conversation)
+    .executeTakeFirst();
+  if (row?.openai_conversation_id)
+    await ignoreMissing(() =>
+      openai().conversations.delete(row.openai_conversation_id!),
+    );
+  for (const response of await db()
+    .selectFrom("agent21_responses")
+    .select("id")
+    .where("conversation_id", "=", conversation)
+    .execute()) {
+    await ignoreMissing(() => openai().responses.delete(response.id));
+    await db()
+      .deleteFrom("agent21_responses")
+      .where("id", "=", response.id)
+      .execute();
+  }
+  for (const container of await db()
+    .selectFrom("agent21_containers")
+    .select("id")
+    .where("conversation_id", "=", conversation)
+    .execute()) {
+    await ignoreMissing(() => openai().containers.delete(container.id));
+    await db()
+      .deleteFrom("agent21_containers")
+      .where("id", "=", container.id)
+      .execute();
+  }
+}
 const leased = (conversation: string) =>
   db()
     .selectFrom("agent21_runs")
@@ -181,6 +219,7 @@ export async function performDeletion(id: string): Promise<boolean> {
         () => undefined,
       );
     await removeSessions(conversation.id);
+    await removeResponses(conversation.id);
     await db()
       .deleteFrom("agent21_runs")
       .where("conversation_id", "=", conversation.id)

@@ -31,6 +31,8 @@ export const SANDBOX_USD_PER_MINUTE = { small: 0.03 / 20, medium: 0.12 / 20 };
 const SANDBOX_MINIMUM_MINUTES = 5;
 // USD per web search call; its content tokens are already in the token counts.
 export const SEARCH_USD = 10 / 1000;
+// USD per hosted shell container (1 GB), billed per 20-minute session.
+export const CONTAINER_USD_PER_SESSION = 0.03;
 
 /** The beta allowance per account, in USD (AGENT21_SPEND_LIMIT_USD, default 10). */
 export function spendLimitUsd() {
@@ -68,6 +70,109 @@ export function priceUsage(u: Priced) {
     sandbox_usd: round(sandboxUsd),
     cost_usd: round(modelUsd + searchUsd + sandboxUsd),
   };
+}
+
+/** Estimated USD for one answer's tokens and web searches (the Responses engine). */
+export function priceTokens(
+  u: Pick<
+    Priced,
+    "model" | "tier" | "input" | "cached" | "output" | "searches"
+  >,
+) {
+  const { model_usd, search_usd } = priceUsage({
+    ...u,
+    size: "small",
+    seconds: 0,
+  });
+  return {
+    model_usd,
+    search_usd,
+    sandbox_usd: 0,
+    cost_usd: round(model_usd + search_usd),
+  };
+}
+
+/** One answer on the Responses engine: its tokens and web searches across rounds. */
+export async function recordResponseUsage(
+  owner: string,
+  conversation: string,
+  runId: string,
+  u: {
+    model: string;
+    tier: string | null;
+    input: number;
+    cached: number;
+    output: number;
+    reasoning: number;
+    searches: number;
+    startedAt: Date;
+  },
+) {
+  const now = new Date();
+  const values = {
+    kind: "response" as const,
+    owner_id: owner,
+    conversation_id: conversation,
+    model: u.model,
+    service_tier: u.tier,
+    input_tokens: u.input,
+    cached_tokens: u.cached,
+    output_tokens: u.output,
+    reasoning_tokens: u.reasoning,
+    web_searches: u.searches,
+    sandbox_size: "none",
+    sandbox_started_at: u.startedAt,
+    sandbox_last_at: now,
+    usage_pending: false,
+    updated_at: now,
+    ...priceTokens({ ...u }),
+  };
+  await db()
+    .insertInto("agent21_usage")
+    .values({ id: runId, ...values })
+    .onConflict((oc) => oc.column("id").doUpdateSet(values))
+    .execute();
+}
+
+/**
+ * A hosted shell container, billed per 20-minute session from its first use
+ * to its latest: a conversation that keeps using it pays for each session.
+ */
+export async function recordContainerUsage(
+  owner: string,
+  conversation: string,
+  containerId: string,
+) {
+  const now = new Date();
+  const existing = await db()
+    .selectFrom("agent21_usage")
+    .select("sandbox_started_at")
+    .where("id", "=", containerId)
+    .executeTakeFirst();
+  const started = existing ? new Date(existing.sandbox_started_at) : now;
+  const sessions = Math.max(
+    1,
+    Math.ceil((now.getTime() - started.getTime()) / (20 * 60_000)),
+  );
+  const sandboxUsd = round(sessions * CONTAINER_USD_PER_SESSION);
+  const values = {
+    kind: "container" as const,
+    owner_id: owner,
+    conversation_id: conversation,
+    sandbox_size: "1g",
+    sandbox_started_at: started,
+    sandbox_last_at: now,
+    model_usd: 0,
+    search_usd: 0,
+    sandbox_usd: sandboxUsd,
+    cost_usd: sandboxUsd,
+    updated_at: now,
+  };
+  await db()
+    .insertInto("agent21_usage")
+    .values({ id: containerId, ...values })
+    .onConflict((oc) => oc.column("id").doUpdateSet(values))
+    .execute();
 }
 
 /** A pre-warmed sandbox starts billing when created; a session that attaches it takes the row over. */

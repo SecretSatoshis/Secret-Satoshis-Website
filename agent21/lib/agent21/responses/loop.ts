@@ -87,7 +87,7 @@ export function invalidBlocks(text: string) {
 }
 
 /** Containers the shell used, from its calls. */
-function containersIn(output: ResponseOutputItem[]) {
+export function containersIn(output: ResponseOutputItem[]) {
   const ids = new Set<string>();
   for (const item of output) {
     const env = (item as { environment?: { container_id?: string } | null })
@@ -105,7 +105,7 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
  * One round's request. A conversation stays busy for a moment after the
  * previous round's stream ends, so a refusal for that is retried briefly.
  */
-async function createRound(
+export async function createRound(
   client: OpenAI,
   body: Parameters<OpenAI["responses"]["create"]>[0],
 ) {
@@ -118,6 +118,112 @@ async function createRound(
       await sleep(500 * attempt);
     }
   }
+}
+
+export type RoundStream = {
+  response: Response;
+  /** Milliseconds from the call to its first event and first answer text. */
+  firstEventMs: number | null;
+  firstTextMs: number | null;
+};
+
+/**
+ * Reads one round's event stream to its end: a new round, or a background
+ * response being resumed. Progress and answer text go to the sink as they
+ * arrive; the response comes back once it completes, fails or stops.
+ */
+export async function readRound(
+  stream: AsyncIterable<ResponseStreamEvent>,
+  sink: (event: LoopEvent) => void,
+  round = 0,
+): Promise<RoundStream> {
+  const t0 = Date.now();
+  let firstEventMs: number | null = null;
+  let firstTextMs: number | null = null;
+  const phases = new Map<string, string | null>();
+  for await (const event of stream) {
+    firstEventMs ??= Date.now() - t0;
+    if (event.type === "response.created")
+      sink({ type: "round", round, responseId: event.response.id });
+    if (event.type === "response.output_item.added") {
+      const item = event.item;
+      if (item.type === "message")
+        phases.set(item.id, ("phase" in item ? item.phase : null) ?? null);
+      const label = progressFor(item);
+      if (label) sink({ type: "progress", label });
+    }
+    if (event.type === "response.output_text.delta") {
+      const phase = phases.get(event.item_id) ?? null;
+      if (phase !== "commentary") firstTextMs ??= Date.now() - t0;
+      sink({ type: "text", delta: event.delta, itemId: event.item_id, phase });
+    }
+    if (TERMINAL.has(event.type))
+      return {
+        response: (event as { response: Response }).response,
+        firstEventMs,
+        firstTextMs,
+      };
+  }
+  throw new Error("The response stream ended without a result");
+}
+
+/** The function calls a finished round asked for, still to be answered. */
+export const functionCalls = (response: Response) =>
+  response.output.filter((item) => item.type === "function_call");
+
+/**
+ * Runs a round's function calls in parallel. A call from a model-written
+ * program goes back to that program, tagged with its caller unchanged, and the
+ * program resumes.
+ */
+export async function runCalls(
+  calls: ReturnType<typeof functionCalls>,
+  context: ToolContext,
+  onRun: (
+    run: ToolRun & { callId: string; fromProgram?: boolean },
+  ) => void = () => undefined,
+) {
+  return Promise.all(
+    calls.map(async (call) => {
+      const fromProgram = call.caller?.type === "program";
+      const run = {
+        ...(await runTool(
+          call.name,
+          call.arguments,
+          context,
+          fromProgram ? PROGRAM_OUTPUT_CAP : OUTPUT_CAP,
+        )),
+        callId: call.call_id,
+        ...(fromProgram ? { fromProgram } : {}),
+      };
+      onRun(run);
+      return {
+        type: "function_call_output" as const,
+        call_id: call.call_id,
+        output: run.output,
+        ...(call.caller ? { caller: call.caller } : {}),
+      };
+    }),
+  );
+}
+
+/** The round that asks for broken blocks to be fixed. */
+export const repairInput = (broken: string[]): ResponseInput => [
+  {
+    role: "developer",
+    content: `These blocks in your answer fail the website's checks:\n${broken.join("\n")}\nWrite the whole answer again with them fixed, changing nothing else.`,
+  },
+];
+
+/** A response's token use, in the ledger's terms. */
+export function usageOf(response: Response) {
+  const u = response.usage;
+  return {
+    input: u?.input_tokens ?? 0,
+    cached: u?.input_tokens_details?.cached_tokens ?? 0,
+    output: u?.output_tokens ?? 0,
+    reasoning: u?.output_tokens_details?.reasoning_tokens ?? 0,
+  };
 }
 
 export async function runRounds(options: {
@@ -149,10 +255,6 @@ export async function runRounds(options: {
 
   for (let round = 1; round <= maxRounds + 1; round++) {
     const startedMs = since();
-    let firstEventMs: number | null = null;
-    let roundFirstText: number | null = null;
-    let response: Response | undefined;
-    const phases = new Map<string, string | null>();
     const stream = await createRound(options.client, {
       ...options.params,
       input,
@@ -164,53 +266,29 @@ export async function runRounds(options: {
       ...(options.background ? { background: true } : {}),
       stream: true,
     });
-    for await (const event of stream as AsyncIterable<ResponseStreamEvent>) {
-      firstEventMs ??= since();
-      if (event.type === "response.created")
-        sink({ type: "round", round, responseId: event.response.id });
-      if (event.type === "response.output_item.added") {
-        const item = event.item;
-        if (item.type === "message")
-          phases.set(item.id, ("phase" in item ? item.phase : null) ?? null);
-        const label = progressFor(item);
-        if (label) sink({ type: "progress", label });
-      }
-      if (event.type === "response.output_text.delta") {
-        const phase = phases.get(event.item_id) ?? null;
-        if (phase !== "commentary") {
-          roundFirstText ??= since();
-          firstTextMs ??= since();
-        }
-        sink({
-          type: "text",
-          delta: event.delta,
-          itemId: event.item_id,
-          phase,
-        });
-      }
-      if (TERMINAL.has(event.type)) {
-        response = (event as { response: Response }).response;
-        break;
-      }
-    }
-    if (!response)
-      throw new Error("The response stream ended without a result");
-    const u = response.usage;
-    if (u) {
-      usage.input += u.input_tokens;
-      usage.cached += u.input_tokens_details?.cached_tokens ?? 0;
-      usage.output += u.output_tokens;
-      usage.reasoning += u.output_tokens_details?.reasoning_tokens ?? 0;
-    }
+    const read = await readRound(
+      stream as AsyncIterable<ResponseStreamEvent>,
+      sink,
+      round,
+    );
+    const response = read.response;
+    if (read.firstTextMs !== null) firstTextMs ??= startedMs + read.firstTextMs;
+    const used = usageOf(response);
+    usage.input += used.input;
+    usage.cached += used.cached;
+    usage.output += used.output;
+    usage.reasoning += used.reasoning;
     const log: RoundLog = {
       round,
       responseId: response.id,
       status: response.status ?? "unknown",
       startedMs,
-      firstEventMs,
-      firstTextMs: roundFirstText,
+      firstEventMs:
+        read.firstEventMs === null ? null : startedMs + read.firstEventMs,
+      firstTextMs:
+        read.firstTextMs === null ? null : startedMs + read.firstTextMs,
       endedMs: since(),
-      usage: u ?? null,
+      usage: response.usage ?? null,
       output: response.output,
       toolRuns: [],
       ...(repaired ? { repair: true } : {}),
@@ -222,10 +300,10 @@ export async function runRounds(options: {
       error?: string,
     ): LoopResult => ({
       status,
-      text: answerText(response!.output),
+      text: answerText(response.output),
       ...(error ? { error } : {}),
       rounds,
-      lastResponseId: response!.id,
+      lastResponseId: response.id,
       containerIds: [...new Set(rounds.flatMap((r) => containersIn(r.output)))],
       usage,
       firstTextMs,
@@ -239,50 +317,21 @@ export async function runRounds(options: {
         response.incomplete_details?.reason ?? "The response was incomplete",
       );
 
-    const calls = response.output.filter(
-      (item) => item.type === "function_call",
-    );
+    const calls = functionCalls(response);
     if (!calls.length) {
       const text = answerText(response.output);
       const broken =
         options.repairBlocks && !repaired ? invalidBlocks(text) : [];
       if (!broken.length || round > maxRounds) return finish("completed");
       repaired = true;
-      input = [
-        {
-          role: "developer",
-          content: `These blocks in your answer fail the website's checks:\n${broken.join("\n")}\nWrite the whole answer again with them fixed, changing nothing else.`,
-        },
-      ];
+      input = repairInput(broken);
       continue;
     }
     if (round > maxRounds) return finish("incomplete", "Too many tool rounds");
-    const runs = await Promise.all(
-      calls.map(async (call) => {
-        // A call from a model-written program goes back to that program,
-        // tagged with its caller unchanged, and the program resumes.
-        const fromProgram = call.caller?.type === "program";
-        const run = {
-          ...(await runTool(
-            call.name,
-            call.arguments,
-            options.context,
-            fromProgram ? PROGRAM_OUTPUT_CAP : OUTPUT_CAP,
-          )),
-          callId: call.call_id,
-          ...(fromProgram ? { fromProgram } : {}),
-        };
-        log.toolRuns.push(run);
-        sink({ type: "tool", run });
-        return {
-          type: "function_call_output" as const,
-          call_id: call.call_id,
-          output: run.output,
-          ...(call.caller ? { caller: call.caller } : {}),
-        };
-      }),
-    );
-    input = runs;
+    input = await runCalls(calls, options.context, (run) => {
+      log.toolRuns.push(run);
+      sink({ type: "tool", run });
+    });
   }
   throw new Error("unreachable");
 }

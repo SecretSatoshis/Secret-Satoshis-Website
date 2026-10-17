@@ -57,9 +57,14 @@ export interface ConversationsTable {
   id: string;
   owner_id: string;
   session_id: string | null;
-  agent_id: string;
-  template_id: string;
-  runtime_version: string;
+  /** Agents engine only (dormant). */
+  agent_id: string | null;
+  template_id: string | null;
+  runtime_version: string | null;
+  /** Responses engine: the OpenAI conversation and the live shell container. */
+  openai_conversation_id: string | null;
+  container_id: string | null;
+  container_last_at: NullableTimestamp;
   deleting: Generated<boolean>;
   title: Generated<string>;
   archived: Generated<boolean>;
@@ -96,6 +101,11 @@ export interface RunsTable {
   session_creation_started_at: NullableTimestamp;
   last_diagnostic: NullableJson<Record<string, unknown>>;
   last_error_at: NullableTimestamp;
+  /** Responses engine: the current round's response, for resuming. */
+  response_id: string | null;
+  round: Generated<number>;
+  prompt_version: number | null;
+  paths: string | null;
 }
 export interface FilesTable {
   id: string;
@@ -157,9 +167,32 @@ export interface WarmEnvironmentsTable {
   template_id: string;
   created_at: DefaultTimestamp;
 }
+export interface ResponsesTable {
+  id: string;
+  conversation_id: string;
+  run_id: string | null;
+  created_at: DefaultTimestamp;
+}
+export interface ContainersTable {
+  id: string;
+  conversation_id: string;
+  created_at: DefaultTimestamp;
+}
+export interface ContainerFilesTable {
+  container_id: string;
+  file_id: string;
+}
+export interface PromptsTable {
+  version: Generated<number>;
+  sha256: string;
+  text: string;
+  source: string | null;
+  active: Generated<boolean>;
+  created_at: DefaultTimestamp;
+}
 export interface UsageTable {
   id: string;
-  kind: "session" | "warm";
+  kind: "session" | "warm" | "response" | "container";
   owner_id: string;
   conversation_id: string | null;
   model: string | null;
@@ -193,6 +226,10 @@ export interface Database {
   agent21_session_files: SessionFilesTable;
   agent21_warm_environments: WarmEnvironmentsTable;
   agent21_usage: UsageTable;
+  agent21_responses: ResponsesTable;
+  agent21_containers: ContainersTable;
+  agent21_container_files: ContainerFilesTable;
+  agent21_prompts: PromptsTable;
 }
 export type Run = Selectable<RunsTable>;
 export type FileRow = Selectable<FilesTable>;

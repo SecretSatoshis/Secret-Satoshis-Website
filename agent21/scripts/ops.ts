@@ -1,4 +1,11 @@
+import { readFileSync } from "node:fs";
+import { basename } from "node:path";
 import { sql } from "kysely";
+import {
+  activatePrompt,
+  publishedText,
+  publishPrompt,
+} from "../lib/agent21/responses/prompt";
 import { closeDatabase, db } from "../lib/agent21/db";
 import { migrator } from "../lib/agent21/migrations";
 import {
@@ -8,6 +15,7 @@ import {
   missingCredentials,
 } from "../lib/agent21/config";
 import { logDiagnostic, storedDiagnostic } from "../lib/agent21/diagnostics";
+import { engine } from "../lib/agent21/engine";
 import { sessionReport } from "./ops-session";
 import { costReport } from "./ops-costs";
 import { dailyCosts } from "./costs";
@@ -23,6 +31,7 @@ function configuration() {
   });
   const release = process.env.AGENT21_RUNTIME_VERSION ?? "";
   return {
+    engine: engine(),
     mode: isLoopbackDevelopment() ? "loopback_development" : "deployment",
     environment: ["development", "production", "test"].includes(
       process.env.NODE_ENV ?? "",
@@ -45,11 +54,15 @@ function configuration() {
     missingConfiguration: missingCredentials(),
     providers: {
       clerk: group(["CLERK_SECRET_KEY", "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"]),
-      openai: group([
-        "OPENAI_API_KEY",
-        "AGENT21_AGENT_ID",
-        "AGENT21_ENVIRONMENT_TEMPLATE_ID",
-      ]),
+      openai: group(
+        engine() === "agents"
+          ? [
+              "OPENAI_API_KEY",
+              "AGENT21_AGENT_ID",
+              "AGENT21_ENVIRONMENT_TEMPLATE_ID",
+            ]
+          : ["OPENAI_API_KEY", "AGENT21_SKILLS"],
+      ),
       neon: group(["DATABASE_URL"]),
       blob: {
         configuration: present("BLOB_STORE_ID")
@@ -257,6 +270,44 @@ try {
     );
     console.table(timing);
     console.log(`Session items, turns and traces saved to ${file}`);
+  } else if (args[0] === "prompt") {
+    // The system prompt, published from the private repo. Only versions,
+    // checksums and sizes are printed, never the text.
+    const flag = (name: string) => {
+      const i = args.indexOf(name);
+      return i > 0 ? args[i + 1] : undefined;
+    };
+    if (args[1] === "publish" && args[2]) {
+      const instructions = readFileSync(args[2], "utf8");
+      const voice = flag("--voice");
+      const text = publishedText(
+        instructions,
+        voice ? readFileSync(voice, "utf8") : undefined,
+      );
+      const result = await publishPrompt(text, basename(args[2]));
+      console.log(
+        `${result.reused ? "Reactivated" : "Published"} prompt v${result.version} (${text.length} characters, sha256 ${result.sha256.slice(0, 12)}).`,
+      );
+    } else if (args[1] === "list") {
+      const rows = await db()
+        .selectFrom("agent21_prompts")
+        .select(["version", "sha256", "source", "active", "created_at"])
+        .select(sql<number>`length(text)`.as("characters"))
+        .orderBy("version", "desc")
+        .limit(20)
+        .execute();
+      console.table(
+        rows.map((row) => ({ ...row, sha256: row.sha256.slice(0, 12) })),
+      );
+    } else if (args[1] === "activate" && /^\d+$/.test(args[2] ?? "")) {
+      await activatePrompt(Number(args[2]));
+      console.log(`Prompt v${args[2]} is active.`);
+    } else {
+      console.error(
+        "Use ops prompt publish <instructions.md> [--voice <voice-guide.md>], ops prompt list, or ops prompt activate <version>.",
+      );
+      process.exitCode = 1;
+    }
   } else if (args[0] === "costs") {
     // Estimated spend per account, conversation and session; owner IDs are
     // shown because the allowance is per account.
@@ -285,7 +336,7 @@ try {
     args.some((a, i) => i > 0 && a !== "--json")
   ) {
     console.error(
-      "Use ops report [--json], ops costs [--user <id>] [--conversation <id>] [--json], or ops session <conversation-id>. Load the private environment first.",
+      "Use ops report [--json], ops costs [--user <id>] [--conversation <id>] [--json], ops session <conversation-id>, or ops prompt publish|list|activate. Load the private environment first.",
     );
     process.exitCode = 1;
   } else {

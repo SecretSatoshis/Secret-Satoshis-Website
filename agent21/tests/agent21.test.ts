@@ -23,12 +23,14 @@ test("webhook credentials are optional only for loopback development; production
     "BLOB_STORE_ID",
     "BLOB_READ_WRITE_TOKEN",
     "BLOB_WEBHOOK_PUBLIC_KEY",
+    "AGENT21_ENGINE",
   ];
   const before = Object.fromEntries(
     names.map((name) => [name, process.env[name]]),
   );
   try {
     for (const name of credentialNames) process.env[name] = "configured";
+    process.env.AGENT21_ENGINE = "agents";
     process.env.BLOB_STORE_ID = "store_configured";
     process.env.BLOB_WEBHOOK_PUBLIC_KEY = "configured";
     delete process.env.OPENAI_WEBHOOK_SECRET;
@@ -65,6 +67,22 @@ test("webhook credentials are optional only for loopback development; production
     assert.deepEqual(missingCredentials(), ["AGENT21_MCP_VAULT_ID"]);
     process.env.AGENT21_MCP_VAULT_ID = "vault_configured";
     assert.equal(configured(), true);
+    // The Responses engine needs neither the Agents settings nor session
+    // webhooks, but does need the skill versions its shell mounts.
+    process.env.AGENT21_ENGINE = "responses";
+    for (const name of [
+      "AGENT21_AGENT_ID",
+      "AGENT21_ENVIRONMENT_TEMPLATE_ID",
+      "AGENT21_RUNTIME_VERSION",
+      "AGENT21_MCP_VAULT_ID",
+      "OPENAI_WEBHOOK_SECRET",
+    ])
+      delete process.env[name];
+    process.env.CLERK_WEBHOOK_SIGNING_SECRET = "configured";
+    Object.assign(process.env, { NODE_ENV: "production" });
+    assert.deepEqual(missingCredentials(), []);
+    delete process.env.AGENT21_SKILLS;
+    assert.deepEqual(missingCredentials(), ["AGENT21_SKILLS"]);
   } finally {
     for (const name of names) {
       if (before[name] === undefined) delete process.env[name];

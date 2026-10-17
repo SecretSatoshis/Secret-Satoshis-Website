@@ -7,6 +7,7 @@ import { terminal } from "./types";
 import { environmentId, openai, publicText, turnItems } from "./openai";
 import { activity, note, progressFromItems, waiting } from "./progress";
 import { runHookToken } from "./runner";
+import { runEngine } from "./engine";
 
 const ENDED = [
   "agent.session.turn.completed",
@@ -53,6 +54,37 @@ export function runStream(owner: string, id: string, signal: AbortSignal) {
       try {
         const deadline = Date.now() + 45_000;
         let streamed = false;
+        // The Responses engine writes progress and the answer as it is
+        // written to the run's display; the stream relays each change.
+        if (runEngine(await ownedRun(owner, id)) === "responses") {
+          let shownProgress = "";
+          let shownText = "";
+          let first = true;
+          while (!stopped && Date.now() < deadline) {
+            const row = await ownedRun(owner, id);
+            if (first || settled(row.state)) {
+              send({ type: "snapshot", run: runView(row) });
+              first = false;
+              shownText = row.display.text ?? "";
+            }
+            if (settled(row.state)) break;
+            const progress = JSON.stringify({
+              progress: row.display.progress ?? "Thinking",
+              note: row.display.note ?? "",
+            });
+            if (progress !== shownProgress) {
+              shownProgress = progress;
+              send({ type: "progress", ...JSON.parse(progress) });
+            }
+            const text = row.display.text ?? "";
+            if (text && text !== shownText) {
+              shownText = text;
+              send({ type: "text", text });
+            }
+            await new Promise((resolve) => setTimeout(resolve, 250));
+          }
+          return;
+        }
         while (!stopped && Date.now() < deadline) {
           const row = await ownedRun(owner, id);
           // After the provider stream ends, send only the settled snapshot: an

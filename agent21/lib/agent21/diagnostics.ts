@@ -27,6 +27,8 @@ const events = [
   // started cold instead.
   "warm_environment_unused",
   "usage_not_recorded",
+  "display_not_saved",
+  "answer_withheld",
 ] as const;
 type Event = (typeof events)[number];
 const codes = new Set([

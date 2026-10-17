@@ -12,6 +12,9 @@ import { setOpenAIForTests } from "../lib/agent21/openai";
  */
 export async function testDatabase() {
   Object.assign(process.env, { NODE_ENV: "test" });
+  // The recovery suites exercise the dormant Agents engine; the Responses
+  // engine's tests choose it explicitly.
+  process.env.AGENT21_ENGINE ??= "agents";
   const pg = new PGlite();
   // Parameterless statements (migrations, BEGIN/COMMIT) may hold several
   // commands, which only the simple query protocol accepts.

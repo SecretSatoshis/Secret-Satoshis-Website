@@ -1,3 +1,4 @@
+import { engine } from "./engine";
 import { randomUUID } from "node:crypto";
 import { sql } from "kysely";
 import { z } from "zod";
@@ -48,7 +49,8 @@ export async function liveSession(id: string) {
  * pre-warmed one is waiting. The browser asks when the user starts writing.
  */
 export async function warmEnvironment(owner: string, body: unknown) {
-  if (!enabled()) return { status: "off" as const };
+  // The Responses engine answers without a sandbox to start.
+  if (!enabled() || engine() === "responses") return { status: "off" as const };
   const { conversationId } = z
     .object({ conversationId: z.uuid().optional() })
     .strict()
